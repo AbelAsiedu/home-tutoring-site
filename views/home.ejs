@@ -1,0 +1,260 @@
+<%- include('partials/header') %>
+  <!-- Hero slideshow (full width) -->
+  <section class="hero-slideshow">
+    <div class="hero-slideshow-inner">
+      <% if (slides && slides.length) { %>
+        <% slides.forEach(function(s,i){ %>
+          <div class="slide"><img src="<%= s.value %>" alt="slide-<%= i %>"></div>
+        <% }) %>
+      <% } else { %>
+        <div class="slide"><img src="/images/slide2.svg" alt="slide-default"></div>
+        <div class="slide"><img src="/images/slide2.svg" alt="slide-default-2"></div>
+        <div class="slide"><img src="/images/slide2.svg" alt="slide-default-3"></div>
+      <% } %>
+    </div>
+  </section>
+
+<main class="container">
+  <section class="hero">
+    <div class="hero-left">
+      <h1>Personalised tutoring that builds confident learners</h1>
+      <p class="lead">One-to-one lessons from vetted tutors, curriculum-aligned resources and flexible scheduling — for Primary, JHS, SHS and international programmes.</p>
+      <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;">
+        <a href="/curriculum" class="cta">Explore Curriculum</a>
+        <a href="/apply" class="btn">Become a Tutor</a>
+      </div>
+      <div class="trust-logos" style="margin-top:18px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <div class="card small muted">Trusted by schools</div>
+        <div class="card small muted">1000+ Lessons Delivered</div>
+        <div class="card small muted">Verified Tutors</div>
+      </div>
+    </div>
+
+    <div class="hero-right glass">
+      <div class="booking-card">
+        <h3>Book a free trial</h3>
+        <p class="muted">Enter details and we'll match a tutor for a 30-minute trial session.</p>
+        <form action="/contact" method="post">
+          <input name="name" placeholder="Full name" required />
+          <input name="phone" placeholder="Phone or WhatsApp" required />
+          <select name="level">
+            <option value="Primary">Primary</option>
+            <option value="JHS">JHS</option>
+            <option value="SHS">SHS</option>
+            <option value="IGCSE/A-levels">IGCSE / A-Levels</option>
+          </select>
+          <button class="btn" type="submit">Request trial</button>
+        </form>
+        <div class="muted" style="font-size:0.9rem;margin-top:8px">Or call/WhatsApp <strong>+233 24 000 0000</strong></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="features" style="margin-top:22px">
+    <div class="feature-card glass">
+      <h4>Vetted tutors</h4>
+      <p class="muted">Academic background checks and teaching experience.</p>
+    </div>
+    <div class="feature-card glass">
+      <h4>Flexible lessons</h4>
+      <p class="muted">Online or in-person, weekdays and weekends.</p>
+    </div>
+    <div class="feature-card glass">
+      <h4>Resources & assessments</h4>
+      <p class="muted">Books, worksheets and progress reports.</p>
+    </div>
+  </section>
+
+  <section class="how-it-works" style="margin-top:28px">
+    <h2>How it works</h2>
+    <div class="steps-grid">
+      <div class="step card glass">
+        <strong>1. Request a trial</strong>
+        <p class="muted">Tell us your goals and availability — we'll match a tutor.</p>
+      </div>
+      <div class="step card glass">
+        <strong>2. Meet your tutor</strong>
+        <p class="muted">Start with a free 30-minute lesson to see the fit.</p>
+      </div>
+      <div class="step card glass">
+        <strong>3. Track progress</strong>
+        <p class="muted">Get reports, homework and recommendations after each lesson.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="platform" style="margin-top:28px">
+    <h2>Learning platform & technology</h2>
+    <div class="platform-grid">
+      <div class="platform-card card glass">
+        <h4>Live lessons</h4>
+        <p class="muted">High-quality video lessons, screen sharing and interactive whiteboard.</p>
+      </div>
+      <div class="platform-card card glass">
+        <h4>Recordings & resources</h4>
+        <p class="muted">Lesson recordings, worksheets and a library of resources available after class.</p>
+      </div>
+      <div class="platform-card card glass">
+        <h4>Parental dashboard</h4>
+        <p class="muted">View progress, upcoming lessons and billing in a secure dashboard.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="assessments" style="margin-top:28px">
+    <h2>Assessments & reporting</h2>
+    <p class="muted">Regular formative assessments, personalised learning plans and termly reports to track improvement.</p>
+  </section>
+
+  <section class="safeguarding" style="margin-top:28px">
+    <h2>Safeguarding & quality</h2>
+    <p class="muted">All tutors are vetted, background-checked and trained in child safeguarding. We maintain strict quality assurance.</p>
+  </section>
+
+  <section class="pricing" style="margin-top:28px">
+    <h2>Plans & pricing</h2>
+    <div class="pricing-grid">
+      <div class="plan card glass">
+        <h3>Starter</h3>
+        <div class="muted">Single lessons and one-off bookings</div>
+        <div class="price">GHS 65 / lesson</div>
+        <a href="/contact" class="btn">Get started</a>
+      </div>
+      <div class="plan card glass">
+        <h3>Regular</h3>
+        <div class="muted">Weekly lessons & progress review</div>
+        <div class="price">GHS 150 / lesson</div>
+        <a href="/contact" class="btn">Sign up</a>
+      </div>
+      <div class="plan card glass">
+        <h3>Premium</h3>
+        <div class="muted">Dedicated tutor, assessments & reports</div>
+        <div class="price">GHS 200 / lesson</div>
+        <a href="/contact" class="btn">Contact us</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="tutors-preview" style="margin-top:28px">
+    <h2>Meet a few of our tutors</h2>
+    <div class="tutor-grid">
+      <% for (var i=0;i<3;i++) { %>
+        <div class="tutor card glass">
+          <img src="/images/tutor-placeholder.svg" alt="tutor" />
+          <div class="tutor-name">Jane Doe</div>
+          <div class="muted">Math & Science • B.Ed, University</div>
+        </div>
+      <% } %>
+    </div>
+  </section>
+
+  <section class="testimonials" style="margin-top:28px">
+    <h2>What parents say</h2>
+    <div class="testimonial-grid">
+      <div class="testimonial card glass">
+        <p>"Our daughter's confidence improved after just 6 lessons — highly recommended."</p>
+        <div class="muted">— Ama, Accra</div>
+      </div>
+      <div class="testimonial card glass">
+        <p>"Great tutors and flexible scheduling — a lifesaver."</p>
+        <div class="muted">— Kofi, Kumasi</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="approach" style="margin-top:32px">
+    <h2>Our approach to learning</h2>
+    <div class="approach-grid">
+      <div class="card glass">
+        <h4>Personalised learning</h4>
+        <p class="muted">We tailor lessons to each learner's goals and learning style, not a one-size-fits-all plan.</p>
+      </div>
+      <div class="card glass">
+        <h4>Evidence-based practice</h4>
+        <p class="muted">Progress is guided by formative assessments and targeted feedback so time spent is effective.</p>
+      </div>
+      <div class="card glass">
+        <h4>Curriculum-aligned</h4>
+        <p class="muted">Lessons and resources map to national and international curricula, from Primary through A-Levels.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="subjects" style="margin-top:28px">
+    <h2>Subjects we teach</h2>
+    <div class="subjects-grid">
+      <div class="card glass"><strong>Mathematics</strong><div class="muted">Primary → A-Level</div></div>
+      <div class="card glass"><strong>English</strong><div class="muted">Comprehension, grammar & literature</div></div>
+      <div class="card glass"><strong>Science</strong><div class="muted">Physics, Chemistry & Biology</div></div>
+      <div class="card glass"><strong>Computer Science</strong><div class="muted">ICT, programming & digital skills</div></div>
+      <div class="card glass"><strong>Accounting</strong><div class="muted">Syllabus-aligned exam prep</div></div>
+      <div class="card glass"><strong>Languages</strong><div class="muted">French & other languages</div></div>
+    </div>
+  </section>
+
+  <section class="trust" style="margin-top:28px">
+    <h2>Safety, vetting & accreditation</h2>
+    <p class="muted">All tutors are background-checked and reviewed; we follow strong safeguarding procedures and quality assurance.</p>
+    <div class="accreditation-logos" style="margin-top:12px;display:flex;gap:12px;flex-wrap:wrap">
+      <div class="card small muted">DBS-checked*</div>
+      <div class="card small muted">Certified tutors</div>
+      <div class="card small muted">Partner schools</div>
+    </div>
+  </section>
+
+  <section class="faq" style="margin-top:28px">
+    <h2>Frequently asked questions</h2>
+    <div class="faq-list">
+      <div class="faq-item card glass">
+        <button class="faq-question">How do trial lessons work?</button>
+        <div class="faq-answer muted">Trial lessons are 30 minutes; they help you assess fit and are free when you sign up for a package.</div>
+      </div>
+      <div class="faq-item card glass">
+        <button class="faq-question">Can I change tutors?</button>
+        <div class="faq-answer muted">Yes. If the match isn't right we'll help you find another tutor quickly.</div>
+      </div>
+      <div class="faq-item card glass">
+        <button class="faq-question">Do you provide lesson recordings?</button>
+        <div class="faq-answer muted">Yes — recordings and resources are available in the parental dashboard after each session.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta-banner glass" style="margin-top:28px;padding:22px;display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <h3>Ready to start?</h3>
+      <div class="muted">Book a free trial and we'll match a tutor to your goals and schedule.</div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <a href="/apply" class="btn">Become a tutor</a>
+      <a href="/contact" class="cta">Request a free trial</a>
+    </div>
+  </section>
+
+  <section class="products" style="margin-top:28px">
+    <h2>Course books & Resources</h2>
+    <p class="muted">Explore our full shop for course books, workbooks and teaching resources.</p>
+    <div style="margin-top:12px">
+      <a href="/estore" class="btn">View all resources</a>
+    </div>
+    <div class="product-grid" style="margin-top:18px">
+      <% products.slice(0,4).forEach(function(p){ %>
+        <div class="product glass">
+          <% if (p.image_path) { %>
+            <img src="<%= p.image_path %>" alt="<%= p.title %>">
+          <% } else { %>
+            <img src="/images/book-placeholder.svg" alt="<%= p.title %>">
+          <% } %>
+          <h3><%= p.title %></h3>
+          <p><%= p.description && p.description.length > 140 ? p.description.substring(0,137) + '...' : p.description %></p>
+          <p class="price">GHS <%= p.price %></p>
+          <div style="display:flex;gap:8px">
+            <a href="/product/<%= p.id %>" class="btn">View</a>
+            <form action="/cart/add" method="post" style="margin:0"><input type="hidden" name="id" value="<%= p.id %>"><button type="submit" class="btn">Add to cart</button></form>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  </section>
+</main>
+<%- include('partials/footer') %>

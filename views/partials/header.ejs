@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>The Modern Pedagogues</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+
+  <header class="site-header">
+    <div class="nav-inner container">
+      <div class="brand">
+        <span class="logo"></span>
+        <span class="brand-text">The Modern Pedagogues</span>
+      </div>
+      <nav class="nav-links">
+        <a href="/">Home</a>
+        <a href="/about">About Us</a>
+        <a href="/curriculum">Curriculum</a>
+        <a href="/estore">E-Store</a>
+        <a href="/apply">Apply as a Teacher</a>
+        <a href="/contact">Contact Us</a>
+        <a href="/cart">Cart <% if (typeof cartCount !== 'undefined' && cartCount > 0) { %><span class="badge"><%= cartCount %></span><% } %></a>
+        <div class="mini-cart">
+          <% if (cartItems && cartItems.length) { %>
+            <ul>
+              <% (cartItems || []).forEach(function(item){ %>
+                <li data-cart-id="<%= item.id %>"><%= item.title %> x <%= item.qty %>
+                  <form method="post" action="/cart/remove" style="display:inline">
+                    <input type="hidden" name="id" value="<%= item.id %>">
+                    <button class="btn-link small" type="submit">Deselect</button>
+                  </form>
+                </li>
+              <% }) %>
+            </ul>
+            <button class="close-btn" id="cart-close-server" aria-label="Close">×</button>
+            <a href="/cart" class="button">View cart</a>
+            <form method="post" action="/cart/clear" style="display:inline">
+              <button class="button alt" type="submit">Clear cart</button>
+            </form>
+            <button id="cart-cancel-server" class="button ghost">Cancel</button>
+          <% } else { %>
+            <div class="muted" style="padding:12px">Your cart is empty.</div>
+          <% } %>
+        </div>
+      </nav>
+      <button class="nav-toggle" aria-label="Toggle menu">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 7h18M3 12h18M3 17h18" stroke="#083344" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+      </button>
+
+      <div class="nav-actions">
+        <% if (user) { %>
+          <a href="/account" class="btn ghost">Hi <%= user.name %></a>
+          <a href="/logout" class="btn">Logout</a>
+        <% } else { %>
+          <a href="/login" class="btn ghost">Login</a>
+          <a href="/signup" class="btn">Sign up</a>
+        <% } %>
+      </div>
+    </div>
+  </header>

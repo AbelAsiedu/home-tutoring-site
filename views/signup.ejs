@@ -1,0 +1,14 @@
+<%- include('partials/header') %>
+
+<section class="page glass">
+  <h1>Sign Up</h1>
+  <% if (typeof error !== 'undefined') { %><div class="notice error"><%= error %></div><% } %>
+  <form method="post" class="auth-form curved">
+    <input name="name" placeholder="Full name" required>
+    <input name="email" type="email" placeholder="Email" required>
+    <input name="password" type="password" placeholder="Password" required>
+    <button type="submit">Create Account</button>
+  </form>
+</section>
+
+<%- include('partials/footer') %>

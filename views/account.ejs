@@ -1,0 +1,12 @@
+<%- include('partials/header') %>
+
+<section class="page glass">
+  <h1>Your Account</h1>
+  <div class="account-box curved">
+    <p><strong>Name:</strong> <%= user.name %></p>
+    <p><strong>Email:</strong> <%= user.email %></p>
+    <p><a href="/cart">Your Cart</a></p>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

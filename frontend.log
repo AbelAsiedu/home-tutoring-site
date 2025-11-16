@@ -1,0 +1,43 @@
+
+> frontend@1.0.0 dev
+> next dev -p 3001
+
+   ▲ Next.js 14.0.0
+   - Local:        http://localhost:3001
+
+ ✓ Ready in 1364ms
+ ○ Compiling / ...
+ ✓ Compiled / in 946ms (244 modules)
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 1127ms (246 modules)
+ ✓ Compiled in 296ms (246 modules)
+ ⚠ Found a change in next.config.js. Restarting the server to apply the changes...
+   ▲ Next.js 14.0.0
+   - Local:        http://localhost:3001
+
+ ✓ Ready in 1433ms
+(node:55470) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ○ Compiling / ...
+ ✓ Compiled / in 2.7s (251 modules)
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 723ms (253 modules)
+ ✓ Compiled /curriculum in 167ms (257 modules)
+ ⚠ Found a change in next.config.js. Restarting the server to apply the changes...
+   ▲ Next.js 14.0.0
+   - Local:        http://localhost:3001
+
+ ✓ Ready in 1806ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 2.5s (203 modules)
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ✓ Compiled / in 332ms (253 modules)
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+(node:68756) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ Compiled /curriculum in 335ms (257 modules)
+ ✓ Compiled /apply in 129ms (261 modules)
+ ✓ Compiled /about in 121ms (265 modules)
+ ✓ Compiled /contact in 112ms (271 modules)
+ ✓ Compiled /cart in 122ms (275 modules)
+Killed

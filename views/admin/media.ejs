@@ -1,0 +1,14 @@
+<%- include('../layout', { body: (function(){ %>
+  <section class="page glass">
+    <h1>Media Manager</h1>
+    <form action="/admin/media/upload" method="post" enctype="multipart/form-data" class="curved">
+      <input type="file" name="file" accept="image/*">
+      <button type="submit">Upload</button>
+    </form>
+    <div class="media-grid">
+      <% files.forEach(function(f){ %>
+        <div class="media-item glass"><img src="<%= f %>" style="max-width:160px;display:block"><p><%= f %></p></div>
+      <% }) %>
+    </div>
+  </section>
+<% }).call(this) }) %>

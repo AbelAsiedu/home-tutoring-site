@@ -1,0 +1,19 @@
+<%- include('../layout', { body: (function(){ %>
+  <section class="page glass">
+    <h1>Admin Dashboard</h1>
+    <div class="admin-stats curved">
+      <div class="stat glass">Users: <%= stats.users %></div>
+      <div class="stat glass">Products: <%= stats.products %></div>
+      <div class="stat glass">Orders: <%= stats.orders %></div>
+      <div class="stat glass">Messages: <%= stats.messages %></div>
+    </div>
+    <div class="admin-actions">
+      <a href="/admin/messages" class="btn">View Messages</a>
+      <a href="/admin/applications" class="btn">View Applications</a>
+      <a href="/admin/products" class="btn">Manage Products</a>
+      <a href="/admin/orders" class="btn">Orders</a>
+      <a href="/admin/content" class="btn">Edit Content</a>
+      <a href="/admin/media" class="btn">Media Manager</a>
+    </div>
+  </section>
+<% }).call(this) }) %>

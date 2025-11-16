@@ -1,0 +1,16 @@
+<%- include('../layout', { body: (function(){ %>
+  <section class="page glass">
+    <h1>Edit Site Content</h1>
+    <form action="/admin/content" method="post" class="curved">
+      <label>Key (e.g. about_text, slide_1, curriculum_GES)</label>
+      <input name="key" required>
+      <label>Value (HTML allowed)</label>
+      <textarea id="editor" name="value"></textarea>
+      <button type="submit">Save Content</button>
+    </form>
+    <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+    <script>
+      tinymce.init({ selector: '#editor', height: 300 });
+    </script>
+  </section>
+<% }).call(this) }) %>

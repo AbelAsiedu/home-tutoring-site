@@ -1,0 +1,20 @@
+<%- include('partials/header') %>
+
+<section class="page glass">
+  <h1>About The Modern Pedagogues</h1>
+  <div class="content curved">
+    <% if (about) { %>
+      <p><%= about %></p>
+    <% } else { %>
+      <p>The Modern Pedagogues was founded to bring quality home tutoring to families. Our tutors are experienced and vetted, and our lessons align with global curricula from GES to Cambridge and North American programs.</p>
+    <% } %>
+    <h3>Why choose us?</h3>
+    <ul>
+      <li>Experienced tutors across curricula</li>
+      <li>Tailored lesson plans</li>
+      <li>Parent-friendly reporting and scheduling</li>
+    </ul>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

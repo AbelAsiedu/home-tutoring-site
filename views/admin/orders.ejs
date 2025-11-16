@@ -1,0 +1,24 @@
+<%- include('../layout', { body: (function(){ %>
+  <section class="page glass">
+    <h1>Orders</h1>
+    <div class="list curved">
+      <% orders.forEach(function(o){ %>
+        <div class="item glass">
+          <strong>Order: <%= o.id %></strong>
+          <p>Items: <%= o.items %></p>
+          <p>Total: GHS <%= o.total %></p>
+          <p>Payment: <%= o.payment_method %> <% if (o.momo_number) { %> (Momo: <%= o.momo_number %>) <% } %></p>
+          <p>Status: <%= o.status %></p>
+          <form method="post" action="/admin/orders/<%= o.id %>/status">
+            <select name="status">
+              <option value="pending" <%= o.status==='pending'?'selected':'' %>>Pending</option>
+              <option value="paid" <%= o.status==='paid'?'selected':'' %>>Paid</option>
+              <option value="cancelled" <%= o.status==='cancelled'?'selected':'' %>>Cancelled</option>
+            </select>
+            <button type="submit">Update</button>
+          </form>
+        </div>
+      <% }) %>
+    </div>
+  </section>
+<% }).call(this) }) %>

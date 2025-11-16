@@ -1,0 +1,4 @@
+Test CV for automated smoke test
+Name: Test Teacher
+Experience: 3 years tutoring
+Skills: Math, English

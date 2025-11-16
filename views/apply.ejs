@@ -1,0 +1,19 @@
+<%- include('partials/header') %>
+
+<section class="page glass">
+  <h1>Apply as a Teacher</h1>
+  <% if (typeof success !== 'undefined' && success) { %>
+    <div class="notice success">Application received. We'll contact you shortly.</div>
+  <% } %>
+  <form method="post" enctype="multipart/form-data" class="apply-form curved">
+    <input name="name" placeholder="Full name" required>
+    <input name="email" type="email" placeholder="Email" required>
+    <input name="phone" placeholder="Phone number">
+    <textarea name="message" placeholder="Tell us about your experience"></textarea>
+    <label class="file">Upload CV (PDF/DOC)</label>
+    <input name="cv" type="file" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+    <button type="submit">Submit Application</button>
+  </form>
+</section>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,27 @@
+<%- include('partials/header') %>
+
+<section class="page glass">
+  <h1>Your Cart</h1>
+  <% if (!items.length) { %>
+    <p>Your cart is empty.</p>
+  <% } else { %>
+    <table class="cart-table curved">
+      <thead><tr><th>Title</th><th>Qty</th><th>Price</th></tr></thead>
+      <tbody>
+        <% items.forEach(function(it){ %>
+          <tr><td><%= it.title %></td><td><%= it.qty %></td><td>GHS <%= (it.qty * it.price).toFixed(2) %></td></tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <form action="/checkout" method="post" class="checkout-form curved">
+      <h3>Checkout</h3>
+      <label><input type="radio" name="payment_method" value="card" checked> Credit/Debit Card</label>
+      <input name="card_number" placeholder="Card number (simulated)">
+      <label><input type="radio" name="payment_method" value="momo"> Mobile Money (Momo)</label>
+      <input name="momo_number" placeholder="Momo number">
+      <button type="submit">Place Order</button>
+    </form>
+  <% } %>
+</section>
+
+<%- include('partials/footer') %>

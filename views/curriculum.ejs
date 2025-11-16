@@ -1,0 +1,35 @@
+<%- include('partials/header') %>
+
+<section class="page glass">
+  <h1>Our Curricula</h1>
+  <div class="curriculum-list curved">
+    <% if (curr && curr.length) { %>
+      <% curr.forEach(function(c){ %>
+        <div class="curr-item glass"><h3><%= c.key.replace('curriculum_','') %></h3><p><%= c.value %></p></div>
+      <% }) %>
+    <% } else { %>
+      <div class="curr-item glass"><h3>GES</h3><p>Ghana Education Service curriculum aligned tutoring</p></div>
+      <div class="curr-item glass"><h3>Cambridge</h3><p>IGCSE / A-Level focused learning</p></div>
+      <div class="curr-item glass"><h3>Canadian & US</h3><p>North American curriculum tutoring and test prep</p></div>
+    <% } %>
+  </div>
+
+  <h2>Course Books</h2>
+  <div class="product-grid">
+    <% products.forEach(function(p){ %>
+        <div class="product glass">
+        <% if (p.image_path) { %>
+          <img src="<%= p.image_path %>" alt="<%= p.title %>">
+        <% } else { %>
+          <img src="/images/book-placeholder.svg" alt="<%= p.title %>">
+        <% } %>
+        <h3><%= p.title %></h3>
+        <p><%= p.description %></p>
+        <p class="price">GHS <%= p.price %></p>
+        <form action="/cart/add" method="post"><input type="hidden" name="id" value="<%= p.id %>"><button type="submit" class="btn">Add to cart</button></form>
+      </div>
+    <% }) %>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

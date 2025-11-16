@@ -1,0 +1,14 @@
+<%- include('../layout', { body: (function(){ %>
+  <section class="page glass">
+    <h1>Teacher Applications</h1>
+    <div class="list curved">
+      <% apps.forEach(function(a){ %>
+        <div class="item glass">
+          <strong><%= a.name %></strong> (<%= a.email %>) - <%= a.phone %>
+          <p><%= a.message %></p>
+          <% if (a.cv_path) { %><p><a href="<%= a.cv_path %>" target="_blank">Download CV</a></p><% } %>
+        </div>
+      <% }) %>
+    </div>
+  </section>
+<% }).call(this) }) %>

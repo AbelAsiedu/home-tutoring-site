@@ -1,0 +1,10 @@
+<%- include('../layout', { body: (function(){ %>
+  <section class="page glass">
+    <h1>Messages</h1>
+    <div class="list curved">
+      <% messages.forEach(function(m){ %>
+        <div class="item glass"><strong><%= m.name %></strong> (<%= m.email %>) <p><%= m.message %></p></div>
+      <% }) %>
+    </div>
+  </section>
+<% }).call(this) }) %>
