@@ -2,11 +2,9 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/estore": "pages/estore.js",
-  "/curriculum": "pages/curriculum.js",
-  "/tutors": "pages/tutors.js",
   "/": "pages/index.js",
+  "/tutors": "pages/tutors.js",
+  "/apply": "pages/apply.js",
   "/about": "pages/about.js",
-  "/contact": "pages/contact.js",
-  "/apply": "pages/apply.js"
+  "/contact": "pages/contact.js"
 }

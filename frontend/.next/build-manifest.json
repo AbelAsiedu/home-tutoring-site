@@ -42,16 +42,6 @@
       "static/chunks/main.js",
       "static/chunks/pages/contact.js"
     ],
-    "/curriculum": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/curriculum.js"
-    ],
-    "/estore": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/estore.js"
-    ],
     "/tutors": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
