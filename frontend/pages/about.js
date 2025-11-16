@@ -20,29 +20,46 @@ export default function About(){
   return (
     <div>
       <Header />
+      <section className="hero-slideshow" style={{height:220}}>
+        <div className="hero-slideshow-inner" style={{position:'relative',height:'100%'}}>
+          <div className="slide"><img src="/images/hero-illustration.svg" alt="slide-1" style={{width:'100%',height:'100%',objectFit:'cover'}}/></div>
+          <div className="slide"><img src="/images/slide2.svg" alt="slide-2" style={{width:'100%',height:'100%',objectFit:'cover'}}/></div>
+          <div className="slide"><img src="/images/hero-illustration.svg" alt="slide-3" style={{width:'100%',height:'100%',objectFit:'cover'}}/></div>
+        </div>
+      </section>
       <main className="container">
         <div className="glass" style={{padding:20,marginTop:18}}>
           <h1>About The Modern Pedagogues</h1>
           {error ? <div className="muted">Could not load about content</div> : <div className="muted" dangerouslySetInnerHTML={{__html: aboutHtml}} />}
         </div>
 
-        <section style={{marginTop:18}} className="glass">
-          <h2>Meet Our Tutors</h2>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:12}}>
-            <div style={{padding:12,textAlign:'center'}}>
-              <img src="/images/tutor-placeholder.svg" alt="Tutor" style={{width:140,height:140}} />
-              <h4>Jane Doe</h4>
-              <div className="muted">Math • 6 years experience</div>
+        <section className="lesson-plans glass" style={{marginTop:18}}>
+          <h2>Lesson Plans</h2>
+          <p className="muted">Structured lesson plans mapped to curricula, with weekly objectives, topics and suggested resources. Each plan includes learning outcomes and recommended supporting materials.</p>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:12,marginTop:12}}>
+            <div className="plan-card">
+              <h4>Primary</h4>
+              <ul className="muted">
+                <li>Weekly focus: Number sense, basic operations</li>
+                <li>Objectives: Fluency with addition/subtraction, introduction to multiplication</li>
+                <li>Resources: Workbooks, flashcards, practice worksheets</li>
+              </ul>
             </div>
-            <div style={{padding:12,textAlign:'center'}}>
-              <img src="/images/tutor-placeholder.svg" alt="Tutor" style={{width:140,height:140}} />
-              <h4>Kwame Mensah</h4>
-              <div className="muted">English • 8 years experience</div>
+            <div className="plan-card">
+              <h4>Junior High (JHS)</h4>
+              <ul className="muted">
+                <li>Weekly focus: Algebra foundations, reading comprehension</li>
+                <li>Objectives: Solve simple equations, inferential reading</li>
+                <li>Resources: Curriculum-aligned textbooks, past papers</li>
+              </ul>
             </div>
-            <div style={{padding:12,textAlign:'center'}}>
-              <img src="/images/tutor-placeholder.svg" alt="Tutor" style={{width:140,height:140}} />
-              <h4>Amelia Smith</h4>
-              <div className="muted">Science • 5 years experience</div>
+            <div className="plan-card">
+              <h4>Senior High (SHS)</h4>
+              <ul className="muted">
+                <li>Weekly focus: Exam techniques, advanced topics</li>
+                <li>Objectives: Apply concepts to problem-solving, exam practice</li>
+                <li>Resources: Revision guides, topic tests, recordings</li>
+              </ul>
             </div>
           </div>
         </section>

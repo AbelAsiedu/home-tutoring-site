@@ -5,6 +5,13 @@ export default function Tutors(){
   return (
     <div>
       <Header />
+      <section className="hero-slideshow" style={{height:220}}>
+        <div className="hero-slideshow-inner" style={{position:'relative',height:'100%'}}>
+          <div className="slide"><img src="/images/slide2.svg" alt="slide-1" style={{width:'100%',height:'100%',objectFit:'cover'}}/></div>
+          <div className="slide"><img src="/images/hero-illustration.svg" alt="slide-2" style={{width:'100%',height:'100%',objectFit:'cover'}}/></div>
+          <div className="slide"><img src="/images/slide2.svg" alt="slide-3" style={{width:'100%',height:'100%',objectFit:'cover'}}/></div>
+        </div>
+      </section>
       <main className="container">
         <section className="glass" style={{padding:18,marginTop:18}}>
           <h1>Our Tutors</h1>

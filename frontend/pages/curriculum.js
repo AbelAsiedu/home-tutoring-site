@@ -15,6 +15,13 @@ export default function Curriculum(){
   return (
     <div>
       <Header />
+      <section className="hero-slideshow" style={{height:220}}>
+        <div className="hero-slideshow-inner" style={{position:'relative',height:'100%'}}>
+          <div className="slide"><img src="/images/slide2.svg" alt="slide-1" style={{width:'100%',height:'100%',objectFit:'cover'}}/></div>
+          <div className="slide"><img src="/images/hero-illustration.svg" alt="slide-2" style={{width:'100%',height:'100%',objectFit:'cover'}}/></div>
+          <div className="slide"><img src="/images/slide2.svg" alt="slide-3" style={{width:'100%',height:'100%',objectFit:'cover'}}/></div>
+        </div>
+      </section>
       <main className="container">
         <div className="glass" style={{padding:20,marginTop:18}}>
           <h1>Curriculum & Resources</h1>
@@ -23,7 +30,7 @@ export default function Curriculum(){
 
         <section style={{marginTop:18}}>
           <div className="product-grid">
-            {error ? <div className="muted">Could not load products</div> : products ? products.map(p=> (
+            {error ? <div className="muted">The Modern Pedagogues</div> : products ? products.map(p=> (
               <div key={p.id} className="product glass">
                 <img src={p.image || '/images/book-placeholder.svg'} alt={p.title} />
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>

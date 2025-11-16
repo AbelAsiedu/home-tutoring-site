@@ -3,7 +3,10 @@
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
   "/estore": "pages/estore.js",
-  "/": "pages/index.js",
+  "/curriculum": "pages/curriculum.js",
   "/tutors": "pages/tutors.js",
-  "/curriculum": "pages/curriculum.js"
+  "/": "pages/index.js",
+  "/about": "pages/about.js",
+  "/contact": "pages/contact.js",
+  "/apply": "pages/apply.js"
 }
