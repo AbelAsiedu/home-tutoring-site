@@ -22,3 +22,7 @@ See more info here: https://nextjs.org/docs/messages/no-stylesheets-in-head-comp
 Do not add stylesheets using next/head (see <link rel="stylesheet"> tag with href="/css/style.css"). Use Document instead. 
 See more info here: https://nextjs.org/docs/messages/no-stylesheets-in-head-component
  ✓ Compiled in 329ms (273 modules)
+ ✓ Compiled /estore in 340ms (265 modules)
+ ✓ Compiled /_error in 78ms (267 modules)
+Do not add stylesheets using next/head (see <link rel="stylesheet"> tag with href="/css/style.css"). Use Document instead. 
+See more info here: https://nextjs.org/docs/messages/no-stylesheets-in-head-component
