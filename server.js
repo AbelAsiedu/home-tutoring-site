@@ -19,6 +19,12 @@ const sqlite3 = require('sqlite3').verbose();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Security / HTTPS helpers
+const USE_HTTPS = !!(process.env.SSL_KEY && process.env.SSL_CERT);
+const FORCE_HTTPS = process.env.FORCE_HTTPS === 'true';
+const TRUST_PROXY = process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true';
+if (TRUST_PROXY) app.set('trust proxy', 1);
+
 // Ensure folders
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
@@ -51,12 +57,39 @@ app.use(bodyParser.json());
 app.use(cookieParser());
 app.use(cors({ origin: true, credentials: true }));
 
+// Security headers (HSTS only when using TLS)
+app.use((req, res, next) => {
+  try {
+    // If running behind a proxy or using HTTPS set HSTS
+    const proto = req.headers['x-forwarded-proto'] || (req.connection && req.connection.encrypted ? 'https' : req.protocol);
+    if (proto === 'https' || USE_HTTPS) {
+      res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+    }
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'no-referrer-when-downgrade');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+  } catch (e) {
+    // ignore header errors
+  }
+  // Optional: force HTTPS redirect when explicitly required (use with caution)
+  if (FORCE_HTTPS) {
+    const forwarded = req.headers['x-forwarded-proto'];
+    const isSecure = (req.connection && req.connection.encrypted) || forwarded === 'https' || req.protocol === 'https';
+    if (!isSecure) {
+      return res.redirect(301, `https://${req.get('host')}${req.originalUrl}`);
+    }
+  }
+  next();
+});
+
+// Session middleware: set secure cookie when running over HTTPS or in production
 app.use(session({
   store: new SQLiteStore({ db: 'sessions.sqlite' }),
   secret: process.env.SESSION_SECRET || 'very-secret-key',
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 1000 * 60 * 60 * 24 }
+  cookie: { maxAge: 1000 * 60 * 60 * 24, secure: !!(USE_HTTPS || process.env.NODE_ENV === 'production'), sameSite: 'lax' }
 }));
 
 // Expose cart count and items to server-rendered views
@@ -774,7 +807,19 @@ if (require.main === module) {
       return nextHandle(req, res);
     });
 
-    app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+    if (USE_HTTPS) {
+      const https = require('https');
+      try {
+        const key = fs.readFileSync(process.env.SSL_KEY);
+        const cert = fs.readFileSync(process.env.SSL_CERT);
+        https.createServer({ key, cert }, app).listen(PORT, () => console.log(`HTTPS server running on https://localhost:${PORT}`));
+      } catch (e) {
+        console.error('Failed to read SSL_KEY/SSL_CERT files, falling back to HTTP:', e);
+        app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+      }
+    } else {
+      app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+    }
   }).catch(err => {
     console.error('Error preparing Next:', err);
     process.exit(1);
