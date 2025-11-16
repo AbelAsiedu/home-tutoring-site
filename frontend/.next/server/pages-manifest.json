@@ -1,1 +1,6 @@
-{"/_error":"pages/_error.js","/_app":"pages/_app.js","/about":"pages/about.html","/account":"pages/account.html","/apply":"pages/apply.html","/cart":"pages/cart.html","/checkout":"pages/checkout.html","/contact":"pages/contact.html","/curriculum":"pages/curriculum.html","/dashboard":"pages/dashboard.html","/faq":"pages/faq.html","/":"pages/index.html","/login":"pages/login.html","/product/[id]":"pages/product/[id].html","/tutor/lessons":"pages/tutor/lessons.html","/estore":"pages/estore.js","/signup":"pages/signup.html","/tutors":"pages/tutors.html","/resources":"pages/resources.html","/_document":"pages/_document.js","/404":"pages/404.html"}
+{
+  "/_app": "pages/_app.js",
+  "/_error": "pages/_error.js",
+  "/_document": "pages/_document.js",
+  "/estore": "pages/estore.js"
+}
