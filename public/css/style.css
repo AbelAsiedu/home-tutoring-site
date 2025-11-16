@@ -130,6 +130,11 @@ footer.site-footer{margin-top:40px;padding:28px 20px;color:var(--muted)}
   .hero-slideshow .dot{width:14px;height:14px;padding:8px}
 }
 
+/* Subtle overlay to improve text contrast on slides */
+.hero-slideshow::after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg, rgba(2,6,23,0.12), rgba(2,6,23,0.04));z-index:1}
+.hero-slideshow .slide{z-index:0}
+.hero-slideshow .slide-dots{z-index:3}
+
 /* Ensure slides stay behind main content and lesson-plans sit above */
 .hero-slideshow{z-index:0}
 .lesson-plans{position:relative;z-index:2;padding:18px}
