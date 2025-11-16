@@ -3,6 +3,7 @@
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
   "/estore": "pages/estore.js",
-  "/product/[id]": "pages/product/[id].js",
-  "/": "pages/index.js"
+  "/": "pages/index.js",
+  "/tutors": "pages/tutors.js",
+  "/curriculum": "pages/curriculum.js"
 }

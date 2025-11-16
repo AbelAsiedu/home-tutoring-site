@@ -12,18 +12,33 @@ export default function Tutors(){
           <div className="product-grid" style={{marginTop:12}}>
             <div className="card glass" style={{textAlign:'center',padding:14}}>
               <img src="/images/tutor-placeholder.svg" alt="Tutor" style={{width:120,height:120,margin:'0 auto'}} />
-              <h3>Jane Doe</h3>
-              <div className="muted">Mathematics • 6 years</div>
+              <h3>Abel Asiedu</h3>
+              <div className="muted">Senior Tutor • Mathematics</div>
             </div>
             <div className="card glass" style={{textAlign:'center',padding:14}}>
               <img src="/images/tutor-placeholder.svg" alt="Tutor" style={{width:120,height:120,margin:'0 auto'}} />
-              <h3>Kwame Mensah</h3>
-              <div className="muted">English • 8 years</div>
+              <h3>Christian Braun</h3>
+              <div className="muted">Senior Tutor • Physics</div>
             </div>
             <div className="card glass" style={{textAlign:'center',padding:14}}>
               <img src="/images/tutor-placeholder.svg" alt="Tutor" style={{width:120,height:120,margin:'0 auto'}} />
-              <h3>Amelia Smith</h3>
-              <div className="muted">Science • 5 years</div>
+              <h3>Theophilus Banful</h3>
+              <div className="muted">Senior Tutor • Chemistry</div>
+            </div>
+            <div className="card glass" style={{textAlign:'center',padding:14}}>
+              <img src="/images/tutor-placeholder.svg" alt="Tutor" style={{width:120,height:120,margin:'0 auto'}} />
+              <h3>Stephen Okwa</h3>
+              <div className="muted">Senior Tutor • English</div>
+            </div>
+            <div className="card glass" style={{textAlign:'center',padding:14}}>
+              <img src="/images/tutor-placeholder.svg" alt="Tutor" style={{width:120,height:120,margin:'0 auto'}} />
+              <h3>Aaron Neesmith</h3>
+              <div className="muted">Senior Tutor • Biology</div>
+            </div>
+            <div className="card glass" style={{textAlign:'center',padding:14}}>
+              <img src="/images/tutor-placeholder.svg" alt="Tutor" style={{width:120,height:120,margin:'0 auto'}} />
+              <h3>Malvin Canva</h3>
+              <div className="muted">Senior Tutor • Computer Science</div>
             </div>
           </div>
         </section>
