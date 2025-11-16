@@ -156,29 +156,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section style={{marginTop:20}}>
-          <h2>Shop & Resources</h2>
-          <p className="muted">Browse our resources and coursebooks — full shop available on the Resources page.</p>
-          <div style={{marginTop:12}}>
-            <a href="/estore" className="btn">Visit E-Store</a>
-          </div>
-          <div className="product-grid" style={{marginTop:18}}>
-            {error ? <div className="muted">Could not load products (backend unreachable)</div> : products ? products.slice(0,4).map(p => (
-              <div key={p.id} className="product glass">
-                <img src={p.image || '/images/book-placeholder.svg'} alt={p.title} />
-                <div className="title">{p.title}</div>
-                <div className="muted">{p.description && p.description.length > 100 ? p.description.substring(0,97) + '...' : p.description}</div>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:8}}>
-                  <div style={{fontWeight:700}}>GHS {p.price}</div>
-                  <div style={{display:'flex',gap:8}}>
-                    <a href={`/product/${p.id}`} className="btn">View</a>
-                    <button className="btn" onClick={() => addToCart(p.id)}>Add</button>
-                  </div>
-                </div>
-              </div>
-            )) : <p>Loading...</p>}
-          </div>
-        </section>
+        {/* Shop & Resources section removed from landing page per request */}
       </main>
       <Footer />
     </div>

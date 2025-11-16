@@ -16,3 +16,5 @@ See more info here: https://nextjs.org/docs/messages/no-stylesheets-in-head-comp
 Do not add stylesheets using next/head (see <link rel="stylesheet"> tag with href="/css/style.css"). Use Document instead. 
 See more info here: https://nextjs.org/docs/messages/no-stylesheets-in-head-component
  ✓ Compiled / in 201ms (305 modules)
+ ✓ Compiled in 394ms (301 modules)
+ ✓ Compiled in 187ms (301 modules)

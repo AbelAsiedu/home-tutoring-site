@@ -231,30 +231,6 @@
     </div>
   </section>
 
-  <section class="products" style="margin-top:28px">
-    <h2>Course books & Resources</h2>
-    <p class="muted">Explore our full shop for course books, workbooks and teaching resources.</p>
-    <div style="margin-top:12px">
-      <a href="/estore" class="btn">View all resources</a>
-    </div>
-    <div class="product-grid" style="margin-top:18px">
-      <% products.slice(0,4).forEach(function(p){ %>
-        <div class="product glass">
-          <% if (p.image_path) { %>
-            <img src="<%= p.image_path %>" alt="<%= p.title %>">
-          <% } else { %>
-            <img src="/images/book-placeholder.svg" alt="<%= p.title %>">
-          <% } %>
-          <h3><%= p.title %></h3>
-          <p><%= p.description && p.description.length > 140 ? p.description.substring(0,137) + '...' : p.description %></p>
-          <p class="price">GHS <%= p.price %></p>
-          <div style="display:flex;gap:8px">
-            <a href="/product/<%= p.id %>" class="btn">View</a>
-            <form action="/cart/add" method="post" style="margin:0"><input type="hidden" name="id" value="<%= p.id %>"><button type="submit" class="btn">Add to cart</button></form>
-          </div>
-        </div>
-      <% }) %>
-    </div>
-  </section>
+  <!-- Shop & Resources section removed from landing page per request -->
 </main>
 <%- include('partials/footer') %>
