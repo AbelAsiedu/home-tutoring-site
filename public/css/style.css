@@ -117,13 +117,18 @@ footer.site-footer{margin-top:40px;padding:28px 20px;color:var(--muted)}
 }
 
 /* Full-width hero slideshow */
-.hero-slideshow{width:100%;position:relative;height:420px;overflow:hidden;margin-bottom:18px}
+.hero-slideshow{width:100%;position:relative;overflow:hidden;margin-bottom:18px;height:clamp(180px,30vh,420px)}
 .hero-slideshow-inner{position:relative;width:100%;height:100%}
-.hero-slideshow .slide{position:absolute;top:0;left:0;width:100%;height:100%;}
+.hero-slideshow .slide{position:absolute;top:0;left:0;width:100%;height:100%;transition:opacity 700ms ease, transform 220ms ease}
 .hero-slideshow .slide img{width:100%;height:100%;object-fit:cover;display:block}
 .hero-slideshow .slide-dots{position:absolute;left:50%;transform:translateX(-50%);bottom:14px;display:flex;gap:8px}
-.hero-slideshow .dot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,0.6);border:0}
+.hero-slideshow .dot{width:12px;height:12px;border-radius:50%;background:rgba(255,255,255,0.66);border:0;padding:6px;touch-action:none}
 .hero-slideshow .dot.active{background:var(--accent-2)}
+
+/* Improve hit-target for touch devices */
+@media (max-width:720px){
+  .hero-slideshow .dot{width:14px;height:14px;padding:8px}
+}
 
 /* Ensure slides stay behind main content and lesson-plans sit above */
 .hero-slideshow{z-index:0}
