@@ -1,17 +1,2 @@
 nohup: ignoring input
 Server running on http://localhost:3001
- ○ Compiling /_error ...
- ✓ Compiled /_error in 560ms (205 modules)
-Do not add stylesheets using next/head (see <link rel="stylesheet"> tag with href="/css/style.css"). Use Document instead. 
-See more info here: https://nextjs.org/docs/messages/no-stylesheets-in-head-component
-Do not add stylesheets using next/head (see <link rel="stylesheet"> tag with href="/css/style.css"). Use Document instead. 
-See more info here: https://nextjs.org/docs/messages/no-stylesheets-in-head-component
- ○ Compiling /estore ...
- ✓ Compiled /estore in 704ms (255 modules)
-Do not add stylesheets using next/head (see <link rel="stylesheet"> tag with href="/css/style.css"). Use Document instead. 
-See more info here: https://nextjs.org/docs/messages/no-stylesheets-in-head-component
- ✓ Compiled / in 289ms (257 modules)
- ✓ Compiled /_error in 68ms (259 modules)
-Do not add stylesheets using next/head (see <link rel="stylesheet"> tag with href="/css/style.css"). Use Document instead. 
-See more info here: https://nextjs.org/docs/messages/no-stylesheets-in-head-component
- ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
