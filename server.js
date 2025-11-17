@@ -596,16 +596,10 @@ app.get('/api/curriculum', (req, res) => {
   });
 });
 
-app.get('/api/session', (req, res) => {
-  res.json({ user: req.session.user || null });
-});
-
-app.post('/api/cart/add', (req, res) => {
-  const { id } = req.body;
-  if (!req.session.cart) req.session.cart = {};
-  req.session.cart[id] = (req.session.cart[id] || 0) + 1;
-  res.json({ ok: true, cart: req.session.cart });
-});
+// NOTE: `/api/session` and `/api/cart/add` are defined earlier (for API clients).
+// The earlier definitions return both `user` and `cart` and accept quantity.
+// Keep those first definitions and do not redeclare them here to avoid
+// inconsistent responses between server-rendered and Next.js frontends.
 
 // Products API
 app.post('/admin/products', upload.single('image'), (req, res) => {
