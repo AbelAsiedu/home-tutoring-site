@@ -82,7 +82,6 @@ document.addEventListener('DOMContentLoaded', function(){
       if (e.key === 'ArrowRight') { nextSlide(); e.preventDefault(); }
     });
   });
-  });
 
   // Cookie consent
   if (!document.cookie.includes('cookie_consent')){
