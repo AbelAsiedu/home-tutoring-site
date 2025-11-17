@@ -1,0 +1,118 @@
+2025-11-17T00:04:19.107802+00:00 app[api]: Release v1 created by user abelasiedu@gmail.com
+2025-11-17T00:04:19.107802+00:00 app[api]: Initial release by user abelasiedu@gmail.com
+2025-11-17T00:04:19.249646+00:00 app[api]: Enable Logplex by user abelasiedu@gmail.com
+2025-11-17T00:04:19.249646+00:00 app[api]: Release v2 created by user abelasiedu@gmail.com
+2025-11-17T01:26:37.000000+00:00 app[api]: Build started by user abelasiedu@gmail.com
+2025-11-17T01:27:01.709731+00:00 app[api]: Release v3 created by user abelasiedu@gmail.com
+2025-11-17T01:27:01.709731+00:00 app[api]: Deploy 960a6217 by user abelasiedu@gmail.com
+2025-11-17T01:27:01.724558+00:00 app[api]: Scaled to web@1:Basic by user abelasiedu@gmail.com
+2025-11-17T01:27:02.000000+00:00 app[api]: Build succeeded
+2025-11-17T01:27:06.370031+00:00 heroku[web.1]: Starting process with command `npm start`
+2025-11-17T01:27:07.425569+00:00 app[web.1]: 
+2025-11-17T01:27:07.425610+00:00 app[web.1]: > modern-pedagogues-site@1.0.0 start
+2025-11-17T01:27:07.425610+00:00 app[web.1]: > node server.js
+2025-11-17T01:27:07.425611+00:00 app[web.1]: 
+2025-11-17T01:27:07.599950+00:00 app[web.1]: node:internal/modules/cjs/loader:1386
+2025-11-17T01:27:07.599952+00:00 app[web.1]:   throw err;
+2025-11-17T01:27:07.599952+00:00 app[web.1]:   ^
+2025-11-17T01:27:07.599952+00:00 app[web.1]: 
+2025-11-17T01:27:07.599953+00:00 app[web.1]: Error: Cannot find module '/app/frontend/node_modules/next'
+2025-11-17T01:27:07.599953+00:00 app[web.1]: Require stack:
+2025-11-17T01:27:07.599954+00:00 app[web.1]: - /app/server.js
+2025-11-17T01:27:07.599954+00:00 app[web.1]:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2025-11-17T01:27:07.599955+00:00 app[web.1]:     at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+2025-11-17T01:27:07.599955+00:00 app[web.1]:     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+2025-11-17T01:27:07.599962+00:00 app[web.1]:     at Function._load (node:internal/modules/cjs/loader:1192:37)
+2025-11-17T01:27:07.599962+00:00 app[web.1]:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2025-11-17T01:27:07.599963+00:00 app[web.1]:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2025-11-17T01:27:07.599963+00:00 app[web.1]:     at Module.require (node:internal/modules/cjs/loader:1463:12)
+2025-11-17T01:27:07.599963+00:00 app[web.1]:     at require (node:internal/modules/helpers:147:16)
+2025-11-17T01:27:07.599964+00:00 app[web.1]:     at Object.<anonymous> (/app/server.js:14:14)
+2025-11-17T01:27:07.599964+00:00 app[web.1]:     at Module._compile (node:internal/modules/cjs/loader:1706:14) {
+2025-11-17T01:27:07.599964+00:00 app[web.1]:   code: 'MODULE_NOT_FOUND',
+2025-11-17T01:27:07.599965+00:00 app[web.1]:   requireStack: [ '/app/server.js' ]
+2025-11-17T01:27:07.599965+00:00 app[web.1]: }
+2025-11-17T01:27:07.599965+00:00 app[web.1]: 
+2025-11-17T01:27:07.599966+00:00 app[web.1]: Node.js v22.21.1
+2025-11-17T01:27:07.607527+00:00 app[web.1]: npm notice
+2025-11-17T01:27:07.607529+00:00 app[web.1]: npm notice New major version of npm available! 10.9.4 -> 11.6.2
+2025-11-17T01:27:07.607530+00:00 app[web.1]: npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.6.2
+2025-11-17T01:27:07.607530+00:00 app[web.1]: npm notice To update run: npm install -g npm@11.6.2
+2025-11-17T01:27:07.607531+00:00 app[web.1]: npm notice
+2025-11-17T01:27:07.683763+00:00 heroku[web.1]: Process exited with status 1
+2025-11-17T01:27:07.709099+00:00 heroku[web.1]: State changed from starting to crashed
+2025-11-17T01:27:07.712242+00:00 heroku[web.1]: State changed from crashed to starting
+2025-11-17T01:27:12.037880+00:00 heroku[web.1]: Starting process with command `npm start`
+2025-11-17T01:27:13.037268+00:00 app[web.1]: 
+2025-11-17T01:27:13.037293+00:00 app[web.1]: > modern-pedagogues-site@1.0.0 start
+2025-11-17T01:27:13.037293+00:00 app[web.1]: > node server.js
+2025-11-17T01:27:13.037294+00:00 app[web.1]: 
+2025-11-17T01:27:13.201749+00:00 app[web.1]: node:internal/modules/cjs/loader:1386
+2025-11-17T01:27:13.201750+00:00 app[web.1]:   throw err;
+2025-11-17T01:27:13.201751+00:00 app[web.1]:   ^
+2025-11-17T01:27:13.201751+00:00 app[web.1]: 
+2025-11-17T01:27:13.201751+00:00 app[web.1]: Error: Cannot find module '/app/frontend/node_modules/next'
+2025-11-17T01:27:13.201751+00:00 app[web.1]: Require stack:
+2025-11-17T01:27:13.201752+00:00 app[web.1]: - /app/server.js
+2025-11-17T01:27:13.201752+00:00 app[web.1]:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2025-11-17T01:27:13.201752+00:00 app[web.1]:     at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+2025-11-17T01:27:13.201753+00:00 app[web.1]:     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+2025-11-17T01:27:13.201753+00:00 app[web.1]:     at Function._load (node:internal/modules/cjs/loader:1192:37)
+2025-11-17T01:27:13.201753+00:00 app[web.1]:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2025-11-17T01:27:13.201753+00:00 app[web.1]:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2025-11-17T01:27:13.201753+00:00 app[web.1]:     at Module.require (node:internal/modules/cjs/loader:1463:12)
+2025-11-17T01:27:13.201754+00:00 app[web.1]:     at require (node:internal/modules/helpers:147:16)
+2025-11-17T01:27:13.201754+00:00 app[web.1]:     at Object.<anonymous> (/app/server.js:14:14)
+2025-11-17T01:27:13.201754+00:00 app[web.1]:     at Module._compile (node:internal/modules/cjs/loader:1706:14) {
+2025-11-17T01:27:13.201754+00:00 app[web.1]:   code: 'MODULE_NOT_FOUND',
+2025-11-17T01:27:13.201755+00:00 app[web.1]:   requireStack: [ '/app/server.js' ]
+2025-11-17T01:27:13.201755+00:00 app[web.1]: }
+2025-11-17T01:27:13.201755+00:00 app[web.1]: 
+2025-11-17T01:27:13.201755+00:00 app[web.1]: Node.js v22.21.1
+2025-11-17T01:27:13.208939+00:00 app[web.1]: npm notice
+2025-11-17T01:27:13.208940+00:00 app[web.1]: npm notice New major version of npm available! 10.9.4 -> 11.6.2
+2025-11-17T01:27:13.208941+00:00 app[web.1]: npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.6.2
+2025-11-17T01:27:13.208941+00:00 app[web.1]: npm notice To update run: npm install -g npm@11.6.2
+2025-11-17T01:27:13.208941+00:00 app[web.1]: npm notice
+2025-11-17T01:27:13.292388+00:00 heroku[web.1]: Process exited with status 1
+2025-11-17T01:27:13.315719+00:00 heroku[web.1]: State changed from starting to crashed
+2025-11-17T01:27:28.537482+00:00 heroku[router]: at=error code=H10 desc="App crashed" method=GET path="/" host=modernpedagogues-2d8e4f4bb9bf.herokuapp.com request_id=0e14a115-651c-a267-d567-3af5220808ca fwd="" dyno= connect=0ms service=0ms status=503 bytes=567 protocol=http1.1 tls=true tls_version=unknown
+2025-11-17T01:27:35.786104+00:00 heroku[router]: at=error code=H10 desc="App crashed" method=GET path="/favicon.ico" host=modernpedagogues-2d8e4f4bb9bf.herokuapp.com request_id=dc43ac36-61c6-87a5-f6e3-29a5189d2a1c fwd="" dyno= connect=0ms service=0ms status=503 bytes=567 protocol=http1.1 tls=true tls_version=unknown
+2025-11-17T01:48:42.162796+00:00 heroku[web.1]: State changed from crashed to starting
+2025-11-17T01:48:46.693468+00:00 heroku[web.1]: Starting process with command `npm start`
+2025-11-17T01:48:47.714113+00:00 app[web.1]: 
+2025-11-17T01:48:47.714128+00:00 app[web.1]: > modern-pedagogues-site@1.0.0 start
+2025-11-17T01:48:47.714129+00:00 app[web.1]: > node server.js
+2025-11-17T01:48:47.714129+00:00 app[web.1]: 
+2025-11-17T01:48:47.875514+00:00 app[web.1]: node:internal/modules/cjs/loader:1386
+2025-11-17T01:48:47.875516+00:00 app[web.1]:   throw err;
+2025-11-17T01:48:47.875516+00:00 app[web.1]:   ^
+2025-11-17T01:48:47.875517+00:00 app[web.1]: 
+2025-11-17T01:48:47.875517+00:00 app[web.1]: Error: Cannot find module '/app/frontend/node_modules/next'
+2025-11-17T01:48:47.875517+00:00 app[web.1]: Require stack:
+2025-11-17T01:48:47.875517+00:00 app[web.1]: - /app/server.js
+2025-11-17T01:48:47.875518+00:00 app[web.1]:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2025-11-17T01:48:47.875518+00:00 app[web.1]:     at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+2025-11-17T01:48:47.875519+00:00 app[web.1]:     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+2025-11-17T01:48:47.875519+00:00 app[web.1]:     at Function._load (node:internal/modules/cjs/loader:1192:37)
+2025-11-17T01:48:47.875527+00:00 app[web.1]:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2025-11-17T01:48:47.875527+00:00 app[web.1]:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2025-11-17T01:48:47.875528+00:00 app[web.1]:     at Module.require (node:internal/modules/cjs/loader:1463:12)
+2025-11-17T01:48:47.875528+00:00 app[web.1]:     at require (node:internal/modules/helpers:147:16)
+2025-11-17T01:48:47.875528+00:00 app[web.1]:     at Object.<anonymous> (/app/server.js:14:14)
+2025-11-17T01:48:47.875528+00:00 app[web.1]:     at Module._compile (node:internal/modules/cjs/loader:1706:14) {
+2025-11-17T01:48:47.875528+00:00 app[web.1]:   code: 'MODULE_NOT_FOUND',
+2025-11-17T01:48:47.875529+00:00 app[web.1]:   requireStack: [ '/app/server.js' ]
+2025-11-17T01:48:47.875529+00:00 app[web.1]: }
+2025-11-17T01:48:47.875529+00:00 app[web.1]: 
+2025-11-17T01:48:47.875529+00:00 app[web.1]: Node.js v22.21.1
+2025-11-17T01:48:47.882299+00:00 app[web.1]: npm notice
+2025-11-17T01:48:47.882300+00:00 app[web.1]: npm notice New major version of npm available! 10.9.4 -> 11.6.2
+2025-11-17T01:48:47.882301+00:00 app[web.1]: npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.6.2
+2025-11-17T01:48:47.882301+00:00 app[web.1]: npm notice To update run: npm install -g npm@11.6.2
+2025-11-17T01:48:47.882301+00:00 app[web.1]: npm notice
+2025-11-17T01:48:47.958472+00:00 heroku[web.1]: Process exited with status 1
+2025-11-17T01:48:47.978588+00:00 heroku[web.1]: State changed from starting to crashed
+2025-11-17T02:14:57.578406+00:00 app[api]: Log session created by user abelasiedu@gmail.com
+2025-11-17T02:15:08.175447+00:00 app[api]: Log session created by user abelasiedu@gmail.com
+2025-11-17T02:15:54.704994+00:00 app[api]: Log session created by user abelasiedu@gmail.com
