@@ -12,6 +12,7 @@ export default function Header(){
   const [cartItems, setCartItems] = useState([])
   const cartRef = useRef(null)
   const navRef = useRef(null)
+  const [isMobile, setIsMobile] = useState(false)
   const [renderCart, setRenderCart] = useState(false)
   // close mobile menu on resize > 900
   useEffect(()=>{
@@ -29,7 +30,13 @@ export default function Header(){
       } catch (e) { }
     }
     fetchCart();
-    function onResize(){ if (window.innerWidth > 900) setOpen(false) }
+    function onResize(){
+      const mobile = window.innerWidth < 900
+      setIsMobile(mobile)
+      if (!mobile) setOpen(false)
+    }
+    // initialize
+    onResize()
     window.addEventListener('resize', onResize)
     return ()=>window.removeEventListener('resize', onResize)
   },[])
@@ -75,14 +82,18 @@ export default function Header(){
     }
     document.addEventListener('keydown', onKey);
     document.addEventListener('mousedown', onDown);
+    document.addEventListener('touchstart', onDown);
+    document.addEventListener('pointerdown', onDown);
     return ()=>{
       document.removeEventListener('keydown', onKey);
       document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('touchstart', onDown);
+      document.removeEventListener('pointerdown', onDown);
     }
   },[cartOpen, open])
 
   return (
-    <header className={"site-header" + (open? ' nav-open':'')}>
+    <header ref={navRef} className={"site-header" + (open? ' nav-open':'')}>
       <div className="nav-inner container">
         <div style={{display:'flex',alignItems:'center',gap:12}}>
           <div className="brand"><span className="logo" />The Modern Pedagogues</div>
@@ -92,7 +103,7 @@ export default function Header(){
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 7h18M3 12h18M3 17h18" stroke="#083344" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
         </button>
 
-        <nav className="nav-links" aria-hidden={!open && typeof window !== 'undefined' && window.innerWidth < 900 ? 'true' : 'false'}>
+        <nav className="nav-links" aria-hidden={!open && isMobile ? 'true' : 'false'}>
           <Link href="/">Home</Link>
           <Link href="/curriculum">Curriculum</Link>
           <Link href="/estore">E-Store</Link>
