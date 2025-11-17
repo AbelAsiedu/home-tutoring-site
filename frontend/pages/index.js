@@ -13,6 +13,15 @@ export default function Home() {
     await fetch('/api/cart/add', { method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'}, body, credentials: 'include' })
     alert('Added to cart')
     try { window.dispatchEvent(new CustomEvent('cart:updated')) } catch(e) {}
+    try {
+      const links = Array.from(document.querySelectorAll('.site-header a, .site-header [role="button"]'))
+      const cartLink = links.find(el => /cart/i.test((el.innerText||'')))
+      if (cartLink) {
+        let b = cartLink.querySelector('.badge')
+        if (!b) { b = document.createElement('span'); b.className = 'badge'; cartLink.appendChild(b) }
+        b.innerText = String((parseInt(b.innerText||'0',10) || 0) + 1)
+      }
+    } catch(e) {}
   }
 
   return (
