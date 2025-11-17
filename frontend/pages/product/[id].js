@@ -20,6 +20,7 @@ export default function ProductPage(){
     const body = new URLSearchParams({ id, quantity: qty })
     await fetch('/api/cart/add',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body, credentials: 'include'})
     alert('Added to cart')
+    try { window.dispatchEvent(new CustomEvent('cart:updated')) } catch(e) {}
   }
 
   return (
@@ -56,7 +57,7 @@ export default function ProductPage(){
                   <div className="muted">GHS {p.price}</div>
                   <div style={{display:'flex',gap:8,marginTop:8}}>
                     <a href={`/product/${p.id}`} className="btn">View</a>
-                    <button className="btn" onClick={async ()=>{ const b=new URLSearchParams({ id: p.id, quantity: 1}); await fetch('/api/cart/add',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:b, credentials: 'include'}); alert('Added') }}>Add</button>
+                    <button className="btn" onClick={async ()=>{ const b=new URLSearchParams({ id: p.id, quantity: 1}); await fetch('/api/cart/add',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:b, credentials: 'include'}); alert('Added'); try { window.dispatchEvent(new CustomEvent('cart:updated')) } catch(e) {} }}>Add</button>
                   </div>
                 </div>
               ))}

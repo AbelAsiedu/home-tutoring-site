@@ -30,6 +30,8 @@ export default function Header(){
       } catch (e) { }
     }
     fetchCart();
+    // listen for cart updates from other pages
+    window.addEventListener('cart:updated', fetchCart)
     function onResize(){
       const mobile = window.innerWidth < 900
       setIsMobile(mobile)
@@ -38,7 +40,10 @@ export default function Header(){
     // initialize
     onResize()
     window.addEventListener('resize', onResize)
-    return ()=>window.removeEventListener('resize', onResize)
+    return ()=>{
+      window.removeEventListener('resize', onResize)
+      window.removeEventListener('cart:updated', fetchCart)
+    }
   },[])
   
   // Manage render/unmount and animate mini-cart on open/close

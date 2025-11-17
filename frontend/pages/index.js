@@ -12,6 +12,7 @@ export default function Home() {
     const body = new URLSearchParams({ id })
     await fetch('/api/cart/add', { method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'}, body, credentials: 'include' })
     alert('Added to cart')
+    try { window.dispatchEvent(new CustomEvent('cart:updated')) } catch(e) {}
   }
 
   return (
