@@ -20,13 +20,30 @@ export default function Header(){
       try {
         const s = await fetch('/api/session', { credentials: 'include' });
         const js = await s.json();
-        const count = js.cart ? Object.values(js.cart).reduce((a,b)=>a+Number(b||0),0) : 0;
-        setCartCount(count)
-        if (count > 0) {
-          const r = await fetch('/api/cart', { credentials: 'include' });
-          const items = await r.json();
-          setCartItems(items)
+        let count = js.cart ? Object.values(js.cart).reduce((a,b)=>a+Number(b||0),0) : 0;
+        // if session cart empty, fall back to client-side localStorage cart
+        if (!count) {
+          try {
+            const local = JSON.parse(window.localStorage.getItem('mp_cart') || '{}')
+            count = Object.values(local).reduce((s,n)=>s + (Number(n)||0), 0)
+            if (count > 0) {
+              // fetch product details for items in local cart
+              const ids = Object.keys(local)
+              const r = ids.length ? await fetch(`/api/products`) : null
+              const products = r ? await r.json() : []
+              const items = products.filter(p => ids.includes(p.id)).map(p => ({ ...p, qty: local[p.id] || 0 }))
+              setCartItems(items)
+            }
+          } catch(e) {}
+        } else {
+          setCartCount(count)
+          if (count > 0) {
+            const r = await fetch('/api/cart', { credentials: 'include' });
+            const items = await r.json();
+            setCartItems(items)
+          }
         }
+        setCartCount(count)
       } catch (e) { }
     }
     fetchCart();

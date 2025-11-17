@@ -427,13 +427,19 @@ app.get('/api/cart', async (req, res) => {
 
 app.post('/api/checkout', (req, res) => {
   const { payment_method, momo_number, card_number } = req.body;
+  // Allow client to pass explicit items (fallback for clients without session persistence)
+  const clientItems = req.body.items || null;
   const cart = req.session.cart || {};
-  const ids = Object.keys(cart);
+  const ids = clientItems ? clientItems.map(i => i.id) : Object.keys(cart);
   if (!ids.length) return res.status(400).json({ error: 'empty_cart' });
   db.all(`SELECT * FROM products WHERE id IN (${ids.map(()=>'?').join(',')})`, ids, async (err, rows) => {
     if (err) return res.status(500).json({ error: 'db' });
     let total = 0;
-    const items = rows.map(r => { const qty = cart[r.id] || 0; total += r.price * qty; return { id: r.id, title: r.title, price: r.price, qty }; });
+    const items = rows.map(r => {
+      const qty = clientItems ? (clientItems.find(it=>it.id===r.id)?.qty || 0) : (cart[r.id] || 0);
+      total += r.price * qty;
+      return { id: r.id, title: r.title, price: r.price, qty };
+    });
     const id = uuidv4();
     const created = new Date().toISOString();
     const card_last4 = card_number ? card_number.slice(-4) : null;

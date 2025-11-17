@@ -18,20 +18,15 @@ export default function Checkout(){
     if (method === 'momo' && !validateRequired(momo)) return setStatus('enter_momo')
     if (method === 'card' && !validateRequired(card)) return setStatus('enter_card')
     try{
-      if (method === 'momo'){
-        const res = await fetch('/api/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ payment_method:'momo', momo_number: momo }), credentials:'include'})
-        const j = await res.json()
-        if (j.orderId) setStatus('success:'+j.orderId)
-        else setStatus('error')
-      } else {
-        // card
-        const res = await fetch('/api/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ payment_method:'card', card_number: card }), credentials:'include'})
-        const j = await res.json()
-        if (j.stripeUrl) {
-          window.location = j.stripeUrl
-        } else if (j.orderId) setStatus('success:'+j.orderId)
-        else setStatus('error')
-      }
+      // If the server-side session cart is empty, fall back to sending client-side cart items
+      const itemsFallback = items && items.length ? null : (function(){ try { const local = JSON.parse(localStorage.getItem('mp_cart')||'{}'); return Object.keys(local).map(id=>({ id, qty: local[id] })) } catch(e){ return null } })()
+      const payloadBase = method === 'momo' ? { payment_method: 'momo', momo_number: momo } : { payment_method: 'card', card_number: card }
+      const body = Object.assign({}, payloadBase, itemsFallback ? { items: itemsFallback } : {})
+      const res = await fetch('/api/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body), credentials:'include'})
+      const j = await res.json()
+      if (j.orderId) setStatus('success:'+j.orderId)
+      else if (j.stripeUrl) window.location = j.stripeUrl
+      else setStatus('error')
     }catch(e){ setStatus('error') }
   }
 

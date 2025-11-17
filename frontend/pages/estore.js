@@ -13,6 +13,12 @@ export default function EStore({ initialProducts }) {
     alert('Added to cart')
     try { window.dispatchEvent(new CustomEvent('cart:updated')) } catch(e) {}
     try {
+      const key = 'mp_cart'
+      const cur = JSON.parse(localStorage.getItem(key) || '{}')
+      cur[id] = (Number(cur[id] || 0) || 0) + 1
+      localStorage.setItem(key, JSON.stringify(cur))
+    } catch(e) {}
+    try {
       const links = Array.from(document.querySelectorAll('.site-header a, .site-header [role="button"]'))
       const cartLink = links.find(el => /cart/i.test((el.innerText||'')))
       if (cartLink) {

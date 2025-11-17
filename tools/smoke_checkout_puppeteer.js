@@ -5,6 +5,25 @@ const puppeteer = require('puppeteer');
   const browser = await puppeteer.launch({args:['--no-sandbox','--disable-setuid-sandbox']});
   const page = await browser.newPage();
   page.on('dialog', async dialog => { console.log('Dialog:', dialog.message()); await dialog.accept(); });
+  page.on('response', async resp => {
+    try {
+      const url = resp.url();
+      if (url.includes('/api/cart/add') || url.includes('/api/cart')) {
+        const headers = resp.headers();
+        const body = await resp.text().catch(()=>null)
+        console.log('Network response for', url, 'status', resp.status(), 'headers', JSON.stringify(headers).slice(0,400), 'body:', body)
+      }
+    } catch(e) {}
+  })
+  page.on('request', async req => {
+    try {
+      const url = req.url();
+      if (url.includes('/api/cart/add') || url.includes('/api/cart')) {
+        const headers = req.headers();
+        console.log('Network request for', url, 'headers', JSON.stringify(headers).slice(0,400))
+      }
+    } catch(e) {}
+  })
   try{
     console.log('Open E-Store...')
     await page.goto(base + '/estore', { waitUntil: 'networkidle2', timeout: 30000 });
@@ -45,14 +64,43 @@ const puppeteer = require('puppeteer');
     const badgeText = await page.evaluate(el=>el.innerText, badge)
     console.log('Cart badge text:', badgeText)
 
+    // Read /api/cart directly from browser context to verify session-backed cart
+    const apiCart = await page.evaluate(async ()=>{
+      try { const r = await fetch('/api/cart', { credentials: 'include' }); return await r.json() } catch(e) { return { error: String(e) } }
+    })
+    console.log('API /api/cart returned (browser):', JSON.stringify(apiCart).slice(0,400))
+
     console.log('Navigate to /cart')
     await page.goto(base + '/cart', { waitUntil: 'networkidle2' })
-    await page.waitForSelector('a[href="/checkout"]', { timeout: 5000 })
-    console.log('Proceeding to checkout...')
-    await page.click('a[href="/checkout"]')
-    // wait for checkout form to appear
-    await page.waitForSelector('input[placeholder="Momo number"]', { timeout: 8000 })
-    await page.waitForNavigation({ waitUntil: 'networkidle2' })
+    console.log('Looking for checkout flow on cart page...')
+    // Check for client-side /checkout link first
+    const clickedCheckout = await page.evaluate(() => {
+      const anchors = Array.from(document.querySelectorAll('a'))
+      const a = anchors.find(el => el.getAttribute && el.getAttribute('href') === '/checkout')
+      if (a) { a.click(); return 'link' }
+      return null
+    })
+    if (clickedCheckout === 'link') {
+      await page.waitForSelector('input[placeholder="Momo number"]', { timeout: 10000 })
+    } else {
+      // Fallback: server-rendered cart uses a form with action /checkout — fill and submit it
+      const hasForm = await page.$('form.checkout-form')
+      if (hasForm) {
+        // fill momo_number if present
+        const momoInput = await page.$('input[name="momo_number"]')
+        if (momoInput) await momoInput.type('0240000000')
+        const submit = await page.$('form.checkout-form button[type="submit"]')
+        if (submit) {
+          await submit.click()
+          // wait for navigation to success page
+          await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 10000 }).catch(()=>{})
+        } else {
+          console.error('No submit button found in server cart form'); await browser.close(); process.exit(6)
+        }
+      } else {
+        console.error('Could not find checkout link or form on cart page'); await browser.close(); process.exit(5)
+      }
+    }
 
     console.log('Filling momo number and placing order...')
     await page.waitForSelector('input[placeholder="Momo number"]', { timeout: 5000 })
