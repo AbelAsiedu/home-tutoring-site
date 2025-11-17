@@ -3,6 +3,7 @@ import Footer from '../../components/Footer'
 import { useRouter } from 'next/router'
 import useSWR from 'swr'
 import { swrFetcher } from '../../lib/api'
+import { useState } from 'react'
 
 export default function ProductPage(){
   const router = useRouter()
@@ -13,13 +14,13 @@ export default function ProductPage(){
   if (error) return (<div><Header/><main className="container"><div className="glass" style={{padding:20,marginTop:18}}>Could not load product details.</div></main><Footer/></div>)
   const product = products ? products.find(p=>p.id === id) : null
 
+  const [qty, setQty] = useState(1)
+
   async function addToCart(){
     const body = new URLSearchParams({ id, quantity: qty })
-    await fetch('/api/cart/add',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body})
+    await fetch('/api/cart/add',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body, credentials: 'include'})
     alert('Added to cart')
   }
-
-  const [qty, setQty] = useState(1)
 
   return (
     <div>
@@ -55,7 +56,7 @@ export default function ProductPage(){
                   <div className="muted">GHS {p.price}</div>
                   <div style={{display:'flex',gap:8,marginTop:8}}>
                     <a href={`/product/${p.id}`} className="btn">View</a>
-                    <button className="btn" onClick={async ()=>{ const b=new URLSearchParams({ id: p.id, quantity: 1}); await fetch('/api/cart/add',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:b}); alert('Added') }}>Add</button>
+                    <button className="btn" onClick={async ()=>{ const b=new URLSearchParams({ id: p.id, quantity: 1}); await fetch('/api/cart/add',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:b, credentials: 'include'}); alert('Added') }}>Add</button>
                   </div>
                 </div>
               ))}

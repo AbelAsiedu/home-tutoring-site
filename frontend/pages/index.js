@@ -10,7 +10,7 @@ export default function Home() {
 
   async function addToCart(id) {
     const body = new URLSearchParams({ id })
-    await fetch('/api/cart/add', { method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'}, body })
+    await fetch('/api/cart/add', { method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'}, body, credentials: 'include' })
     alert('Added to cart')
   }
 

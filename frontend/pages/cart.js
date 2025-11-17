@@ -9,7 +9,7 @@ export default function Cart() {
   const [phone, setPhone] = useState('')
 
   async function checkout() {
-    const res = await fetch('/api/checkout', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ payment_method: 'momo', momo_number: phone }) })
+    const res = await fetch('/api/checkout', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ payment_method: 'momo', momo_number: phone }), credentials: 'include' })
     const json = await res.json()
     if (json.orderId) alert('Order placed: ' + json.orderId)
     else if (json.stripeUrl) window.location = json.stripeUrl

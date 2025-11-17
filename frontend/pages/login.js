@@ -10,7 +10,7 @@ export default function Login(){
   async function submit(e){
     e.preventDefault()
     const fd = new FormData(e.target)
-    const payload = { username: fd.get('username'), password: fd.get('password') }
+    const payload = { email: fd.get('username'), password: fd.get('password') }
     await postUrlEncoded('/login', payload)
     // Check session to know if login succeeded
     const session = await fetch('/api/session', { credentials: 'include' }).then(r=>r.json())

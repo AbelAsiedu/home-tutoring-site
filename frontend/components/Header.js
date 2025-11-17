@@ -18,12 +18,12 @@ export default function Header(){
   useEffect(()=>{
     async function fetchCart(){
       try {
-        const s = await fetch('/api/session');
+        const s = await fetch('/api/session', { credentials: 'include' });
         const js = await s.json();
         const count = js.cart ? Object.values(js.cart).reduce((a,b)=>a+Number(b||0),0) : 0;
         setCartCount(count)
         if (count > 0) {
-          const r = await fetch('/api/cart');
+          const r = await fetch('/api/cart', { credentials: 'include' });
           const items = await r.json();
           setCartItems(items)
         }
@@ -127,14 +127,14 @@ export default function Header(){
                             <div className="muted">{it.qty} × GHS {it.price}</div>
                             <button onClick={async ()=>{
                               try {
-                                await fetch('/api/cart/remove', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:it.id})});
-                                const r = await fetch('/api/cart');
-                                const items = await r.json();
-                                setCartItems(items);
-                                const s = await fetch('/api/session');
-                                const js = await s.json();
-                                const count = js.cart ? Object.values(js.cart).reduce((a,b)=>a+Number(b||0),0) : 0;
-                                setCartCount(count);
+                                await fetch('/api/cart/remove', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:it.id}), credentials: 'include'});
+                                  const r = await fetch('/api/cart', { credentials: 'include' });
+                                  const items = await r.json();
+                                  setCartItems(items);
+                                  const s = await fetch('/api/session', { credentials: 'include' });
+                                  const js = await s.json();
+                                  const count = js.cart ? Object.values(js.cart).reduce((a,b)=>a+Number(b||0),0) : 0;
+                                  setCartCount(count);
                               } catch(e){}
                             }} className="btn-link small">Deselect</button>
                           </div>
@@ -147,7 +147,7 @@ export default function Header(){
                     <div style={{display:'flex',gap:8,alignItems:'center'}}>
                       <button className="btn alt" onClick={async ()=>{
                         try {
-                          await fetch('/api/cart/clear', {method:'POST'});
+                          await fetch('/api/cart/clear', {method:'POST', credentials: 'include'});
                           setCartItems([]);
                           setCartCount(0);
                         } catch(e){}

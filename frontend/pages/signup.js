@@ -11,7 +11,7 @@ export default function Signup(){
   async function submit(e){
     e.preventDefault()
     const fd = new FormData(e.target)
-    const payload = { username: fd.get('username'), email: fd.get('email'), password: fd.get('password') }
+    const payload = { name: fd.get('username'), email: fd.get('email'), password: fd.get('password') }
     if (!validateEmail(payload.email)) return setError('Please enter a valid email')
     await postUrlEncoded('/signup', payload)
     const session = await fetch('/api/session', { credentials: 'include' }).then(r=>r.json())
