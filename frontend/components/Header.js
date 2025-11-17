@@ -134,7 +134,12 @@ export default function Header(){
           <Link href="/apply">Apply</Link>
           <Link href="/about">About</Link>
           <Link href="/contact">Contact</Link>
-          <a role="button" onClick={(e)=>{ e.preventDefault(); setCartOpen(!cartOpen) }} style={{display:'inline-flex',alignItems:'center',gap:8,cursor:'pointer'}}><IconCart/>Cart{cartCount>0? <span className="badge">{cartCount}</span>:null}</a>
+          <div style={{display:'inline-flex',alignItems:'center',gap:8}}>
+            <Link href="/cart" style={{display:'inline-flex',alignItems:'center',gap:8}}>
+              <IconCart/>Cart{cartCount>0? <span className="badge">{cartCount}</span>:null}
+            </Link>
+            <button aria-label="Open mini cart" onClick={(e)=>{ e.preventDefault(); setCartOpen(!cartOpen) }} style={{background:'transparent',border:0,cursor:'pointer',padding:6,fontSize:14}} title="Open mini cart">▾</button>
+          </div>
           {renderCart && (
             <div ref={cartRef} className="mini-cart" style={{position:'absolute',right:20,top:64,background:'#fff',border:'1px solid rgba(12,15,20,0.06)',padding:12,borderRadius:8,width:300,zIndex:60}}>
               {cartItems && cartItems.length ? (
