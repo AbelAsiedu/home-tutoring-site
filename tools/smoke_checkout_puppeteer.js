@@ -70,37 +70,11 @@ const puppeteer = require('puppeteer');
     })
     console.log('API /api/cart returned (browser):', JSON.stringify(apiCart).slice(0,400))
 
-    console.log('Navigate to /cart')
-    await page.goto(base + '/cart', { waitUntil: 'networkidle2' })
-    console.log('Looking for checkout flow on cart page...')
-    // Check for client-side /checkout link first
-    const clickedCheckout = await page.evaluate(() => {
-      const anchors = Array.from(document.querySelectorAll('a'))
-      const a = anchors.find(el => el.getAttribute && el.getAttribute('href') === '/checkout')
-      if (a) { a.click(); return 'link' }
-      return null
-    })
-    if (clickedCheckout === 'link') {
-      await page.waitForSelector('input[placeholder="Momo number"]', { timeout: 10000 })
-    } else {
-      // Fallback: server-rendered cart uses a form with action /checkout — fill and submit it
-      const hasForm = await page.$('form.checkout-form')
-      if (hasForm) {
-        // fill momo_number if present
-        const momoInput = await page.$('input[name="momo_number"]')
-        if (momoInput) await momoInput.type('0240000000')
-        const submit = await page.$('form.checkout-form button[type="submit"]')
-        if (submit) {
-          await submit.click()
-          // wait for navigation to success page
-          await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 10000 }).catch(()=>{})
-        } else {
-          console.error('No submit button found in server cart form'); await browser.close(); process.exit(6)
-        }
-      } else {
-        console.error('Could not find checkout link or form on cart page'); await browser.close(); process.exit(5)
-      }
-    }
+    console.log('Navigate to /checkout (client checkout page)')
+    await page.goto(base + '/checkout', { waitUntil: 'networkidle2' })
+    console.log('Looking for checkout form on /checkout...')
+    // Wait for checkout form (client-side) to appear — checkout.js will use localStorage fallback if session cart empty
+    await page.waitForSelector('input[placeholder="Momo number"]', { timeout: 10000 })
 
     console.log('Filling momo number and placing order...')
     await page.waitForSelector('input[placeholder="Momo number"]', { timeout: 5000 })

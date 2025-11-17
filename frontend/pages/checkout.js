@@ -1,7 +1,7 @@
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import useSWR from 'swr'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { postUrlEncoded, validateRequired } from '../lib/formUtils'
 import { swrFetcher } from '../lib/api'
 const fetcher = (url) => fetch(url, {credentials:'include'}).then(r=>r.json())
@@ -12,6 +12,23 @@ export default function Checkout(){
   const [momo, setMomo] = useState('')
   const [card, setCard] = useState('')
   const [status, setStatus] = useState(null)
+  const [clientFallbackItems, setClientFallbackItems] = useState(null)
+
+  useEffect(()=>{
+    try {
+      const local = JSON.parse(localStorage.getItem('mp_cart') || '{}')
+      if (local && Object.keys(local).length) {
+        // We'll need product details to show titles and prices; fetch products and map
+        fetch('/api/products').then(r=>r.json()).then(products=>{
+          const itemsArr = Object.keys(local).map(id=>{
+            const p = products.find(pp=>pp.id===id) || { id, title: 'Item', price: 0 }
+            return { id: p.id, title: p.title, price: p.price, qty: local[id] }
+          })
+          setClientFallbackItems(itemsArr)
+        }).catch(()=>{})
+      }
+    } catch(e) {}
+  }, [])
 
   async function placeOrder(){
     setStatus('processing')
@@ -30,7 +47,7 @@ export default function Checkout(){
     }catch(e){ setStatus('error') }
   }
 
-  const total = items ? items.reduce((s,i)=>s + i.price * i.qty,0).toFixed(2) : '0.00'
+  const total = items && items.length ? items.reduce((s,i)=>s + i.price * i.qty,0).toFixed(2) : (clientFallbackItems ? clientFallbackItems.reduce((s,i)=>s + i.price * i.qty,0).toFixed(2) : '0.00')
 
   return (
     <div>
@@ -38,10 +55,10 @@ export default function Checkout(){
       <main className="container">
         <div className="glass" style={{padding:20,marginTop:18}}>
           <h1>Checkout</h1>
-          {error ? <div className="muted">Could not load cart</div> : !items ? <p>Loading...</p> : items.length === 0 ? <p className="muted">Your cart is empty</p> : (
+          {error ? <div className="muted">Could not load cart</div> : !items ? <p>Loading...</p> : ((items.length === 0) && (!clientFallbackItems || clientFallbackItems.length === 0)) ? <p className="muted">Your cart is empty</p> : (
             <div style={{display:'grid',gridTemplateColumns:'1fr 320px',gap:16}}>
               <div>
-                {items.map(i=> (
+                {(items && items.length ? items : (clientFallbackItems || [])).map(i=> (
                   <div key={i.id} className="card" style={{display:'flex',justifyContent:'space-between',padding:12}}>
                     <div>
                       <strong>{i.title}</strong>
@@ -53,6 +70,9 @@ export default function Checkout(){
               </div>
               <aside className="summary">
                 <h3>Order Summary</h3>
+                {(items && items.length ? items : (clientFallbackItems || [])).map(i => (
+                  <div className="row" key={i.id}><div>{i.title} x{i.qty}</div><div>GHS {(i.price * i.qty).toFixed(2)}</div></div>
+                ))}
                 <div className="row total"><div>Total</div><div>GHS {total}</div></div>
                 <div style={{marginTop:12}}>
                   <div style={{marginBottom:8}}>
