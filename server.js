@@ -23,7 +23,12 @@ const PORT = process.env.PORT || 3001;
 const USE_HTTPS = !!(process.env.SSL_KEY && process.env.SSL_CERT);
 const FORCE_HTTPS = process.env.FORCE_HTTPS === 'true';
 const TRUST_PROXY = process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true';
+// In many hosting environments (Heroku, etc.) the app runs behind a proxy
+// which terminates TLS. Ensure Express trusts the proxy so `req.protocol`
+// and secure cookies are handled correctly. Allow explicit override via
+// TRUST_PROXY env var; otherwise enable in production by default.
 if (TRUST_PROXY) app.set('trust proxy', 1);
+else if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
 
 // Ensure folders
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
