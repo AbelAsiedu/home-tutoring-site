@@ -74,10 +74,14 @@ footer.site-footer{margin-top:40px;padding:28px 20px;color:var(--muted)}
 
 /* Responsive nav */
 .nav-toggle{display:none}
+/* Improve hit target for mobile toggles */
+.nav-toggle{padding:10px;min-width:44px;min-height:44px;touch-action:manipulation}
 @media(max-width:900px){
   .nav-links{display:none}
-  .nav-toggle{display:inline-flex;background:transparent;border:0;padding:8px;border-radius:8px}
-  .nav-open .nav-links{display:flex;flex-direction:column;position:absolute;right:16px;top:64px;background:var(--glass);padding:12px;border-radius:12px;box-shadow:var(--shadow);min-width:200px;transform-origin:top right;animation:menu-in .18s ease}
+  .nav-toggle{display:inline-flex;background:transparent;border:0;border-radius:8px}
+  /* make mobile menu full-width-ish and easier to tap */
+  .nav-open .nav-links{display:flex;flex-direction:column;position:absolute;left:12px;right:12px;top:64px;background:var(--glass);padding:12px;border-radius:12px;box-shadow:var(--shadow);min-width:auto;transform-origin:top right;animation:menu-in .18s ease}
+  .nav-open .nav-links a{display:block;padding:10px 12px;border-radius:8px}
 }
 
 @media(max-width:640px){
@@ -85,6 +89,15 @@ footer.site-footer{margin-top:40px;padding:28px 20px;color:var(--muted)}
   .hero h1{font-size:1.6rem}
   .product img{height:160px}
   .product-grid{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+}
+
+/* Increase tap targets and spacing for small screens */
+@media(max-width:480px){
+  .nav-inner{padding:10px}
+  .brand .logo{width:36px;height:36px}
+  .nav-links a{font-size:1rem}
+  .badge{padding:6px 10px}
+  .hero h1{font-size:1.4rem}
 }
 
 /* Footer compact rules mirrored for Next pages */

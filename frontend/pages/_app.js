@@ -6,6 +6,7 @@ export default function App({ Component, pageProps }) {
     <>
       <Head>
         <link rel="stylesheet" href="/css/style.css" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="description" content="The Modern Pedagogues — professional home tutoring aligned to GES, Cambridge and international curricula." />
         <meta property="og:title" content="The Modern Pedagogues" />
         <meta property="og:description" content="Personalised home tutoring and curriculum resources for learners." />
