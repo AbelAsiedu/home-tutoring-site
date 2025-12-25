@@ -10,9 +10,12 @@ export default function App({ Component, pageProps }) {
         <style>{`
           /* Critical header CSS to reduce layout shift */
           .nav-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 20px}
-          .nav-links{display:flex;gap:12px;align-items:center}
+          .nav-links{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+          .nav-links a{padding:6px 8px}
           .nav-toggle{display:none}
           .brand .logo{width:42px;height:42px}
+          .nav-actions{display:flex;gap:8px;align-items:center}
+          .nav-actions .btn{padding:8px 10px;border-radius:8px}
           @media(max-width:900px){.nav-links{display:none}.nav-toggle{display:inline-flex}}
         `}</style>
         <meta name="description" content="The Modern Pedagogues — professional home tutoring aligned to GES, Cambridge and international curricula." />
