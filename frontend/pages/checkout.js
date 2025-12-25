@@ -41,8 +41,18 @@ export default function Checkout(){
       const body = Object.assign({}, payloadBase, itemsFallback ? { items: itemsFallback } : {})
       const res = await fetch('/api/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body), credentials:'include'})
       const j = await res.json()
-      if (j.orderId) setStatus('success:'+j.orderId)
-      else if (j.stripeUrl) window.location = j.stripeUrl
+      if (j.orderId) {
+        // Clear client-side fallback cart when order is placed
+        try { localStorage.removeItem('mp_cart') } catch(e) {}
+        // notify other parts of the app to refresh cart UI
+        try { window.dispatchEvent(new CustomEvent('cart:updated')) } catch(e) {}
+        setStatus('success:'+j.orderId)
+      }
+      else if (j.stripeUrl) {
+        try { localStorage.removeItem('mp_cart') } catch(e) {}
+        try { window.dispatchEvent(new CustomEvent('cart:updated')) } catch(e) {}
+        window.location = j.stripeUrl
+      }
       else setStatus('error')
     }catch(e){ setStatus('error') }
   }

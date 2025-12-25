@@ -155,12 +155,21 @@ export default function Header(){
                             <button onClick={async ()=>{
                               try {
                                 await fetch('/api/cart/remove', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:it.id}), credentials: 'include'});
+                                  // update server-side view
                                   const r = await fetch('/api/cart', { credentials: 'include' });
                                   const items = await r.json();
                                   setCartItems(items);
                                   const s = await fetch('/api/session', { credentials: 'include' });
                                   const js = await s.json();
-                                  const count = js.cart ? Object.values(js.cart).reduce((a,b)=>a+Number(b||0),0) : 0;
+                                  let count = js.cart ? Object.values(js.cart).reduce((a,b)=>a+Number(b||0),0) : 0;
+                                  // Also update localStorage fallback to keep client and server in sync
+                                  try {
+                                    const key = 'mp_cart'
+                                    const cur = JSON.parse(window.localStorage.getItem(key) || '{}')
+                                    if (cur && cur[it.id]) { delete cur[it.id]; window.localStorage.setItem(key, JSON.stringify(cur)) }
+                                    // if local fallback still has items, prefer sum from it when server empty
+                                    if (!count) count = Object.values(cur).reduce((s,n)=>s + (Number(n)||0), 0)
+                                  } catch(e) {}
                                   setCartCount(count);
                               } catch(e){}
                             }} className="btn-link small">Deselect</button>
@@ -175,8 +184,11 @@ export default function Header(){
                       <button className="btn alt" onClick={async ()=>{
                         try {
                           await fetch('/api/cart/clear', {method:'POST', credentials: 'include'});
+                          // clear local fallback as well
+                          try { window.localStorage.removeItem('mp_cart') } catch(e) {}
                           setCartItems([]);
                           setCartCount(0);
+                          try { window.dispatchEvent(new CustomEvent('cart:updated')) } catch(e) {}
                         } catch(e){}
                       }}>Clear cart</button>
                       <a href="/checkout" className="btn ghost">Checkout</a>
