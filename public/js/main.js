@@ -164,6 +164,16 @@ document.addEventListener('DOMContentLoaded', function(){
     if (serverMC.querySelector('ul') || serverMC.querySelector('.muted') === null) showMiniCart(serverMC);
   }
 
+  // Toggle mini-cart when clicking the caret button
+  document.querySelectorAll('[data-mini-toggle]').forEach(btn => {
+    btn.addEventListener('click', function(e){
+      e.preventDefault();
+      const mc = document.querySelector('.mini-cart');
+      if (!mc) return;
+      if (mc.classList.contains('show')) hideMiniCart(mc); else showMiniCart(mc);
+    });
+  });
+
   // cleanup when navigating away (not strictly necessary in static script)
   window.addEventListener('unload', ()=>{
     document.removeEventListener('keydown', onServerKey);
