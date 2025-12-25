@@ -24,18 +24,10 @@ export default function ProductPage(){
     try {
       const key = 'mp_cart'
       const cur = JSON.parse(localStorage.getItem(key) || '{}')
-      cur[id] = (Number(cur[id] || 0) || 0) + 1
+      cur[id] = (Number(cur[id] || 0) || 0) + Number(qty || 1)
       localStorage.setItem(key, JSON.stringify(cur))
     } catch(e) {}
-    try {
-      const links = Array.from(document.querySelectorAll('.site-header a, .site-header [role="button"]'))
-      const cartLink = links.find(el => /cart/i.test((el.innerText||'')))
-      if (cartLink) {
-        let b = cartLink.querySelector('.badge')
-        if (!b) { b = document.createElement('span'); b.className = 'badge'; cartLink.appendChild(b) }
-        b.innerText = String((parseInt(b.innerText||'0',10) || 0) + 1)
-      }
-    } catch(e) {}
+    // Let Header handle UI updates via `cart:updated` event
   }
 
   return (
@@ -72,7 +64,13 @@ export default function ProductPage(){
                   <div className="muted">GHS {p.price}</div>
                   <div style={{display:'flex',gap:8,marginTop:8}}>
                     <a href={`/product/${p.id}`} className="btn">View</a>
-                    <button className="btn" onClick={async ()=>{ const b=new URLSearchParams({ id: p.id, quantity: 1}); await fetch('/api/cart/add',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:b, credentials: 'include'}); alert('Added'); try { window.dispatchEvent(new CustomEvent('cart:updated')) } catch(e) {}; try { const links = Array.from(document.querySelectorAll('.site-header a, .site-header [role="button"]')); const cartLink = links.find(el => /cart/i.test((el.innerText||''))); if (cartLink) { let bb = cartLink.querySelector('.badge'); if (!bb) { bb = document.createElement('span'); bb.className = 'badge'; cartLink.appendChild(bb) } bb.innerText = String((parseInt(bb.innerText||'0',10) || 0) + 1) } } catch(e) {} }}>Add</button>
+                    <button className="btn" onClick={async ()=>{
+                      const b=new URLSearchParams({ id: p.id, quantity: 1});
+                      await fetch('/api/cart/add',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:b, credentials: 'include'});
+                      alert('Added');
+                      try { const key='mp_cart'; const cur=JSON.parse(localStorage.getItem(key)||'{}'); cur[p.id] = (Number(cur[p.id]||0)||0) + 1; localStorage.setItem(key, JSON.stringify(cur)); } catch(e) {}
+                      try { window.dispatchEvent(new CustomEvent('cart:updated')) } catch(e) {}
+                    }}>Add</button>
                   </div>
                 </div>
               ))}

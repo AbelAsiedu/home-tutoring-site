@@ -22,12 +22,13 @@ export default function Home() {
     } catch(e) {}
     try {
       const links = Array.from(document.querySelectorAll('.site-header a, .site-header [role="button"]'))
-      const cartLink = links.find(el => /cart/i.test((el.innerText||'')))
-      if (cartLink) {
-        let b = cartLink.querySelector('.badge')
-        if (!b) { b = document.createElement('span'); b.className = 'badge'; cartLink.appendChild(b) }
-        b.innerText = String((parseInt(b.innerText||'0',10) || 0) + 1)
-      }
+        // UI updates are handled by Header via the `cart:updated` event and localStorage fallback
+        // don't manipulate header DOM directly here (keeps React in control)
+        const cartLink = links.find(el => /cart/i.test((el.innerText||'')))
+        if (cartLink) {
+          // ensure header refreshes by dispatching the event (Header will update badge)
+          try { window.dispatchEvent(new CustomEvent('cart:updated')) } catch(e) {}
+        }
     } catch(e) {}
   }
 

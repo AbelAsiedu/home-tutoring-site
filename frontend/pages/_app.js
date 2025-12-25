@@ -7,6 +7,14 @@ export default function App({ Component, pageProps }) {
       <Head>
         <link rel="stylesheet" href="/css/style.css" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <style>{`
+          /* Critical header CSS to reduce layout shift */
+          .nav-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 20px}
+          .nav-links{display:flex;gap:12px;align-items:center}
+          .nav-toggle{display:none}
+          .brand .logo{width:42px;height:42px}
+          @media(max-width:900px){.nav-links{display:none}.nav-toggle{display:inline-flex}}
+        `}</style>
         <meta name="description" content="The Modern Pedagogues — professional home tutoring aligned to GES, Cambridge and international curricula." />
         <meta property="og:title" content="The Modern Pedagogues" />
         <meta property="og:description" content="Personalised home tutoring and curriculum resources for learners." />

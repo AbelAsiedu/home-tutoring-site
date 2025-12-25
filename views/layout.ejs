@@ -4,6 +4,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>The Modern Pedagogues</title>
+    <style>
+      /* Critical header CSS to avoid layout flash before full CSS loads */
+      .nav-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 20px}
+      .nav-links{display:flex;gap:12px;align-items:center}
+      .nav-toggle{display:none}
+      .brand .logo{width:42px;height:42px}
+      @media(max-width:900px){.nav-links{display:none}.nav-toggle{display:inline-flex}}
+    </style>
     <link rel="stylesheet" href="/css/style.css" />
   </head>
   <body>

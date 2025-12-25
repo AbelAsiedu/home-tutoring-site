@@ -18,15 +18,7 @@ export default function EStore({ initialProducts }) {
       cur[id] = (Number(cur[id] || 0) || 0) + 1
       localStorage.setItem(key, JSON.stringify(cur))
     } catch(e) {}
-    try {
-      const links = Array.from(document.querySelectorAll('.site-header a, .site-header [role="button"]'))
-      const cartLink = links.find(el => /cart/i.test((el.innerText||'')))
-      if (cartLink) {
-        let b = cartLink.querySelector('.badge')
-        if (!b) { b = document.createElement('span'); b.className = 'badge'; cartLink.appendChild(b) }
-        b.innerText = String((parseInt(b.innerText||'0',10) || 0) + 1)
-      }
-    } catch(e) {}
+    // Header will refresh on 'cart:updated' so avoid direct DOM changes
   }
 
   return (
