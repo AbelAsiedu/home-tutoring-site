@@ -75,3 +75,19 @@
       </div>
     </div>
   </header>
+
+  <script>
+    (function(){
+      function updateBadge(){
+        try{
+          const el = document.querySelector('.cart-badge');
+          if (!el) return;
+          const local = JSON.parse(window.localStorage.getItem('mp_cart') || '{}');
+          const count = Object.values(local || {}).reduce((s,n)=>s + (Number(n)||0), 0);
+          el.textContent = count > 0 ? count : '';
+        }catch(e){ /* ignore */ }
+      }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', updateBadge); else updateBadge();
+      window.addEventListener('cart:updated', updateBadge);
+    })();
+  </script>
