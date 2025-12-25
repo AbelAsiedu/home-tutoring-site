@@ -20,31 +20,61 @@ export default function Header(){
       try {
         const s = await fetch('/api/session', { credentials: 'include' });
         const js = await s.json();
-        let count = js.cart ? Object.values(js.cart).reduce((a,b)=>a+Number(b||0),0) : 0;
-        // if session cart empty, fall back to client-side localStorage cart
-        if (!count) {
-          try {
-            const local = JSON.parse(window.localStorage.getItem('mp_cart') || '{}')
-            count = Object.values(local).reduce((s,n)=>s + (Number(n)||0), 0)
-            if (count > 0) {
-              // fetch product details for items in local cart
-              const ids = Object.keys(local)
-              const r = ids.length ? await fetch(`/api/products`) : null
-              const products = r ? await r.json() : []
-              const items = products.filter(p => ids.includes(p.id)).map(p => ({ ...p, qty: local[p.id] || 0 }))
-              setCartItems(items)
-            }
-          } catch(e) {}
-        } else {
-          setCartCount(count)
-          if (count > 0) {
-            const r = await fetch('/api/cart', { credentials: 'include' });
-            const items = await r.json();
-            setCartItems(items)
-          }
+        const serverCart = js.cart || {};
+        const serverCount = Object.values(serverCart).reduce((a,b)=>a+Number(b||0),0);
+
+        if (serverCount > 0) {
+          // Prefer server-side cart when present
+          const r = await fetch('/api/cart', { credentials: 'include' });
+          const items = await r.json();
+          // compute actual count from returned items to avoid mismatch
+          const actualCount = Array.isArray(items) ? items.reduce((s,i)=>s + (Number(i.qty)||0), 0) : serverCount;
+          setCartItems(Array.isArray(items) ? items : []);
+          setCartCount(actualCount);
+          return;
         }
-        setCartCount(count)
-      } catch (e) { }
+
+        // No server-side items: fall back to localStorage
+        try {
+          const local = JSON.parse(window.localStorage.getItem('mp_cart') || '{}')
+          const ids = Object.keys(local || {});
+          if (!ids.length) {
+            // nothing in local fallback
+            setCartItems([]);
+            setCartCount(0);
+            return;
+          }
+          // fetch product details and map only existing products
+          const r = await fetch(`/api/products`);
+          const products = await r.json();
+          const items = products.filter(p => ids.includes(p.id)).map(p => ({ ...p, qty: Number(local[p.id] || 0) }));
+          const localCount = items.reduce((s,i)=>s + (Number(i.qty)||0), 0);
+          if (!localCount) {
+            // no valid items found in local fallback — clear stale fallback
+            try { window.localStorage.removeItem('mp_cart') } catch(e) {}
+            setCartItems([]);
+            setCartCount(0);
+            return;
+          }
+          setCartItems(items);
+          setCartCount(localCount);
+          return;
+        } catch(e) {
+          // graceful fallback
+          setCartItems([]);
+          setCartCount(0);
+          return;
+        }
+      } catch (e) {
+        // network or other error — keep UI stable
+        try {
+          const local = JSON.parse(window.localStorage.getItem('mp_cart') || '{}')
+          const localCount = Object.values(local || {}).reduce((s,n)=>s + (Number(n)||0), 0);
+          setCartCount(localCount);
+        } catch (err) {
+          setCartCount(0);
+        }
+      }
     }
     fetchCart();
     // listen for cart updates from other pages
