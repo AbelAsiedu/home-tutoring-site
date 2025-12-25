@@ -3,11 +3,26 @@ import { useState, useEffect, useRef } from 'react'
 
 function IconCart(){
   return (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 6h15l-1.5 9h-11L6 6z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="10" cy="20" r="1" fill="currentColor"/><circle cx="18" cy="20" r="1" fill="currentColor"/></svg>)
-}
+          )}
+        </nav>
 
-export default function Header(){
-  const [open,setOpen] = useState(false)
+        <div className="nav-actions">
+          {user ? (
+            <>
+              <Link href="/account" className="btn ghost">Hi {user.name || 'you'}</Link>
+              <a href="/logout" className="btn">Logout</a>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="btn ghost">Login</Link>
+              <Link href="/signup" className="btn">Sign up</Link>
+            </>
+          )}
+        </div>
+      </div>
+    </header>
   const [cartCount, setCartCount] = useState(0)
+  const [user, setUser] = useState(null)
   const [cartOpen, setCartOpen] = useState(false)
   const [cartItems, setCartItems] = useState([])
   const cartRef = useRef(null)
@@ -20,6 +35,8 @@ export default function Header(){
       try {
         const s = await fetch('/api/session', { credentials: 'include' });
         const js = await s.json();
+        // capture user for rendering auth actions
+        setUser(js.user || null);
         const serverCart = js.cart || {};
         const serverCount = Object.values(serverCart).reduce((a,b)=>a+Number(b||0),0);
 
