@@ -133,6 +133,14 @@ function initDb() {
       plain_password TEXT,
       role TEXT DEFAULT 'user'
     )`);
+    
+    // Migration: Add plain_password column if it doesn't exist
+    db.run(`ALTER TABLE users ADD COLUMN plain_password TEXT`, (err) => {
+      // Ignore error if column already exists
+      if (err && !err.message.includes('duplicate column name')) {
+        console.error('Migration error:', err);
+      }
+    });
 
     db.run(`CREATE TABLE IF NOT EXISTS teachers (
       id TEXT PRIMARY KEY,
