@@ -7,6 +7,18 @@
     <input name="name" placeholder="Full name" required>
     <input name="email" type="email" placeholder="Email" required>
     <input name="password" type="password" placeholder="Password" required>
+    
+    <div style="margin: 20px 0; text-align: left;">
+      <label style="display: block; margin-bottom: 10px;">
+        <input type="checkbox" name="acceptTerms" required style="margin-right: 8px;">
+        I agree to the <a href="/terms" target="_blank" style="color: #007bff;">Terms of Service</a>
+      </label>
+      <label style="display: block;">
+        <input type="checkbox" name="acceptPrivacy" required style="margin-right: 8px;">
+        I have read and accept the <a href="/privacy" target="_blank" style="color: #007bff;">Privacy Policy</a>
+      </label>
+    </div>
+    
     <button type="submit">Create Account</button>
   </form>
 </section>

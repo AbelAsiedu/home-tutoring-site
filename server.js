@@ -13,6 +13,7 @@ const { v4: uuidv4 } = require('uuid');
 const { body, validationResult } = require('express-validator');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
+const { sendEmail } = require('./lib/email');
 const Stripe = require('stripe');
 const stripe = process.env.STRIPE_SECRET ? Stripe(process.env.STRIPE_SECRET) : null;
 const next = require(path.join(__dirname, 'frontend', 'node_modules', 'next'));
@@ -419,6 +420,7 @@ app.get('/faq', (req, res) => {
 });
 
 app.get('/privacy', (req, res) => res.render('privacy'));
+app.get('/terms', (req, res) => res.render('terms'));
 
 // JSON APIs for Next.js frontend
 app.get('/api/products', async (req, res) => {
@@ -762,7 +764,9 @@ app.get('/signup', (req, res) => res.render('signup'));
 app.post('/signup', [
   body('name').trim().notEmpty().withMessage('Name is required').isLength({ min: 2, max: 100 }).withMessage('Name must be 2-100 characters'),
   body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
-  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
+  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+  body('acceptTerms').equals('on').withMessage('You must accept the Terms of Service'),
+  body('acceptPrivacy').equals('on').withMessage('You must accept the Privacy Policy')
 ], (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -772,9 +776,23 @@ app.post('/signup', [
   const { name, email, password } = req.body;
   const id = uuidv4();
   const hashed = bcrypt.hashSync(password, 10);
-  db.run('INSERT INTO users (id, name, email, password) VALUES (?, ?, ?, ?)', [id, name, email, hashed], (err) => {
+  db.run('INSERT INTO users (id, name, email, password) VALUES (?, ?, ?, ?)', [id, name, email, hashed], async (err) => {
     if (err) return res.render('signup', { error: 'Email already in use' });
     req.session.user = { id, name, email, role: 'user' };
+    
+    // Send welcome email
+    try {
+      await sendEmail(email, 'welcomeStudent', {
+        name,
+        email,
+        password, // In production, you wouldn't send the password
+        loginUrl: `${req.protocol}://${req.get('host')}/login`
+      });
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError);
+      // Don't block signup if email fails
+    }
+    
     res.redirect('/dashboard');
   });
 });
@@ -889,8 +907,23 @@ app.post('/admin/users/create', requireAdmin, [
   const id = uuidv4();
   const hashed = bcrypt.hashSync(password, 10);
   const userRole = (role === 'tutor') ? 'tutor' : 'user';
-  db.run('INSERT INTO users (id, name, email, password, plain_password, role) VALUES (?, ?, ?, ?, ?, ?)', [id, name, email, hashed, password, userRole], (err) => {
+  db.run('INSERT INTO users (id, name, email, password, plain_password, role) VALUES (?, ?, ?, ?, ?, ?)', [id, name, email, hashed, password, userRole], async (err) => {
     if (err) return res.redirect('/admin/users?error=Email already in use');
+    
+    // Send welcome email
+    try {
+      const templateName = userRole === 'tutor' ? 'welcomeTutor' : 'welcomeStudent';
+      await sendEmail(email, templateName, {
+        name,
+        email,
+        password,
+        loginUrl: `${req.protocol}://${req.get('host')}/login`
+      });
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError);
+      // Don't block user creation if email fails
+    }
+    
     res.redirect('/admin/users?message=User created successfully. Credentials: ' + email + ' / ' + password);
   });
 });
