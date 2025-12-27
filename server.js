@@ -138,7 +138,8 @@ const {
 } = doubleCsrf({
   getSecret: () => process.env.SESSION_SECRET || 'your-secret-key',
   getSessionIdentifier: (req) => req.sessionID || 'anon',
-  getCsrfTokenFromRequest: (req) => (req.body && req.body._csrf) || req.headers['x-csrf-token'],
+  // Read CSRF token from form body or header
+  getTokenFromRequest: (req) => (req.body && req.body._csrf) || req.headers['x-csrf-token'],
   cookieName: process.env.NODE_ENV === 'production' ? '__Host-psifi.x-csrf-token' : 'x-csrf-token',
   cookieOptions: {
     sameSite: 'lax',
