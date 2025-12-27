@@ -107,26 +107,7 @@ app.use(generalLimiter); // Apply to all other routes
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
-app.use(cookieParser());
 app.use(cors({ origin: true, credentials: true }));
-
-// CSRF Protection
-const {
-  generateToken,
-  doubleCsrfProtection,
-} = doubleCsrf({
-  getSecret: () => process.env.SESSION_SECRET || 'your-secret-key',
-  cookieName: '__Host-psifi.x-csrf-token',
-  cookieOptions: {
-    sameSite: 'lax',
-    path: '/',
-    secure: process.env.NODE_ENV === 'production',
-  },
-  size: 64,
-  ignoredMethods: ['GET', 'HEAD', 'OPTIONS'],
-});
-
-app.use(doubleCsrfProtection);
 
 // Optional: force HTTPS redirect when explicitly required
 if (FORCE_HTTPS) {
@@ -149,6 +130,30 @@ app.use(session({
   saveUninitialized: false,
   cookie: { maxAge: 1000 * 60 * 60 * 24, secure: !!(USE_HTTPS || process.env.NODE_ENV === 'production'), sameSite: 'lax' }
 }));
+
+// Register cookie parser AFTER session (per csrf-csrf guidance)
+app.use(cookieParser());
+
+// CSRF Protection (use form body `_csrf` field)
+const {
+  generateToken,
+  doubleCsrfProtection,
+} = doubleCsrf({
+  getSecret: () => process.env.SESSION_SECRET || 'your-secret-key',
+  getSessionIdentifier: (req) => (req.session && req.session.id) || 'anon',
+  getCsrfTokenFromRequest: (req) => (req.body && req.body._csrf) || req.headers['x-csrf-token'],
+  cookieName: process.env.NODE_ENV === 'production' ? '__Host-psifi.x-csrf-token' : 'x-csrf-token',
+  cookieOptions: {
+    sameSite: 'lax',
+    path: '/',
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+  },
+  size: 64,
+  ignoredMethods: ['GET', 'HEAD', 'OPTIONS'],
+});
+
+app.use(doubleCsrfProtection);
 
 // Expose cart count and items to server-rendered views
 app.use(async (req, res, next) => {
