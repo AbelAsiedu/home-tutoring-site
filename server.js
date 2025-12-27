@@ -100,9 +100,6 @@ const generalLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-app.use('/login', authLimiter);
-app.use('/signup', authLimiter);
-app.use('/admin/login', authLimiter);
 app.use(generalLimiter); // Apply to all other routes
 
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -953,7 +950,7 @@ app.post('/admin/orders/:id/status', requireAdmin, (req, res) => {
 
 // Auth: signup & login
 app.get('/signup', (req, res) => res.render('signup'));
-app.post('/signup', [
+app.post('/signup', authLimiter, [
   body('name').trim().notEmpty().withMessage('Name is required').isLength({ min: 2, max: 100 }).withMessage('Name must be 2-100 characters'),
   body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
   body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
@@ -992,7 +989,7 @@ app.post('/signup', [
 });
 
 app.get('/login', (req, res) => res.render('login'));
-app.post('/login', [
+app.post('/login', authLimiter, [
   body('email').trim().notEmpty().withMessage('Email or username is required'),
   body('password').notEmpty().withMessage('Password is required')
 ], (req, res) => {
@@ -1124,7 +1121,7 @@ function requireAdmin(req, res, next) {
 }
 
 app.get('/admin/login', (req, res) => res.render('admin/login'));
-app.post('/admin/login', (req, res) => {
+app.post('/admin/login', authLimiter, (req, res) => {
   const { username, password } = req.body;
   const adminUsername = process.env.ADMIN_USERNAME || 'admin';
   const adminPassword = process.env.ADMIN_PASSWORD || 'ChangeThisPassword123!';
