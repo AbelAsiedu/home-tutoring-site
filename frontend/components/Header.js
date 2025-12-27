@@ -35,6 +35,10 @@ export default function Header(){
       <div className="nav-inner container">
         <div style={{display:'flex',alignItems:'center',gap:12}}>
           <div className="brand"><span className="logo" />The Modern Pedagogues</div>
+          <div className="nav-history" style={{display:'inline-flex',gap:6}}>
+            <button type="button" aria-label="Go back" className="btn ghost" style={{padding:'6px 10px'}} onClick={()=>window.history.back()}>←</button>
+            <button type="button" aria-label="Go forward" className="btn ghost" style={{padding:'6px 10px'}} onClick={()=>window.history.forward()}>→</button>
+          </div>
         </div>
 
         <button className="nav-toggle" aria-label="Toggle menu">
