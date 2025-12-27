@@ -23,7 +23,13 @@ export default function Dashboard(){
     <div>
       <Header />
       <main className="container">
-        <h1>Your dashboard</h1>
+        <div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+          <div style={{display:'inline-flex',gap:6}}>
+            <button type="button" aria-label="Go back" className="btn ghost" style={{padding:'6px 10px'}} onClick={()=>window.history.back()}>←</button>
+            <button type="button" aria-label="Go forward" className="btn ghost" style={{padding:'6px 10px'}} onClick={()=>window.history.forward()}>→</button>
+          </div>
+          <h1 style={{margin:0}}>Your dashboard</h1>
+        </div>
         <section style={{marginTop:18}}>
           <h2>Upcoming lessons</h2>
           {data.upcoming && data.upcoming.length ? (

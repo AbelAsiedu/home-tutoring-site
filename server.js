@@ -115,6 +115,7 @@ app.use(async (req, res, next) => {
     res.locals.cartCount = 0;
     res.locals.cartItems = [];
   }
+  res.locals.isAdmin = req.session && req.session.user && req.session.user.role === 'admin';
   next();
 });
 
