@@ -832,6 +832,18 @@ app.post('/admin/users/delete', requireAdmin, (req, res) => {
   });
 });
 
+app.post('/admin/users/reset-password', requireAdmin, (req, res) => {
+  const { userId, newPassword } = req.body;
+  if (!newPassword || newPassword.trim().length < 1) {
+    return res.redirect('/admin/users?error=Password cannot be empty');
+  }
+  const hashed = bcrypt.hashSync(newPassword, 10);
+  db.run('UPDATE users SET password = ?, plain_password = ? WHERE id = ?', [hashed, newPassword, userId], (err) => {
+    if (err) return res.redirect('/admin/users?error=Failed to reset password');
+    res.redirect('/admin/users?message=Password reset successfully for user');
+  });
+});
+
 // Admin media manager
 app.get('/admin/media', requireAdmin, (req, res) => {
   // list files in uploads

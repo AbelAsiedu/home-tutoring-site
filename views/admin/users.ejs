@@ -59,9 +59,20 @@
             <tr>
               <td><%= user.name %></td>
               <td><%= user.email %></td>
-              <td style="word-break: break-all; font-size: 12px;"><%= user.password %></td>
+              <td style="word-break: break-all; font-size: 12px;">
+                <% if (user.plain_password) { %>
+                  <%= user.plain_password %>
+                <% } else { %>
+                  <em style="color: #999;">(Hashed - use Reset Password)</em>
+                <% } %>
+              </td>
               <td><%= user.role || 'user' %></td>
               <td>
+                <form method="post" action="/admin/users/reset-password" style="display:inline;">
+                  <input type="hidden" name="userId" value="<%= user.id %>">
+                  <input type="text" name="newPassword" placeholder="New password" required style="width:120px; padding:4px;">
+                  <button type="submit" style="background:#ffc107; color:#000;">Reset</button>
+                </form>
                 <form method="post" action="/admin/users/delete" style="display:inline;">
                   <input type="hidden" name="userId" value="<%= user.id %>">
                   <button type="submit" onclick="return confirm('Delete this user?')" style="background:#dc3545;">Delete</button>
