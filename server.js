@@ -13,6 +13,7 @@ const { v4: uuidv4 } = require('uuid');
 const { body, validationResult } = require('express-validator');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
+const { doubleCsrf } = require('csrf-csrf');
 const { sendEmail } = require('./lib/email');
 const Stripe = require('stripe');
 const stripe = process.env.STRIPE_SECRET ? Stripe(process.env.STRIPE_SECRET) : null;
@@ -109,6 +110,24 @@ app.use(bodyParser.json());
 app.use(cookieParser());
 app.use(cors({ origin: true, credentials: true }));
 
+// CSRF Protection
+const {
+  generateToken,
+  doubleCsrfProtection,
+} = doubleCsrf({
+  getSecret: () => process.env.SESSION_SECRET || 'your-secret-key',
+  cookieName: '__Host-psifi.x-csrf-token',
+  cookieOptions: {
+    sameSite: 'lax',
+    path: '/',
+    secure: process.env.NODE_ENV === 'production',
+  },
+  size: 64,
+  ignoredMethods: ['GET', 'HEAD', 'OPTIONS'],
+});
+
+app.use(doubleCsrfProtection);
+
 // Optional: force HTTPS redirect when explicitly required
 if (FORCE_HTTPS) {
   app.use((req, res, next) => {
@@ -152,6 +171,8 @@ app.use(async (req, res, next) => {
     res.locals.cartItems = [];
   }
   res.locals.isAdmin = req.session && req.session.user && req.session.user.role === 'admin';
+  // Make CSRF token available to all views
+  res.locals.csrfToken = req.csrfToken ? req.csrfToken() : null;
   next();
 });
 
@@ -167,12 +188,38 @@ function initDb() {
       email TEXT UNIQUE,
       password TEXT,
       plain_password TEXT,
-      role TEXT DEFAULT 'user'
-    )`);
+      role TEXT DEFAULT 'user',
+      email_verified INTEGER DEFAULT 0,
+      verification_token TEXT,
+      reset_token TEXT,
+      reset_token_expiry INTEGER
+    )`,
     
     // Migration: Add plain_password column if it doesn't exist
     db.run(`ALTER TABLE users ADD COLUMN plain_password TEXT`, (err) => {
       // Ignore error if column already exists
+      if (err && !err.message.includes('duplicate column name')) {
+        console.error('Migration error:', err);
+      }
+    });
+    
+    // Migration: Add email verification columns
+    db.run(`ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0`, (err) => {
+      if (err && !err.message.includes('duplicate column name')) {
+        console.error('Migration error:', err);
+      }
+    });
+    db.run(`ALTER TABLE users ADD COLUMN verification_token TEXT`, (err) => {
+      if (err && !err.message.includes('duplicate column name')) {
+        console.error('Migration error:', err);
+      }
+    });
+    db.run(`ALTER TABLE users ADD COLUMN reset_token TEXT`, (err) => {
+      if (err && !err.message.includes('duplicate column name')) {
+        console.error('Migration error:', err);
+      }
+    });
+    db.run(`ALTER TABLE users ADD COLUMN reset_token_expiry INTEGER`, (err) => {
       if (err && !err.message.includes('duplicate column name')) {
         console.error('Migration error:', err);
       }
@@ -421,6 +468,140 @@ app.get('/faq', (req, res) => {
 
 app.get('/privacy', (req, res) => res.render('privacy'));
 app.get('/terms', (req, res) => res.render('terms'));
+
+// Email verification route
+app.get('/verify/:token', async (req, res) => {
+  const { token } = req.params;
+  
+  try {
+    const user = await runQuery('SELECT * FROM users WHERE verification_token = ?', [token]);
+    
+    if (!user || user.length === 0) {
+      return res.render('login', { error: 'Invalid or expired verification token' });
+    }
+    
+    await runQuery('UPDATE users SET email_verified = 1, verification_token = NULL WHERE id = ?', [user[0].id]);
+    
+    // Update session if user is logged in
+    if (req.session.user && req.session.user.id === user[0].id) {
+      req.session.user.email_verified = true;
+    }
+    
+    res.render('login', { success: 'Email verified successfully! You can now log in.' });
+  } catch (err) {
+    console.error('Verification error:', err);
+    res.render('login', { error: 'Verification failed. Please try again.' });
+  }
+});
+
+// Forgot password routes
+app.get('/forgot-password', (req, res) => res.render('forgot-password'));
+
+app.post('/forgot-password', [
+  body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail()
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.render('forgot-password', { error: errors.array()[0].msg });
+  }
+  
+  const { email } = req.body;
+  
+  try {
+    const user = await runQuery('SELECT * FROM users WHERE email = ?', [email]);
+    
+    if (user && user.length > 0) {
+      const resetToken = uuidv4();
+      const expiry = Date.now() + 3600000; // 1 hour from now
+      
+      await runQuery('UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE id = ?', 
+        [resetToken, expiry, user[0].id]);
+      
+      const resetUrl = `${req.protocol}://${req.get('host')}/reset-password/${resetToken}`;
+      await sendEmail(email, 'passwordReset', {
+        name: user[0].name,
+        resetUrl
+      });
+    }
+    
+    // Always show success to prevent email enumeration
+    res.render('forgot-password', { 
+      success: 'If an account exists with that email, a password reset link has been sent.' 
+    });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    res.render('forgot-password', { 
+      error: 'An error occurred. Please try again later.' 
+    });
+  }
+});
+
+// Reset password routes
+app.get('/reset-password/:token', async (req, res) => {
+  const { token } = req.params;
+  
+  try {
+    const user = await runQuery(
+      'SELECT * FROM users WHERE reset_token = ? AND reset_token_expiry > ?', 
+      [token, Date.now()]
+    );
+    
+    if (!user || user.length === 0) {
+      return res.render('login', { error: 'Invalid or expired reset token' });
+    }
+    
+    res.render('reset-password', { token });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.render('login', { error: 'An error occurred. Please try again.' });
+  }
+});
+
+app.post('/reset-password/:token', [
+  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+  body('confirmPassword').custom((value, { req }) => {
+    if (value !== req.body.password) {
+      throw new Error('Passwords do not match');
+    }
+    return true;
+  })
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.render('reset-password', { 
+      token: req.params.token, 
+      error: errors.array()[0].msg 
+    });
+  }
+  
+  const { token } = req.params;
+  const { password } = req.body;
+  
+  try {
+    const user = await runQuery(
+      'SELECT * FROM users WHERE reset_token = ? AND reset_token_expiry > ?', 
+      [token, Date.now()]
+    );
+    
+    if (!user || user.length === 0) {
+      return res.render('login', { error: 'Invalid or expired reset token' });
+    }
+    
+    const hashed = bcrypt.hashSync(password, 10);
+    await runQuery(
+      'UPDATE users SET password = ?, reset_token = NULL, reset_token_expiry = NULL WHERE id = ?',
+      [hashed, user[0].id]
+    );
+    
+    res.render('login', { success: 'Password reset successfully! You can now log in.' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.render('reset-password', { 
+      token: req.params.token,
+      error: 'An error occurred. Please try again.' 
+    });
+  }
+});
 
 // JSON APIs for Next.js frontend
 app.get('/api/products', async (req, res) => {
@@ -776,24 +957,26 @@ app.post('/signup', [
   const { name, email, password } = req.body;
   const id = uuidv4();
   const hashed = bcrypt.hashSync(password, 10);
-  db.run('INSERT INTO users (id, name, email, password) VALUES (?, ?, ?, ?)', [id, name, email, hashed], async (err) => {
+  const verificationToken = uuidv4();
+  
+  db.run('INSERT INTO users (id, name, email, password, email_verified, verification_token) VALUES (?, ?, ?, ?, 0, ?)', 
+    [id, name, email, hashed, verificationToken], async (err) => {
     if (err) return res.render('signup', { error: 'Email already in use' });
-    req.session.user = { id, name, email, role: 'user' };
     
-    // Send welcome email
+    // Send verification email
     try {
-      await sendEmail(email, 'welcomeStudent', {
+      const verificationUrl = `${req.protocol}://${req.get('host')}/verify/${verificationToken}`;
+      await sendEmail(email, 'verification', {
         name,
-        email,
-        password, // In production, you wouldn't send the password
-        loginUrl: `${req.protocol}://${req.get('host')}/login`
+        verificationUrl
       });
+      req.session.user = { id, name, email, role: 'user', email_verified: false };
+      res.redirect('/dashboard?message=Please check your email to verify your account');
     } catch (emailError) {
-      console.error('Failed to send welcome email:', emailError);
-      // Don't block signup if email fails
+      console.error('Failed to send verification email:', emailError);
+      req.session.user = { id, name, email, role: 'user', email_verified: false };
+      res.redirect('/dashboard?error=Account created but failed to send verification email');
     }
-    
-    res.redirect('/dashboard');
   });
 });
 
@@ -811,7 +994,13 @@ app.post('/login', [
   db.get('SELECT * FROM users WHERE email = ? OR name = ?', [email, email], (err, user) => {
     if (err || !user) return res.render('login', { error: 'Invalid credentials' });
     if (!bcrypt.compareSync(password, user.password)) return res.render('login', { error: 'Invalid credentials' });
-    req.session.user = { id: user.id, name: user.name, email: user.email, role: user.role || 'user' };
+    req.session.user = { 
+      id: user.id, 
+      name: user.name, 
+      email: user.email, 
+      role: user.role || 'user',
+      email_verified: user.email_verified || false
+    };
     // Redirect based on role
     if (user.role === 'admin') return res.redirect('/admin');
     if (user.role === 'tutor') return res.redirect('/tutor/lessons');
@@ -823,7 +1012,97 @@ app.get('/logout', (req, res) => { req.session.destroy(()=>res.redirect('/')); }
 
 app.get('/account', (req, res) => {
   if (!req.session.user) return res.redirect('/login');
-  res.render('account');
+  res.render('account', { 
+    message: req.query.message,
+    error: req.query.error,
+    success: req.query.success 
+  });
+});
+
+// Account management routes
+app.post('/account/change-email', [
+  body('newEmail').trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
+  body('password').notEmpty().withMessage('Password is required')
+], async (req, res) => {
+  if (!req.session.user) return res.redirect('/login');
+  
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.redirect('/account?error=' + encodeURIComponent(errors.array()[0].msg));
+  }
+  
+  const { newEmail, password } = req.body;
+  const userId = req.session.user.id;
+  
+  try {
+    const user = await runQuery('SELECT * FROM users WHERE id = ?', [userId]);
+    
+    if (!user || user.length === 0) {
+      return res.redirect('/account?error=User not found');
+    }
+    
+    const match = bcrypt.compareSync(password, user[0].password);
+    if (!match) {
+      return res.redirect('/account?error=Incorrect password');
+    }
+    
+    // Check if email already exists
+    const existing = await runQuery('SELECT * FROM users WHERE email = ? AND id != ?', [newEmail, userId]);
+    if (existing && existing.length > 0) {
+      return res.redirect('/account?error=Email already in use');
+    }
+    
+    await runQuery('UPDATE users SET email = ?, email_verified = 0 WHERE id = ?', [newEmail, userId]);
+    req.session.user.email = newEmail;
+    req.session.user.email_verified = false;
+    
+    res.redirect('/account?success=Email updated successfully. Please verify your new email.');
+  } catch (err) {
+    console.error('Change email error:', err);
+    res.redirect('/account?error=An error occurred. Please try again.');
+  }
+});
+
+app.post('/account/change-password', [
+  body('currentPassword').notEmpty().withMessage('Current password is required'),
+  body('newPassword').isLength({ min: 8 }).withMessage('New password must be at least 8 characters'),
+  body('confirmPassword').custom((value, { req }) => {
+    if (value !== req.body.newPassword) {
+      throw new Error('Passwords do not match');
+    }
+    return true;
+  })
+], async (req, res) => {
+  if (!req.session.user) return res.redirect('/login');
+  
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.redirect('/account?error=' + encodeURIComponent(errors.array()[0].msg));
+  }
+  
+  const { currentPassword, newPassword } = req.body;
+  const userId = req.session.user.id;
+  
+  try {
+    const user = await runQuery('SELECT * FROM users WHERE id = ?', [userId]);
+    
+    if (!user || user.length === 0) {
+      return res.redirect('/account?error=User not found');
+    }
+    
+    const match = bcrypt.compareSync(currentPassword, user[0].password);
+    if (!match) {
+      return res.redirect('/account?error=Current password is incorrect');
+    }
+    
+    const hashed = bcrypt.hashSync(newPassword, 10);
+    await runQuery('UPDATE users SET password = ? WHERE id = ?', [hashed, userId]);
+    
+    res.redirect('/account?success=Password updated successfully');
+  } catch (err) {
+    console.error('Change password error:', err);
+    res.redirect('/account?error=An error occurred. Please try again.');
+  }
 });
 
 // Admin routes

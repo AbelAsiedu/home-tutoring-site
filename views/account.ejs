@@ -2,10 +2,48 @@
 
 <section class="page glass">
   <h1>Your Account</h1>
-  <div class="account-box curved">
+  
+  <% if (typeof error !== 'undefined') { %><div class="notice error"><%= error %></div><% } %>
+  <% if (typeof success !== 'undefined') { %><div class="notice success"><%= success %></div><% } %>
+  <% if (typeof message !== 'undefined') { %><div class="notice"><%= message %></div><% } %>
+  
+  <div class="account-box curved" style="margin-bottom: 20px;">
+    <h2 style="margin-top: 0;">Profile Information</h2>
     <p><strong>Name:</strong> <%= user.name %></p>
     <p><strong>Email:</strong> <%= user.email %></p>
-    <p><a href="/cart">Your Cart</a></p>
+    <p><strong>Role:</strong> <%= user.role %></p>
+    <% if (user.email_verified === 0 || user.email_verified === false) { %>
+      <p style="color: #ff6b6b;"><strong>Email Status:</strong> Not verified - Please check your email</p>
+    <% } else { %>
+      <p style="color: #51cf66;"><strong>Email Status:</strong> Verified ✓</p>
+    <% } %>
+  </div>
+  
+  <div class="account-box curved" style="margin-bottom: 20px;">
+    <h2 style="margin-top: 0;">Change Email</h2>
+    <form method="post" action="/account/change-email" class="auth-form">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input name="newEmail" type="email" placeholder="New email address" required>
+      <input name="password" type="password" placeholder="Current password" required>
+      <button type="submit">Update Email</button>
+    </form>
+  </div>
+  
+  <div class="account-box curved" style="margin-bottom: 20px;">
+    <h2 style="margin-top: 0;">Change Password</h2>
+    <form method="post" action="/account/change-password" class="auth-form">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input name="currentPassword" type="password" placeholder="Current password" required>
+      <input name="newPassword" type="password" placeholder="New password (min 8 characters)" required>
+      <input name="confirmPassword" type="password" placeholder="Confirm new password" required>
+      <button type="submit">Update Password</button>
+    </form>
+  </div>
+  
+  <div class="account-box curved">
+    <h2 style="margin-top: 0;">Quick Links</h2>
+    <p><a href="/cart" style="color: #007bff;">Your Cart</a></p>
+    <p><a href="/dashboard" style="color: #007bff;">Dashboard</a></p>
   </div>
 </section>
 

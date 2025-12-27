@@ -4,6 +4,7 @@
   <h1>Sign Up</h1>
   <% if (typeof error !== 'undefined') { %><div class="notice error"><%= error %></div><% } %>
   <form method="post" class="auth-form curved">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <input name="name" placeholder="Full name" required>
     <input name="email" type="email" placeholder="Email" required>
     <input name="password" type="password" placeholder="Password" required>
