@@ -1,4 +1,14 @@
-<%- include('../layout', { body: (function(){ %>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Applications - Admin</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <%- include('../partials/header') %>
+    <main class="container">
   <section class="page glass">
     <h1>Teacher Applications</h1>
     <div class="list curved">
@@ -11,4 +21,8 @@
       <% }) %>
     </div>
   </section>
-<% }).call(this) }) %>
+    </main>
+    <%- include('../partials/footer') %>
+    <script src="/js/main.js"></script>
+  </body>
+</html>
