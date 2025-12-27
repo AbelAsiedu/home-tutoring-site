@@ -1,5 +1,6 @@
 import '../styles/globals.css'
 import Head from 'next/head'
+import Script from 'next/script'
 
 export default function App({ Component, pageProps }) {
   return (
@@ -23,6 +24,7 @@ export default function App({ Component, pageProps }) {
         <meta property="og:description" content="Personalised home tutoring and curriculum resources for learners." />
         <meta name="twitter:card" content="summary_large_image" />
       </Head>
+      <Script src="/js/main.js" strategy="afterInteractive" />
       <Component {...pageProps} />
     </>
   )
