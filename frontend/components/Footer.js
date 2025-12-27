@@ -12,11 +12,15 @@ export default function Footer(){
               <a href="/curriculum">Curriculum</a>
             </div>
           </div>
-          <div style={{textAlign:'right'}}>
+          <div style={{textAlign:'right',display:'flex',flexDirection:'column',gap:8,alignItems:'flex-end'}}>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap',justifyContent:'flex-end'}}>
+              <a href="/login" className="btn ghost">Login</a>
+              <a href="/signup" className="btn">Sign up</a>
+            </div>
             <div className="muted">© {new Date().getFullYear()} The Modern Pedagogues</div>
-            <div style={{marginTop:8}}>
-              <a href="#" className="muted" style={{marginRight:8}}>Privacy</a>
-              <a href="#" className="muted">Cookies</a>
+            <div style={{marginTop:4}}>
+              <a href="/privacy" className="muted" style={{marginRight:8}}>Privacy</a>
+              <a href="/privacy" className="muted">Cookies</a>
             </div>
           </div>
         </div>

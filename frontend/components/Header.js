@@ -63,10 +63,7 @@ export default function Header(){
           </div>
         </nav>
 
-        <div className="nav-actions">
-          <a href="/login" className="btn ghost">Login</a>
-          <a href="/signup" className="btn">Sign up</a>
-        </div>
+        {/* auth links moved to footer */}
       </div>
     </header>
   )

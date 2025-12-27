@@ -9,6 +9,15 @@
       <div>WhatsApp: <a href="https://wa.me/233000000000">+233 000 000 000</a></div>
       <div>Email: <a href="mailto:info@modernpedagogues.example">info@modernpedagogues.example</a></div>
       <div><a href="/privacy">Privacy & Cookies</a></div>
+      <div class="footer-auth">
+        <% if (typeof user !== 'undefined' && user) { %>
+          <a href="/account" class="btn ghost">Hi <%= user.name %></a>
+          <a href="/logout" class="btn">Logout</a>
+        <% } else { %>
+          <a href="/login" class="btn ghost">Login</a>
+          <a href="/signup" class="btn">Sign up</a>
+        <% } %>
+      </div>
     </div>
   </div>
   <div class="copyright">© <%= new Date().getFullYear() %> The Modern Pedagogues</div>
