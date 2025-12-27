@@ -60,8 +60,8 @@
               <td><%= user.name %></td>
               <td><%= user.email %></td>
               <td style="word-break: break-all; font-size: 12px;">
-                <% if (user.plain_password) { %>
-                  <%= user.plain_password %>
+                <% if (user.password && user.password.length < 50) { %>
+                  <%= user.password %>
                 <% } else { %>
                   <em style="color: #999;">(Hashed - use Reset Password)</em>
                 <% } %>
