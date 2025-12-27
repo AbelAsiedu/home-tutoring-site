@@ -712,12 +712,16 @@ app.post('/admin/orders/:id/status', requireAdmin, (req, res) => {
 // Auth: signup & login
 app.get('/signup', (req, res) => res.render('signup'));
 app.post('/signup', (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, role } = req.body;
   const id = uuidv4();
   const hashed = bcrypt.hashSync(password, 10);
-  db.run('INSERT INTO users (id, name, email, password) VALUES (?, ?, ?, ?)', [id, name, email, hashed], (err) => {
+  const userRole = (role === 'tutor') ? 'tutor' : 'user';
+  db.run('INSERT INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)', [id, name, email, hashed, userRole], (err) => {
     if (err) return res.render('signup', { error: 'Email already in use' });
-    req.session.user = { id, name, email };
+    req.session.user = { id, name, email, role: userRole };
+    if (userRole === 'tutor') {
+      return res.redirect('/tutor/lessons');
+    }
     res.redirect('/account');
   });
 });
