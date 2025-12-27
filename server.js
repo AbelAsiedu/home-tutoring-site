@@ -202,11 +202,20 @@ app.use(async (req, res, next) => {
 
 // Friendly CSRF error handler
 app.use((err, req, res, next) => {
-  console.error('[Error]', err.message);
-  const view = req.path.includes('signup') ? 'signup' : (req.path.includes('admin') ? 'admin/login' : 'login');
-  res.status(500).render(view, { error: 'An error occurred. Please refresh and try again.', csrfToken: generateCsrfToken(req), isAdmin: false }).catch(() => {
+  try {
+    console.error('[Error]', err && err.stack ? err.stack : err);
+    const view = req.path && req.path.includes('signup') ? 'signup' : (req.path && req.path.includes('admin') ? 'admin/login' : 'login');
+    res.status(500).render(view, { error: 'An error occurred. Please refresh and try again.', csrfToken: generateCsrfToken(req), isAdmin: false }, (renderErr, html) => {
+      if (renderErr) {
+        console.error('[Render Error]', renderErr);
+        return res.status(500).send('Server error');
+      }
+      res.send(html);
+    });
+  } catch (e) {
+    console.error('[Handler Error]', e);
     res.status(500).send('Server error');
-  });
+  }
 });
 
 // Database
