@@ -183,9 +183,19 @@ footer.site-footer{margin-top:40px;padding:28px 20px;color:var(--muted)}
 .cta-banner .muted{color:rgba(255,255,255,0.9)}
 
 /* ===== Form Styling ===== */
-.page{max-width:480px;margin:20px auto}
+/* Auth form container - only constrain auth pages */
+.page {
+  /* Allow full width by default */
+}
 
-/* Auth form container */
+/* Narrow width for auth form pages only */
+section.page.glass.auth-page {
+  max-width: 100%;
+  margin: 20px auto;
+  width: 100%;
+  max-width: 480px;
+}
+
 .auth-form{display:flex;flex-direction:column;gap:14px;margin-top:18px}
 
 /* Input fields */
