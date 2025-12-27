@@ -139,9 +139,7 @@ if (FORCE_HTTPS) {
     next();
   });
 }
-  }
-  next();
-});
+ 
 
 // Session middleware: set secure cookie when running over HTTPS or in production
 app.use(session({
@@ -172,7 +170,11 @@ app.use(async (req, res, next) => {
   }
   res.locals.isAdmin = req.session && req.session.user && req.session.user.role === 'admin';
   // Make CSRF token available to all views
-  res.locals.csrfToken = req.csrfToken ? req.csrfToken() : null;
+  try {
+    res.locals.csrfToken = generateToken(req, res);
+  } catch (e) {
+    res.locals.csrfToken = null;
+  }
   next();
 });
 
