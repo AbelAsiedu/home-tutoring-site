@@ -195,7 +195,7 @@ function initDb() {
       verification_token TEXT,
       reset_token TEXT,
       reset_token_expiry INTEGER
-    )`,
+    )`);
     
     // Migration: Add plain_password column if it doesn't exist
     db.run(`ALTER TABLE users ADD COLUMN plain_password TEXT`, (err) => {
