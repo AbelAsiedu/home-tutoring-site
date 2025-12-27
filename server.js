@@ -157,7 +157,9 @@ const {
   cookieOptions: {
     sameSite: 'lax',
     path: '/',
-    secure: process.env.NODE_ENV === 'production',
+    // On Heroku behind proxy: trust proxy sets secure context, but set httpOnly first; 
+    // don't force secure=true as it can block cookies from being sent on initial page load POST
+    secure: false,
     httpOnly: true,
   },
   size: 64,
