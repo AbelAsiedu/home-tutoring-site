@@ -20,6 +20,7 @@
           <p>Payment: <%= o.payment_method %> <% if (o.momo_number) { %> (Momo: <%= o.momo_number %>) <% } %></p>
           <p>Status: <%= o.status %></p>
           <form method="post" action="/admin/orders/<%= o.id %>/status">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <select name="status">
               <option value="pending" <%= o.status==='pending'?'selected':'' %>>Pending</option>
               <option value="paid" <%= o.status==='paid'?'selected':'' %>>Paid</option>

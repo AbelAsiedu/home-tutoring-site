@@ -29,6 +29,7 @@
   <div class="admin-section">
     <h2>Create New User</h2>
     <form method="post" action="/admin/users/create" class="auth-form curved">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <input name="name" placeholder="Full name" required>
       <input name="email" type="email" placeholder="Email" required>
       <input name="password" type="password" placeholder="Temporary Password" required>
@@ -69,11 +70,13 @@
               <td><%= user.role || 'user' %></td>
               <td>
                 <form method="post" action="/admin/users/reset-password" style="display:inline;">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                   <input type="hidden" name="userId" value="<%= user.id %>">
                   <input type="text" name="newPassword" placeholder="New password" required style="width:120px; padding:4px;">
                   <button type="submit" style="background:#ffc107; color:#000;">Reset</button>
                 </form>
                 <form method="post" action="/admin/users/delete" style="display:inline;">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                   <input type="hidden" name="userId" value="<%= user.id %>">
                   <button type="submit" onclick="return confirm('Delete this user?')" style="background:#dc3545;">Delete</button>
                 </form>
