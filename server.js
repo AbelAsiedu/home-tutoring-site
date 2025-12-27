@@ -92,6 +92,17 @@ const authLimiter = rateLimit({
   message: 'Too many login attempts, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  skipSuccessfulRequests: true,
+});
+
+// Looser limiter for admin login to reduce lockouts
+const adminLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: 'Too many admin login attempts, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
 });
 
 const generalLimiter = rateLimit({
@@ -1165,7 +1176,7 @@ function requireAdmin(req, res, next) {
 }
 
 app.get('/admin/login', (req, res) => res.render('admin/login'));
-app.post('/admin/login', authLimiter, (req, res) => {
+app.post('/admin/login', adminLimiter, (req, res) => {
   const { username, password } = req.body;
   const adminUsername = process.env.ADMIN_USERNAME || 'admin';
   const adminPassword = process.env.ADMIN_PASSWORD || 'ChangeThisPassword123!';
