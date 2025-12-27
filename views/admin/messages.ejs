@@ -11,6 +11,13 @@
     <main class="container">
   <section class="page glass">
     <h1>Messages</h1>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0">
+      <span class="muted">Customer enquiries</span>
+      <div style="display:flex;gap:8px">
+        <a class="btn ghost" href="/admin/export/messages">Export CSV</a>
+        <a class="btn ghost" href="/admin/export/messages?fmt=json">Export JSON</a>
+      </div>
+    </div>
     <div class="list curved">
       <% messages.forEach(function(m){ %>
         <div class="item glass"><strong><%= m.name %></strong> (<%= m.email %>) <p><%= m.message %></p></div>

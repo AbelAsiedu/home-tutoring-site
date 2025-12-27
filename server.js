@@ -21,6 +21,7 @@ const next = require(path.join(__dirname, 'frontend', 'node_modules', 'next'));
 const nextApp = next({ dev: process.env.NODE_ENV !== 'production', dir: path.join(__dirname, 'frontend') });
 const nextHandle = nextApp.getRequestHandler();
 const sqlite3 = require('sqlite3').verbose();
+const os = require('os');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -439,6 +440,22 @@ function runQuery(sql, params=[]) {
       if (err) reject(err); else resolve(rows);
     });
   });
+}
+
+// Helper: convert rows to CSV string
+function toCSV(rows){
+  if (!rows || !rows.length) return '';
+  const headers = Object.keys(rows[0]);
+  const escape = (v)=>{
+    if (v == null) return '';
+    const s = String(v).replace(/"/g, '""');
+    return '"' + s + '"';
+  };
+  const lines = [headers.join(',')];
+  rows.forEach(r=>{
+    lines.push(headers.map(h=>escape(r[h])).join(','));
+  });
+  return lines.join(os.EOL);
 }
 
 // Routes
@@ -1172,6 +1189,37 @@ app.get('/admin', requireAdmin, async (req, res) => {
   res.render('admin/dashboard', { stats: { users: users[0].c, products: products[0].c, orders: orders[0].c, messages: messages[0].c } });
 });
 
+// Admin metrics: last 14 days counts for charts
+app.get('/admin/metrics', requireAdmin, async (req, res) => {
+  try {
+    const days = 14;
+    const start = new Date();
+    start.setDate(start.getDate() - (days-1));
+    const fmtDate = (d)=> d.toISOString().slice(0,10);
+    const labels = [];
+    for (let i=0;i<days;i++){
+      const d = new Date(start);
+      d.setDate(start.getDate()+i);
+      labels.push(fmtDate(d));
+    }
+    const rowsOrders = await runQuery('SELECT created_at FROM orders');
+    const rowsMsgs = await runQuery('SELECT created_at FROM messages');
+    const rowsApps = await runQuery('SELECT created_at FROM applications');
+    const countByDay = (rows)=>{
+      const map = Object.fromEntries(labels.map(l=>[l,0]));
+      rows.forEach(r=>{
+        const day = (r.created_at||'').slice(0,10);
+        if (map[day] != null) map[day]++;
+      });
+      return labels.map(l=>map[l]);
+    };
+    res.json({ labels, orders: countByDay(rowsOrders), messages: countByDay(rowsMsgs), applications: countByDay(rowsApps) });
+  } catch (e) {
+    console.error('metrics error', e);
+    res.status(500).json({ error: 'metrics_failed' });
+  }
+});
+
 app.get('/admin/messages', requireAdmin, async (req, res) => {
   const messages = await runQuery('SELECT * FROM messages ORDER BY created_at DESC');
   res.render('admin/messages', { messages });
@@ -1187,6 +1235,25 @@ app.get('/admin/products', requireAdmin, async (req, res) => {
   res.render('admin/products', { products });
 });
 
+// Admin: update product
+app.post('/admin/products/:id/update', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  const { title, description, price, image_path } = req.body;
+  db.run('UPDATE products SET title = ?, description = ?, price = ?, image_path = ? WHERE id = ?', [title, description, price || 0, image_path || null, id], (err)=>{
+    if (err) return res.status(500).send('DB error');
+    res.redirect('/admin/products');
+  });
+});
+
+// Admin: delete product
+app.post('/admin/products/:id/delete', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  db.run('DELETE FROM products WHERE id = ?', [id], (err)=>{
+    if (err) return res.status(500).send('DB error');
+    res.redirect('/admin/products');
+  });
+});
+
 app.get('/admin/content', requireAdmin, async (req, res) => {
   const entries = await runQuery('SELECT key, value FROM site_content');
   res.render('admin/content', { entries: entries || [] });
@@ -1196,6 +1263,16 @@ app.post('/admin/content', requireAdmin, (req, res) => {
   const { key, value } = req.body;
   db.run('INSERT OR REPLACE INTO site_content (key, value) VALUES (?, ?)', [key, value]);
   res.redirect('/admin');
+});
+
+// Admin: delete a content entry
+app.post('/admin/content/delete', requireAdmin, (req, res) => {
+  const { key } = req.body;
+  if (!key) return res.redirect('/admin/content');
+  db.run('DELETE FROM site_content WHERE key = ?', [key], (err)=>{
+    if (err) return res.status(500).send('DB error');
+    res.redirect('/admin/content');
+  });
 });
 
 // Admin user management
@@ -1274,6 +1351,39 @@ app.get('/admin/media', requireAdmin, (req, res) => {
 
 app.post('/admin/media/upload', requireAdmin, upload.single('file'), (req, res) => {
   res.redirect('/admin/media');
+});
+
+// Admin: data exports (CSV/JSON)
+app.get('/admin/export/:type', requireAdmin, async (req, res) => {
+  try {
+    const type = req.params.type;
+    const fmt = (req.query.fmt||'csv').toLowerCase();
+    let rows = [];
+    switch(type){
+      case 'users': rows = await runQuery('SELECT id, name, email, role, email_verified FROM users'); break;
+      case 'products': rows = await runQuery('SELECT * FROM products'); break;
+      case 'orders': rows = await runQuery('SELECT * FROM orders'); break;
+      case 'messages': rows = await runQuery('SELECT * FROM messages'); break;
+      case 'applications': rows = await runQuery('SELECT * FROM applications'); break;
+      case 'lessons': rows = await runQuery('SELECT * FROM lessons'); break;
+      case 'reports': rows = await runQuery('SELECT * FROM lesson_reports'); break;
+      case 'recordings': rows = await runQuery('SELECT * FROM recordings'); break;
+      case 'content': rows = await runQuery('SELECT * FROM site_content'); break;
+      default: return res.status(400).send('Unknown export type');
+    }
+    if (fmt === 'json') {
+      res.setHeader('Content-Type', 'application/json');
+      res.send(JSON.stringify(rows));
+    } else {
+      const csv = toCSV(rows);
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${type}.csv"`);
+      res.send(csv);
+    }
+  } catch (e) {
+    console.error('export error', e);
+    res.status(500).send('Export failed');
+  }
 });
 
 // Prepare Next and start server

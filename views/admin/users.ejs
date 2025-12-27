@@ -43,7 +43,13 @@
   </div>
 
   <div class="admin-section" style="margin-top:40px;">
-    <h2>All Users</h2>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h2>All Users</h2>
+      <div style="display:flex;gap:8px">
+        <a class="btn ghost" href="/admin/export/users">Export CSV</a>
+        <a class="btn ghost" href="/admin/export/users?fmt=json">Export JSON</a>
+      </div>
+    </div>
     <table>
       <thead>
         <tr>

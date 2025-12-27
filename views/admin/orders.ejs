@@ -11,6 +11,13 @@
     <main class="container">
   <section class="page glass">
     <h1>Orders</h1>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0">
+      <span class="muted">Manage and export orders</span>
+      <div style="display:flex;gap:8px">
+        <a class="btn ghost" href="/admin/export/orders">Export CSV</a>
+        <a class="btn ghost" href="/admin/export/orders?fmt=json">Export JSON</a>
+      </div>
+    </div>
     <div class="list curved">
       <% orders.forEach(function(o){ %>
         <div class="item glass">

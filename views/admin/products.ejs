@@ -18,13 +18,52 @@
       <input type="file" name="image" accept="image/*">
       <button type="submit">Add Product</button>
     </form>
-    <div class="product-list">
-      <% products.forEach(function(p){ %>
-        <div class="product glass">
-          <h3><%= p.title %></h3>
-          <p>GHS <%= p.price %></p>
-        </div>
-      <% }) %>
+    <div class="glass" style="margin-top:16px;padding:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h3 style="margin:0">All Products</h3>
+        <a class="btn ghost" href="/admin/export/products">Export CSV</a>
+      </div>
+      <table class="admin-list" style="margin-top:10px">
+        <thead>
+          <tr>
+            <th>Image</th>
+            <th>Title</th>
+            <th>Price</th>
+            <th>Description</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% products.forEach(function(p){ %>
+            <tr>
+              <td>
+                <% if (p.image_path) { %>
+                  <img src="<%= p.image_path %>" alt="image" style="width:60px;height:40px;object-fit:cover;border-radius:6px">
+                <% } else { %>
+                  <span class="muted">No image</span>
+                <% } %>
+              </td>
+              <td><%= p.title %></td>
+              <td>GHS <%= p.price %></td>
+              <td class="muted" style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><%= p.description %></td>
+              <td>
+                <form method="post" action="/admin/products/<%= p.id %>/update" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;align-items:center">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input name="title" value="<%- p.title %>" placeholder="Title">
+                  <input name="price" value="<%- p.price %>" placeholder="Price" type="number" step="0.01">
+                  <input name="image_path" value="<%- p.image_path %>" placeholder="Image URL">
+                  <input name="description" value="<%- p.description %>" placeholder="Description">
+                  <button type="submit" class="btn">Save</button>
+                </form>
+                <form method="post" action="/admin/products/<%= p.id %>/delete" onsubmit="return confirm('Delete this product?')" style="margin-top:6px">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button type="submit" class="btn" style="background:#dc3545">Delete</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
     </div>
   </section>
     </main>

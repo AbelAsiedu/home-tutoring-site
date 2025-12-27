@@ -17,7 +17,7 @@
           <div class="stat glass">Orders: <%= stats.orders %></div>
           <div class="stat glass">Messages: <%= stats.messages %></div>
         </div>
-        <div class="admin-actions">
+        <div class="admin-actions" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px">
           <a href="/admin/users" class="btn">User Management</a>
           <a href="/admin/messages" class="btn">View Messages</a>
           <a href="/admin/applications" class="btn">View Applications</a>
@@ -25,10 +25,38 @@
           <a href="/admin/orders" class="btn">Orders</a>
           <a href="/admin/content" class="btn">Edit Content</a>
           <a href="/admin/media" class="btn">Media Manager</a>
+          <a href="/admin/export/orders" class="btn ghost">Export Orders CSV</a>
+          <a href="/admin/export/messages" class="btn ghost">Export Messages CSV</a>
+        </div>
+
+        <div class="glass" style="margin-top:20px;padding:12px">
+          <h2>Activity (last 14 days)</h2>
+          <div id="charts" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:12px"></div>
         </div>
       </section>
     </main>
     <%- include('../partials/footer') %>
     <script src="/js/main.js"></script>
+    <script>
+      fetch('/admin/metrics').then(r=>r.json()).then(data=>{
+        const makeBar = (label, series)=>{
+          const max = Math.max(1, ...series);
+          const wrap = document.createElement('div'); wrap.className='glass'; wrap.style.padding='10px';
+          const h = document.createElement('h3'); h.textContent = label; h.style.margin='0 0 8px'; wrap.appendChild(h);
+          const row = document.createElement('div'); row.style.display='flex'; row.style.alignItems='flex-end'; row.style.gap='6px'; row.style.height='120px';
+          series.forEach(v=>{
+            const bar = document.createElement('div'); bar.style.width='12px'; bar.style.background='var(--accent-2)'; bar.style.borderRadius='6px 6px 0 0';
+            bar.style.height = Math.round((v/max)*110) + 'px'; bar.title = v;
+            row.appendChild(bar);
+          });
+          wrap.appendChild(row);
+          return wrap;
+        };
+        const charts = document.getElementById('charts');
+        charts.appendChild(makeBar('Orders', data.orders));
+        charts.appendChild(makeBar('Messages', data.messages));
+        charts.appendChild(makeBar('Applications', data.applications));
+      }).catch(()=>{});
+    </script>
   </body>
 </html>
