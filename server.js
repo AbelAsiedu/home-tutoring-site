@@ -130,6 +130,7 @@ function initDb() {
       name TEXT,
       email TEXT UNIQUE,
       password TEXT,
+      plain_password TEXT,
       role TEXT DEFAULT 'user'
     )`);
 
@@ -799,7 +800,7 @@ app.post('/admin/content', requireAdmin, (req, res) => {
 
 // Admin user management
 app.get('/admin/users', requireAdmin, async (req, res) => {
-  const users = await runQuery('SELECT id, name, email, role FROM users ORDER BY name');
+  const users = await runQuery('SELECT id, name, email, plain_password, role FROM users ORDER BY name');
   const { message, error } = req.query;
   res.render('admin/users', { users, message, error });
 });
@@ -809,9 +810,9 @@ app.post('/admin/users/create', requireAdmin, (req, res) => {
   const id = uuidv4();
   const hashed = bcrypt.hashSync(password, 10);
   const userRole = (role === 'tutor') ? 'tutor' : 'user';
-  db.run('INSERT INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)', [id, name, email, hashed, userRole], (err) => {
+  db.run('INSERT INTO users (id, name, email, password, plain_password, role) VALUES (?, ?, ?, ?, ?, ?)', [id, name, email, hashed, password, userRole], (err) => {
     if (err) return res.render('admin/users', { error: 'Email already in use', users: [] });
-    res.redirect('/admin/users?message=User created successfully. Credentials: ' + email + ' / (password provided)');
+    res.redirect('/admin/users?message=User created successfully. Credentials: ' + email + ' / ' + password);
   });
 });
 
