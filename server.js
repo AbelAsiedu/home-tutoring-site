@@ -735,11 +735,6 @@ app.post('/login', (req, res) => {
     res.redirect('/dashboard');
   });
 });
-    req.session.user = { id: user.id, name: user.name, email: user.email, role: user.role };
-    if (user.role === 'admin') return res.redirect('/admin');
-    res.redirect('/account');
-  });
-});
 
 app.get('/logout', (req, res) => { req.session.destroy(()=>res.redirect('/')); });
 
