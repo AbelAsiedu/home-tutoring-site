@@ -1,5 +1,5 @@
 // Simple slideshow auto-advance
-document.addEventListener('DOMContentLoaded', function(){
+function initSlideshows(){
   // Initialize hero slideshows (supports multiple on the page)
   document.querySelectorAll('.hero-slideshow').forEach(slideshow => {
     const slides = slideshow.querySelectorAll('.slide');
@@ -179,4 +179,11 @@ document.addEventListener('DOMContentLoaded', function(){
     document.removeEventListener('keydown', onServerKey);
     document.removeEventListener('mousedown', onServerDown);
   });
-});
+}
+
+// Run immediately if DOM is already ready, else wait for DOMContentLoaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initSlideshows);
+} else {
+  initSlideshows();
+}
