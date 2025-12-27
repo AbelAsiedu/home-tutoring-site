@@ -1,27 +1,44 @@
 <%- include('partials/header') %>
 
 <section class="page glass">
-  <h1>Sign Up</h1>
+  <h1>Create Account</h1>
   <% if (typeof error !== 'undefined') { %><div class="notice error"><%= error %></div><% } %>
-  <form method="post" class="auth-form curved">
+  
+  <form method="post" class="auth-form">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-    <input name="name" placeholder="Full name" required>
-    <input name="email" type="email" placeholder="Email" required>
-    <input name="password" type="password" placeholder="Password" required>
     
-    <div style="margin: 20px 0; text-align: left;">
-      <label style="display: block; margin-bottom: 10px;">
-        <input type="checkbox" name="acceptTerms" required style="margin-right: 8px;">
-        I agree to the <a href="/terms" target="_blank" style="color: #007bff;">Terms of Service</a>
+    <div>
+      <label for="name">Full Name</label>
+      <input id="name" name="name" type="text" placeholder="Enter your full name" required>
+    </div>
+    
+    <div>
+      <label for="email">Email Address</label>
+      <input id="email" name="email" type="email" placeholder="your@email.com" required>
+    </div>
+    
+    <div>
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" placeholder="Minimum 8 characters" required>
+    </div>
+    
+    <div class="checkbox-group">
+      <label>
+        <input type="checkbox" name="acceptTerms" required>
+        I agree to the <a href="/terms" target="_blank">Terms of Service</a>
       </label>
-      <label style="display: block;">
-        <input type="checkbox" name="acceptPrivacy" required style="margin-right: 8px;">
-        I have read and accept the <a href="/privacy" target="_blank" style="color: #007bff;">Privacy Policy</a>
+      <label>
+        <input type="checkbox" name="acceptPrivacy" required>
+        I have read and accept the <a href="/privacy" target="_blank">Privacy Policy</a>
       </label>
     </div>
     
     <button type="submit">Create Account</button>
   </form>
+  
+  <p style="text-align: center; margin-top: 20px; color: #6b7280;">
+    Already have an account? <a href="/login" style="color: #3b82f6; font-weight: 500;">Login here</a>
+  </p>
 </section>
 
 <%- include('partials/footer') %>
