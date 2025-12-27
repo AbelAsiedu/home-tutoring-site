@@ -783,6 +783,11 @@ app.get('/admin/products', requireAdmin, async (req, res) => {
   res.render('admin/products', { products });
 });
 
+app.get('/admin/content', requireAdmin, async (req, res) => {
+  const entries = await runQuery('SELECT key, value FROM site_content');
+  res.render('admin/content', { entries: entries || [] });
+});
+
 app.post('/admin/content', requireAdmin, (req, res) => {
   const { key, value } = req.body;
   db.run('INSERT OR REPLACE INTO site_content (key, value) VALUES (?, ?)', [key, value]);

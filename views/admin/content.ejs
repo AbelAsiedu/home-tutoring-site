@@ -18,6 +18,16 @@
       <textarea id="editor" name="value"></textarea>
       <button type="submit">Save Content</button>
     </form>
+    <% if (entries && entries.length) { %>
+      <div class="glass" style="margin-top:16px;padding:12px">
+        <h3>Existing entries</h3>
+        <ul>
+          <% entries.forEach(function(e){ %>
+            <li><strong><%= e.key %></strong></li>
+          <% }) %>
+        </ul>
+      </div>
+    <% } %>
     <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
     <script>
       tinymce.init({ selector: '#editor', height: 300 });
