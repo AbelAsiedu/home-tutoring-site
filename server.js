@@ -140,7 +140,7 @@ const {
   doubleCsrfProtection,
 } = doubleCsrf({
   getSecret: () => process.env.SESSION_SECRET || 'your-secret-key',
-  getSessionIdentifier: (req) => (req.session && req.session.id) || 'anon',
+  getSessionIdentifier: (req) => req.sessionID || 'anon',
   getCsrfTokenFromRequest: (req) => (req.body && req.body._csrf) || req.headers['x-csrf-token'],
   cookieName: process.env.NODE_ENV === 'production' ? '__Host-psifi.x-csrf-token' : 'x-csrf-token',
   cookieOptions: {
@@ -176,6 +176,10 @@ app.use(async (req, res, next) => {
   res.locals.isAdmin = req.session && req.session.user && req.session.user.role === 'admin';
   // Make CSRF token available to all views
   try {
+    // Ensure a session exists so the CSRF token binds to a stable identifier
+    if (req.session && !req.session.csrfInit) {
+      req.session.csrfInit = true;
+    }
     res.locals.csrfToken = generateToken(req, res);
   } catch (e) {
     res.locals.csrfToken = null;
