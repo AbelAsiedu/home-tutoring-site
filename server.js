@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+require('dotenv').config(); // Load environment variables first
 const express = require('express');
 const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
@@ -9,6 +10,9 @@ const cors = require('cors');
 const bcrypt = require('bcrypt');
 const cookieParser = require('cookie-parser');
 const { v4: uuidv4 } = require('uuid');
+const { body, validationResult } = require('express-validator');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
 const Stripe = require('stripe');
 const stripe = process.env.STRIPE_SECRET ? Stripe(process.env.STRIPE_SECRET) : null;
 const next = require(path.join(__dirname, 'frontend', 'node_modules', 'next'));
@@ -57,33 +61,64 @@ if (fs.existsSync(FRONTEND_OUT)) {
     next();
   });
 }
+
+// Security: Helmet middleware for security headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "cdn.tiny.cloud", "https://js.stripe.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "cdn.tiny.cloud", "fonts.googleapis.com"],
+      imgSrc: ["'self'", "data:", "blob:", "https:"],
+      fontSrc: ["'self'", "fonts.gstatic.com", "data:"],
+      connectSrc: ["'self'", "https://api.stripe.com"],
+      frameSrc: ["'self'", "https://js.stripe.com", "https://hooks.stripe.com"],
+    },
+  },
+  hsts: {
+    maxAge: 63072000,
+    includeSubDomains: true,
+    preload: true
+  },
+}));
+
+// Security: Rate limiting to prevent brute force attacks
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 requests per window
+  message: 'Too many login attempts, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // 100 requests per window
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use('/login', authLimiter);
+app.use('/signup', authLimiter);
+app.use('/admin/login', authLimiter);
+app.use(generalLimiter); // Apply to all other routes
+
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(cookieParser());
 app.use(cors({ origin: true, credentials: true }));
 
-// Security headers (HSTS only when using TLS)
-app.use((req, res, next) => {
-  try {
-    // If running behind a proxy or using HTTPS set HSTS
-    const proto = req.headers['x-forwarded-proto'] || (req.connection && req.connection.encrypted ? 'https' : req.protocol);
-    if (proto === 'https' || USE_HTTPS) {
-      res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
-    }
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('Referrer-Policy', 'no-referrer-when-downgrade');
-    res.setHeader('X-XSS-Protection', '1; mode=block');
-  } catch (e) {
-    // ignore header errors
-  }
-  // Optional: force HTTPS redirect when explicitly required (use with caution)
-  if (FORCE_HTTPS) {
+// Optional: force HTTPS redirect when explicitly required
+if (FORCE_HTTPS) {
+  app.use((req, res, next) => {
     const forwarded = req.headers['x-forwarded-proto'];
     const isSecure = (req.connection && req.connection.encrypted) || forwarded === 'https' || req.protocol === 'https';
     if (!isSecure) {
       return res.redirect(301, `https://${req.get('host')}${req.originalUrl}`);
     }
+    next();
+  });
+}
   }
   next();
 });
@@ -226,14 +261,18 @@ function initDb() {
       notes TEXT
     )`);
 
-    // Ensure admin user exists (username: admin, password: password) per spec
+    // Ensure admin user exists using environment variables for security
     const adminId = 'admin-1';
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@modernpedagogues.com';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'ChangeThisPassword123!';
+    const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+    
     db.get('SELECT * FROM users WHERE id = ?', [adminId], (err, row) => {
       if (err) return console.error(err);
       if (!row) {
-        const hashed = bcrypt.hashSync('password', 10);
-        db.run('INSERT INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)', [adminId, 'Admin', 'admin@local', hashed, 'admin']);
-        console.log('Admin user created: username=admin password=password');
+        const hashed = bcrypt.hashSync(adminPassword, 10);
+        db.run('INSERT INTO users (id, name, email, password, plain_password, role) VALUES (?, ?, ?, ?, ?, ?)', [adminId, 'Admin', adminEmail, hashed, adminPassword, 'admin']);
+        console.log(`Admin user created: username=${adminUsername} (check env vars for credentials)`);
       }
     });
   });
@@ -720,7 +759,16 @@ app.post('/admin/orders/:id/status', requireAdmin, (req, res) => {
 
 // Auth: signup & login
 app.get('/signup', (req, res) => res.render('signup'));
-app.post('/signup', (req, res) => {
+app.post('/signup', [
+  body('name').trim().notEmpty().withMessage('Name is required').isLength({ min: 2, max: 100 }).withMessage('Name must be 2-100 characters'),
+  body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
+  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.render('signup', { error: errors.array()[0].msg });
+  }
+  
   const { name, email, password } = req.body;
   const id = uuidv4();
   const hashed = bcrypt.hashSync(password, 10);
@@ -732,7 +780,15 @@ app.post('/signup', (req, res) => {
 });
 
 app.get('/login', (req, res) => res.render('login'));
-app.post('/login', (req, res) => {
+app.post('/login', [
+  body('email').trim().notEmpty().withMessage('Email or username is required'),
+  body('password').notEmpty().withMessage('Password is required')
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.render('login', { error: errors.array()[0].msg });
+  }
+  
   const { email, password } = req.body;
   db.get('SELECT * FROM users WHERE email = ? OR name = ?', [email, email], (err, user) => {
     if (err || !user) return res.render('login', { error: 'Invalid credentials' });
@@ -762,11 +818,15 @@ function requireAdmin(req, res, next) {
 app.get('/admin/login', (req, res) => res.render('admin/login'));
 app.post('/admin/login', (req, res) => {
   const { username, password } = req.body;
-  if (username === 'admin' && password === 'password') {
+  const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+  const adminPassword = process.env.ADMIN_PASSWORD || 'ChangeThisPassword123!';
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@modernpedagogues.com';
+  
+  if (username === adminUsername && password === adminPassword) {
     // fetch admin user row and set session
     db.get('SELECT * FROM users WHERE role = ?', ['admin'], (err, user) => {
       if (user) req.session.user = { id: user.id, name: user.name, email: user.email, role: 'admin' };
-      else req.session.user = { id: 'admin-1', name: 'Admin', email: 'admin@local', role: 'admin' };
+      else req.session.user = { id: 'admin-1', name: 'Admin', email: adminEmail, role: 'admin' };
       res.redirect('/admin');
     });
   } else res.render('admin/login', { error: 'Invalid admin credentials' });
@@ -813,13 +873,24 @@ app.get('/admin/users', requireAdmin, async (req, res) => {
   res.render('admin/users', { users, message, error });
 });
 
-app.post('/admin/users/create', requireAdmin, (req, res) => {
+app.post('/admin/users/create', requireAdmin, [
+  body('name').trim().notEmpty().withMessage('Name is required').isLength({ min: 2, max: 100 }),
+  body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
+  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+  body('role').isIn(['user', 'tutor']).withMessage('Invalid role')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    const users = await runQuery('SELECT id, name, email, COALESCE(plain_password, password) as password, role FROM users ORDER BY name');
+    return res.render('admin/users', { error: errors.array()[0].msg, users });
+  }
+  
   const { name, email, password, role } = req.body;
   const id = uuidv4();
   const hashed = bcrypt.hashSync(password, 10);
   const userRole = (role === 'tutor') ? 'tutor' : 'user';
   db.run('INSERT INTO users (id, name, email, password, plain_password, role) VALUES (?, ?, ?, ?, ?, ?)', [id, name, email, hashed, password, userRole], (err) => {
-    if (err) return res.render('admin/users', { error: 'Email already in use', users: [] });
+    if (err) return res.redirect('/admin/users?error=Email already in use');
     res.redirect('/admin/users?message=User created successfully. Credentials: ' + email + ' / ' + password);
   });
 });
