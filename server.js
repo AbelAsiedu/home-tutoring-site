@@ -712,17 +712,13 @@ app.post('/admin/orders/:id/status', requireAdmin, (req, res) => {
 // Auth: signup & login
 app.get('/signup', (req, res) => res.render('signup'));
 app.post('/signup', (req, res) => {
-  const { name, email, password, role } = req.body;
+  const { name, email, password } = req.body;
   const id = uuidv4();
   const hashed = bcrypt.hashSync(password, 10);
-  const userRole = (role === 'tutor') ? 'tutor' : 'user';
-  db.run('INSERT INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)', [id, name, email, hashed, userRole], (err) => {
+  db.run('INSERT INTO users (id, name, email, password) VALUES (?, ?, ?, ?)', [id, name, email, hashed], (err) => {
     if (err) return res.render('signup', { error: 'Email already in use' });
-    req.session.user = { id, name, email, role: userRole };
-    if (userRole === 'tutor') {
-      return res.redirect('/tutor/lessons');
-    }
-    res.redirect('/account');
+    req.session.user = { id, name, email, role: 'user' };
+    res.redirect('/dashboard');
   });
 });
 
@@ -732,6 +728,13 @@ app.post('/login', (req, res) => {
   db.get('SELECT * FROM users WHERE email = ? OR name = ?', [email, email], (err, user) => {
     if (err || !user) return res.render('login', { error: 'Invalid credentials' });
     if (!bcrypt.compareSync(password, user.password)) return res.render('login', { error: 'Invalid credentials' });
+    req.session.user = { id: user.id, name: user.name, email: user.email, role: user.role || 'user' };
+    // Redirect based on role
+    if (user.role === 'admin') return res.redirect('/admin');
+    if (user.role === 'tutor') return res.redirect('/tutor/lessons');
+    res.redirect('/dashboard');
+  });
+});
     req.session.user = { id: user.id, name: user.name, email: user.email, role: user.role };
     if (user.role === 'admin') return res.redirect('/admin');
     res.redirect('/account');
@@ -797,6 +800,32 @@ app.post('/admin/content', requireAdmin, (req, res) => {
   const { key, value } = req.body;
   db.run('INSERT OR REPLACE INTO site_content (key, value) VALUES (?, ?)', [key, value]);
   res.redirect('/admin');
+});
+
+// Admin user management
+app.get('/admin/users', requireAdmin, async (req, res) => {
+  const users = await runQuery('SELECT id, name, email, role FROM users ORDER BY name');
+  const { message, error } = req.query;
+  res.render('admin/users', { users, message, error });
+});
+
+app.post('/admin/users/create', requireAdmin, (req, res) => {
+  const { name, email, password, role } = req.body;
+  const id = uuidv4();
+  const hashed = bcrypt.hashSync(password, 10);
+  const userRole = (role === 'tutor') ? 'tutor' : 'user';
+  db.run('INSERT INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)', [id, name, email, hashed, userRole], (err) => {
+    if (err) return res.render('admin/users', { error: 'Email already in use', users: [] });
+    res.redirect('/admin/users?message=User created successfully. Credentials: ' + email + ' / (password provided)');
+  });
+});
+
+app.post('/admin/users/delete', requireAdmin, (req, res) => {
+  const { userId } = req.body;
+  db.run('DELETE FROM users WHERE id = ?', [userId], (err) => {
+    if (err) return res.redirect('/admin/users?error=Failed to delete user');
+    res.redirect('/admin/users?message=User deleted successfully');
+  });
 });
 
 // Admin media manager
