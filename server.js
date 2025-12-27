@@ -1202,11 +1202,16 @@ app.post('/admin/login', adminLimiter, (req, res) => {
 });
 
 app.get('/admin', requireAdmin, async (req, res) => {
-  const users = await runQuery('SELECT count(*) as c FROM users');
-  const products = await runQuery('SELECT count(*) as c FROM products');
-  const orders = await runQuery('SELECT count(*) as c FROM orders');
-  const messages = await runQuery('SELECT count(*) as c FROM messages');
-  res.render('admin/dashboard', { stats: { users: users[0].c, products: products[0].c, orders: orders[0].c, messages: messages[0].c } });
+  try {
+    const users = await runQuery('SELECT count(*) as c FROM users');
+    const products = await runQuery('SELECT count(*) as c FROM products');
+    const orders = await runQuery('SELECT count(*) as c FROM orders');
+    const messages = await runQuery('SELECT count(*) as c FROM messages');
+    res.render('admin/dashboard', { stats: { users: (users[0] && users[0].c) || 0, products: (products[0] && products[0].c) || 0, orders: (orders[0] && orders[0].c) || 0, messages: (messages[0] && messages[0].c) || 0 } });
+  } catch (e) {
+    console.error('Admin dashboard error', e);
+    res.render('admin/dashboard', { stats: { users: 0, products: 0, orders: 0, messages: 0 } });
+  }
 });
 
 // Admin metrics: last 14 days counts for charts
