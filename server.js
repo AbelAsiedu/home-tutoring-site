@@ -808,7 +808,7 @@ app.post('/admin/content', requireAdmin, (req, res) => {
 
 // Admin user management
 app.get('/admin/users', requireAdmin, async (req, res) => {
-  const users = await runQuery('SELECT id, name, email, plain_password, role FROM users ORDER BY name');
+  const users = await runQuery('SELECT id, name, email, COALESCE(plain_password, password) as password, role FROM users ORDER BY name');
   const { message, error } = req.query;
   res.render('admin/users', { users, message, error });
 });

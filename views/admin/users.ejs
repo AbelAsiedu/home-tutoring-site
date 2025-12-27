@@ -59,7 +59,7 @@
             <tr>
               <td><%= user.name %></td>
               <td><%= user.email %></td>
-              <td><%= user.plain_password || '(not stored)' %></td>
+              <td style="word-break: break-all; font-size: 12px;"><%= user.password %></td>
               <td><%= user.role || 'user' %></td>
               <td>
                 <form method="post" action="/admin/users/delete" style="display:inline;">
