@@ -1031,6 +1031,20 @@ app.post('/login', authLimiter, [
 
 app.get('/logout', (req, res) => { req.session.destroy(()=>res.redirect('/')); });
 
+// User dashboard (server-rendered)
+app.get('/dashboard', async (req, res) => {
+  if (!req.session.user) return res.redirect('/login');
+  try {
+    const upcoming = await runQuery('SELECT * FROM lessons WHERE student_id = ? AND status = ? ORDER BY scheduled_at ASC', [req.session.user.id, 'scheduled']);
+    const recentReports = await runQuery('SELECT * FROM lesson_reports WHERE student_id = ? ORDER BY created_at DESC LIMIT 6', [req.session.user.id]);
+    const recentRecs = await runQuery('SELECT r.* FROM recordings r JOIN lessons l ON r.lesson_id = l.id WHERE l.student_id = ? ORDER BY r.uploaded_at DESC LIMIT 6', [req.session.user.id]);
+    res.render('dashboard', { user: req.session.user, upcoming, recentReports, recentRecordings: recentRecs, message: req.query.message, error: req.query.error });
+  } catch (err) {
+    console.error('Dashboard error:', err);
+    res.render('dashboard', { user: req.session.user, upcoming: [], recentReports: [], recentRecordings: [], error: 'Could not load dashboard' });
+  }
+});
+
 app.get('/account', (req, res) => {
   if (!req.session.user) return res.redirect('/login');
   res.render('account', { 

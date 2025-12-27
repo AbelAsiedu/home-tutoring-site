@@ -1,0 +1,90 @@
+<%- include('partials/header') %>
+
+<main class="container">
+  <section class="page glass">
+    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+      <h1 style="margin: 0;">Welcome, <%= user.name %></h1>
+    </div>
+
+    <% if (typeof message !== 'undefined' && message) { %>
+      <div class="notice success"><%= message %></div>
+    <% } %>
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="notice error"><%= error %></div>
+    <% } %>
+
+    <hr style="margin: 20px 0;">
+
+    <!-- Account info -->
+    <section style="margin-top: 20px;">
+      <h2>Account Information</h2>
+      <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px;">
+        <p><strong>Name:</strong> <%= user.name %></p>
+        <p><strong>Email:</strong> <%= user.email %></p>
+        <p><strong>Role:</strong> <%= user.role %></p>
+        <p><strong>Email Verified:</strong> <%= user.email_verified ? 'Yes' : 'No' %></p>
+      </div>
+      <div style="margin-top: 15px;">
+        <a href="/account" class="btn">Manage Account</a>
+        <a href="/logout" class="btn ghost" style="margin-left: 10px;">Logout</a>
+      </div>
+    </section>
+
+    <hr style="margin: 20px 0;">
+
+    <!-- Upcoming lessons -->
+    <section style="margin-top: 20px;">
+      <h2>Upcoming Lessons</h2>
+      <% if (typeof upcoming !== 'undefined' && upcoming.length > 0) { %>
+        <div class="product-grid">
+          <% upcoming.forEach(lesson => { %>
+            <div class="card glass" style="padding: 15px;">
+              <div><strong><%= new Date(lesson.scheduled_at).toLocaleString() %></strong></div>
+              <div class="muted">Duration: <%= lesson.duration_minutes %> minutes</div>
+              <div style="margin-top: 10px;">
+                <a href="/lessons/<%= lesson.id %>" class="btn" style="font-size: 0.9em;">View Details</a>
+              </div>
+            </div>
+          <% }); %>
+        </div>
+      <% } else { %>
+        <div class="muted">No upcoming lessons scheduled.</div>
+      <% } %>
+    </section>
+
+    <hr style="margin: 20px 0;">
+
+    <!-- Recent reports -->
+    <section style="margin-top: 20px;">
+      <h2>Recent Lesson Reports</h2>
+      <% if (typeof recentReports !== 'undefined' && recentReports.length > 0) { %>
+        <div style="max-height: 300px; overflow-y: auto;">
+          <% recentReports.forEach(report => { %>
+            <div style="background: rgba(255,255,255,0.05); padding: 12px; margin-bottom: 10px; border-radius: 6px; border-left: 3px solid #007bff;">
+              <div><strong>Created:</strong> <%= new Date(report.created_at).toLocaleDateString() %></div>
+              <div style="margin-top: 5px;"><strong>Summary:</strong> <%= report.summary || 'N/A' %></div>
+              <div><strong>Progress Score:</strong> <%= report.progress_score || 'N/A' %></div>
+            </div>
+          <% }); %>
+        </div>
+      <% } else { %>
+        <div class="muted">No recent lesson reports.</div>
+      <% } %>
+    </section>
+
+    <hr style="margin: 20px 0;">
+
+    <!-- Quick links -->
+    <section style="margin-top: 20px;">
+      <h2>Quick Links</h2>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <a href="/cart" class="btn">View Cart</a>
+        <a href="/curriculum" class="btn">Curriculum</a>
+        <a href="/tutors" class="btn">Find Tutors</a>
+        <a href="/contact" class="btn">Contact Us</a>
+      </div>
+    </section>
+  </section>
+</main>
+
+<%- include('partials/footer') %>
