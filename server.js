@@ -131,42 +131,38 @@ app.use(session({
 // Register cookie parser AFTER session (per csrf-csrf guidance)
 app.use(cookieParser());
 
-// CSRF debug: log presence of tokens on POST requests
-app.use((req, res, next) => {
-  if (req.method === 'POST') {
-    const cookieName = process.env.NODE_ENV === 'production' ? '__Host-psifi.x-csrf-token' : 'x-csrf-token';
-    const hasBodyToken = !!(req.body && req.body._csrf);
-    const hasCookieToken = !!(req.cookies && req.cookies[cookieName]);
-    if (!hasBodyToken || !hasCookieToken) {
-      console.warn(`[CSRF] Missing token(s) for ${req.path}: body=${hasBodyToken} cookie=${hasCookieToken}`);
+// Simple session-based CSRF protection
+const crypto = require('crypto');
+
+// Generate CSRF token for a session
+function generateCsrfToken(req) {
+  if (!req.session.csrfSecret) {
+    req.session.csrfSecret = crypto.randomBytes(32).toString('hex');
+  }
+  return crypto.createHmac('sha256', req.session.csrfSecret).update(req.sessionID).digest('hex');
+}
+
+// Verify CSRF token
+function verifyCsrfToken(req) {
+  const token = (req.body && req.body._csrf) || req.headers['x-csrf-token'];
+  if (!token || !req.session.csrfSecret) return false;
+  const expected = crypto.createHmac('sha256', req.session.csrfSecret).update(req.sessionID).digest('hex');
+  return token === expected;
+}
+
+// CSRF protection middleware
+const csrfProtection = (req, res, next) => {
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+    if (!verifyCsrfToken(req)) {
+      console.warn(`[CSRF] Token mismatch for ${req.path}`);
+      const view = req.path.includes('signup') ? 'signup' : (req.path.includes('admin') ? 'admin/login' : 'login');
+      return res.status(403).render(view, { error: 'Security check failed. Please refresh and try again.', csrfToken: generateCsrfToken(req), isAdmin: false });
     }
   }
   next();
-});
+};
 
-// CSRF Protection (use form body `_csrf` field)
-const {
-  generateToken,
-  doubleCsrfProtection,
-} = doubleCsrf({
-  getSecret: () => process.env.SESSION_SECRET || 'your-secret-key',
-  getSessionIdentifier: (req) => req.sessionID || 'anon',
-  // Read CSRF token from form body or header
-  getTokenFromRequest: (req) => (req.body && req.body._csrf) || req.headers['x-csrf-token'],
-  cookieName: process.env.NODE_ENV === 'production' ? '__Host-psifi.x-csrf-token' : 'x-csrf-token',
-  cookieOptions: {
-    sameSite: 'lax',
-    path: '/',
-    // On Heroku behind proxy: trust proxy sets secure context, but set httpOnly first; 
-    // don't force secure=true as it can block cookies from being sent on initial page load POST
-    secure: false,
-    httpOnly: true,
-  },
-  size: 64,
-  ignoredMethods: ['GET', 'HEAD', 'OPTIONS'],
-});
-
-app.use(doubleCsrfProtection);
+app.use(csrfProtection);
 
 // Expose cart count and items to server-rendered views
 app.use(async (req, res, next) => {
@@ -187,28 +183,18 @@ app.use(async (req, res, next) => {
     res.locals.cartItems = [];
   }
   res.locals.isAdmin = req.session && req.session.user && req.session.user.role === 'admin';
-  // Make CSRF token available to all views
-  try {
-    // Ensure a session exists so the CSRF token binds to a stable identifier
-    if (req.session && !req.session.csrfInit) {
-      req.session.csrfInit = true;
-    }
-    res.locals.csrfToken = generateToken(req, res);
-  } catch (e) {
-    res.locals.csrfToken = null;
-  }
+  // Generate CSRF token for all views
+  res.locals.csrfToken = generateCsrfToken(req);
   next();
 });
 
 // Friendly CSRF error handler
 app.use((err, req, res, next) => {
-  if (err && (err.code === 'EBADCSRFTOKEN' || /csrf/i.test(err.message || ''))) {
-    console.warn('[CSRF] Validation failed:', err.message || err);
-    const path = req.path || '';
-    const view = path.includes('signup') ? 'signup' : (path.includes('/admin') ? 'admin/login' : 'login');
-    return res.status(403).render(view, { error: 'Security check failed. Please refresh the page and try again.' });
-  }
-  next(err);
+  console.error('[Error]', err.message);
+  const view = req.path.includes('signup') ? 'signup' : (req.path.includes('admin') ? 'admin/login' : 'login');
+  res.status(500).render(view, { error: 'An error occurred. Please refresh and try again.', csrfToken: generateCsrfToken(req), isAdmin: false }).catch(() => {
+    res.status(500).send('Server error');
+  });
 });
 
 // Database
