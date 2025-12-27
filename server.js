@@ -131,6 +131,19 @@ app.use(session({
 // Register cookie parser AFTER session (per csrf-csrf guidance)
 app.use(cookieParser());
 
+// CSRF debug: log presence of tokens on POST requests
+app.use((req, res, next) => {
+  if (req.method === 'POST') {
+    const cookieName = process.env.NODE_ENV === 'production' ? '__Host-psifi.x-csrf-token' : 'x-csrf-token';
+    const hasBodyToken = !!(req.body && req.body._csrf);
+    const hasCookieToken = !!(req.cookies && req.cookies[cookieName]);
+    if (!hasBodyToken || !hasCookieToken) {
+      console.warn(`[CSRF] Missing token(s) for ${req.path}: body=${hasBodyToken} cookie=${hasCookieToken}`);
+    }
+  }
+  next();
+});
+
 // CSRF Protection (use form body `_csrf` field)
 const {
   generateToken,
@@ -183,6 +196,17 @@ app.use(async (req, res, next) => {
     res.locals.csrfToken = null;
   }
   next();
+});
+
+// Friendly CSRF error handler
+app.use((err, req, res, next) => {
+  if (err && (err.code === 'EBADCSRFTOKEN' || /csrf/i.test(err.message || ''))) {
+    console.warn('[CSRF] Validation failed:', err.message || err);
+    const path = req.path || '';
+    const view = path.includes('signup') ? 'signup' : (path.includes('/admin') ? 'admin/login' : 'login');
+    return res.status(403).render(view, { error: 'Security check failed. Please refresh the page and try again.' });
+  }
+  next(err);
 });
 
 // Database
