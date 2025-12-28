@@ -1,4 +1,6 @@
 // Simple slideshow auto-advance
+console.log('main.js loaded');
+
 function initSlideshows(){
   console.log('=== initSlideshows called ===');
   // Initialize hero slideshows (supports multiple on the page)
