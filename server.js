@@ -1200,28 +1200,40 @@ app.post('/admin/login', adminLimiter, async (req, res) => {
     // Path 1: explicit env credentials match
     if (usernameRaw === adminUsername || usernameRaw === adminEmail) {
       if (password === adminPassword) {
-        const userRows = await runQuery('SELECT * FROM users WHERE role = ? LIMIT 1', ['admin']);
+        const userRows = await runQuery('SELECT * FROM users WHERE role = ? LIMIT 1', ['admin']).catch(err => {
+          console.error('DB query error:', err);
+          return [];
+        });
         const user = userRows && userRows[0];
         req.session.user = user ? { id: user.id, name: user.name, email: user.email, role: 'admin' } : { id: 'admin-1', name: 'Admin', email: adminEmail, role: 'admin' };
-        return res.redirect('/admin');
+        return req.session.save((err) => {
+          if (err) console.error('Session save error:', err);
+          res.redirect('/admin');
+        });
       }
     }
 
     // Path 2: match stored admin by provided username/email
-    const dbAdmins = await runQuery('SELECT * FROM users WHERE role = ?', ['admin']);
+    const dbAdmins = await runQuery('SELECT * FROM users WHERE role = ?', ['admin']).catch(err => {
+      console.error('DB query error:', err);
+      return [];
+    });
     const targetAdmin = (dbAdmins || []).find(a => a && (a.name === usernameRaw || a.email === usernameRaw || a.id === 'admin-1' || usernameRaw === adminUsername));
     if (targetAdmin) {
       const passMatch = bcrypt.compareSync(password, targetAdmin.password || '') || (targetAdmin.plain_password && targetAdmin.plain_password === password);
       if (passMatch) {
         req.session.user = { id: targetAdmin.id, name: targetAdmin.name, email: targetAdmin.email, role: 'admin' };
-        return res.redirect('/admin');
+        return req.session.save((err) => {
+          if (err) console.error('Session save error:', err);
+          res.redirect('/admin');
+        });
       }
     }
 
     return res.render('admin/login', { error: 'Invalid admin credentials' });
   } catch (e) {
     console.error('Admin login error', e);
-    return res.render('admin/login', { error: 'Invalid admin credentials' });
+    return res.render('admin/login', { error: 'Server error. Please try again.' });
   }
 });
 
