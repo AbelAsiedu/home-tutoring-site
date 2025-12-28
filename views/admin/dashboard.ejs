@@ -33,6 +33,11 @@
           <h2>Activity (last 14 days)</h2>
           <div id="charts" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:12px"></div>
         </div>
+
+        <div class="glass" style="margin-top:20px;padding:12px">
+          <h2>Inventory & activity mix</h2>
+          <div id="pie-wrap" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;align-items:center"></div>
+        </div>
       </section>
     </main>
     <%- include('../partials/footer') %>
@@ -57,6 +62,70 @@
         charts.appendChild(makeBar('Messages', data.messages));
         charts.appendChild(makeBar('Applications', data.applications));
       }).catch(()=>{});
+
+      // Pie chart for overall mix (users/products/orders/messages)
+      (function renderPie(){
+        const pieData = [
+          { label: 'Users', value: <%= stats.users %>, color: '#3b82f6' },
+          { label: 'Products', value: <%= stats.products %>, color: '#10b981' },
+          { label: 'Orders', value: <%= stats.orders %>, color: '#f59e0b' },
+          { label: 'Messages', value: <%= stats.messages %>, color: '#ec4899' }
+        ];
+        const total = pieData.reduce((s,d)=>s+(Number(d.value)||0),0);
+        const wrap = document.getElementById('pie-wrap');
+        if (!wrap) return;
+        if (!total) {
+          const empty = document.createElement('div');
+          empty.className = 'muted';
+          empty.textContent = 'No data yet';
+          wrap.appendChild(empty);
+          return;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = 240; canvas.height = 240;
+        const ctx = canvas.getContext('2d');
+        let start = -Math.PI / 2;
+        pieData.forEach(d=>{
+          const val = Number(d.value)||0;
+          const slice = (val/total) * Math.PI * 2;
+          const end = start + slice;
+          ctx.beginPath();
+          ctx.moveTo(120,120);
+          ctx.arc(120,120,110,start,end);
+          ctx.closePath();
+          ctx.fillStyle = d.color;
+          ctx.fill();
+          start = end;
+        });
+        // inner hole for donut look
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.beginPath();
+        ctx.arc(120,120,50,0,Math.PI*2);
+        ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+        const legend = document.createElement('div');
+        legend.style.display = 'grid';
+        legend.style.gap = '6px';
+        pieData.forEach(d=>{
+          const row = document.createElement('div');
+          row.style.display='flex'; row.style.alignItems='center'; row.style.gap='8px';
+          const sw = document.createElement('span');
+          sw.style.width='12px'; sw.style.height='12px'; sw.style.borderRadius='50%'; sw.style.background=d.color;
+          const txt = document.createElement('span');
+          const pct = total ? Math.round((Number(d.value||0)/total)*100) : 0;
+          txt.textContent = `${d.label}: ${d.value} (${pct}%)`;
+          row.appendChild(sw); row.appendChild(txt);
+          legend.appendChild(row);
+        });
+        const pieContainer = document.createElement('div');
+        pieContainer.style.display='grid';
+        pieContainer.style.gridTemplateColumns='auto auto';
+        pieContainer.style.alignItems='center';
+        pieContainer.style.gap='16px';
+        pieContainer.appendChild(canvas);
+        pieContainer.appendChild(legend);
+        wrap.appendChild(pieContainer);
+      })();
     </script>
   </body>
 </html>
