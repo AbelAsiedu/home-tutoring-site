@@ -1,124 +1,9 @@
 // Simple slideshow auto-advance
-console.log('main.js loaded');
+// NOTE: Slideshow is now handled by slideshow.js for better reliability
 
 function initSlideshows(){
-  console.log('=== initSlideshows called ===');
-  // Initialize hero slideshows (supports multiple on the page)
-  const slideshowElements = document.querySelectorAll('.hero-slideshow');
-  console.log('Found .hero-slideshow elements:', slideshowElements.length);
-  
-  slideshowElements.forEach((slideshow, slideshowIdx) => {
-    console.log(`Processing slideshow #${slideshowIdx}`);
-    const slides = slideshow.querySelectorAll('.slide');
-    console.log(`  - Found ${slides.length} slides`);
-    
-    if (!slides.length) {
-      console.log(`  - No slides found, skipping`);
-      return;
-    }
-    
-    // Ensure hero-slideshow-inner is position relative (for absolute positioning context)
-    const inner = slideshow.querySelector('.hero-slideshow-inner');
-    if (inner) {
-      inner.style.position = 'relative';
-    }
-    
-    let idx = 0;
-    slides.forEach((s, i) => {
-      s.style.opacity = i === 0 ? '1' : '0';
-      s.style.transition = 'opacity 700ms ease, transform 220ms ease';
-      s.style.position = 'absolute';
-      s.style.inset = '0';
-      s.style.width = '100%';
-      s.style.height = '100%';
-      s.style.transform = 'translateX(0)';
-      console.log(`  - Slide ${i}: opacity=${s.style.opacity}`);
-    });
+  // This function is kept for backwards compatibility but slideshow.js handles rotation
 
-    // Create indicators (dots)
-    const dots = document.createElement('div');
-    dots.className = 'slide-dots';
-    slides.forEach((_, i) => {
-      const b = document.createElement('button');
-      b.className = 'dot' + (i === 0 ? ' active' : '');
-      b.setAttribute('aria-label', `Go to slide ${i + 1}`);
-      b.addEventListener('click', () => {
-        goTo(i);
-      });
-      dots.appendChild(b);
-    });
-    slideshow.appendChild(dots);
-    console.log(`  - Created ${slides.length} dots`);
-
-    let timer;
-    const startTimer = () => {
-      clearInterval(timer);
-      timer = setInterval(() => nextSlide(), 4500);
-      console.log(`  - Timer started`);
-    };
-    const stopTimer = () => {
-      clearInterval(timer);
-    };
-
-    function goTo(newIdx) {
-      if (newIdx === idx) return;
-      console.log(`  - goTo: ${idx} → ${newIdx}`);
-      slides[idx].style.opacity = '0';
-      slides[idx].style.transform = 'translateX(0)';
-      dots.children[idx].classList.remove('active');
-      idx = newIdx;
-      slides[idx].style.opacity = '1';
-      slides[idx].style.transform = 'translateX(0)';
-      dots.children[idx].classList.add('active');
-    }
-    
-    function nextSlide() {
-      goTo((idx + 1) % slides.length);
-    }
-    
-    function prevSlide() {
-      goTo((idx - 1 + slides.length) % slides.length);
-    }
-
-    startTimer();
-
-    slideshow.addEventListener('mouseenter', () => stopTimer());
-    slideshow.addEventListener('mouseleave', () => startTimer());
-
-    // Touch / swipe support
-    let startX = 0, curX = 0, isTouch = false;
-    const THRESHOLD = 50; // px
-    slideshow.addEventListener('touchstart', (e)=>{
-      stopTimer();
-      isTouch = true;
-      startX = e.touches[0].clientX;
-      curX = startX;
-    }, {passive:true});
-    slideshow.addEventListener('touchmove', (e)=>{
-      if (!isTouch) return;
-      curX = e.touches[0].clientX;
-      const diff = curX - startX;
-      // translate current slide for feedback
-      slides[idx].style.transform = `translateX(${diff}px)`;
-    }, {passive:true});
-    slideshow.addEventListener('touchend', (e)=>{
-      if (!isTouch) return;
-      const diff = curX - startX;
-      slides[idx].style.transform = '';
-      if (Math.abs(diff) > THRESHOLD) {
-        if (diff < 0) nextSlide(); else prevSlide();
-      }
-      isTouch = false;
-      startTimer();
-    });
-
-    // Keyboard navigation when focused
-    slideshow.tabIndex = 0;
-    slideshow.addEventListener('keydown', (e)=>{
-      if (e.key === 'ArrowLeft') { prevSlide(); e.preventDefault(); }
-      if (e.key === 'ArrowRight') { nextSlide(); e.preventDefault(); }
-    });
-  });
 
   // Cookie consent
   if (!document.cookie.includes('cookie_consent')){
@@ -219,11 +104,8 @@ function initSlideshows(){
 }
 
 // Run immediately if DOM is already ready, else wait for DOMContentLoaded
-console.log('Document readyState:', document.readyState);
 if (document.readyState === 'loading') {
-  console.log('Adding DOMContentLoaded listener for initSlideshows');
   document.addEventListener('DOMContentLoaded', initSlideshows);
 } else {
-  console.log('DOM already loaded, calling initSlideshows directly');
   initSlideshows();
 }
