@@ -166,9 +166,19 @@ app.use((req, res, next) => {
   req.currentTabRole = req.session.tabs[tabId].role;
   req.tabId = tabId;
   
+  // Helper function to get current user (tab-aware)
+  req.getUser = function() {
+    return req.currentTabUser || req.session.user || null;
+  };
+  
+  // Helper function to get current user role (tab-aware)
+  req.getUserRole = function() {
+    return req.currentTabRole || (req.session.user && req.session.user.role) || null;
+  };
+  
   // Override res.locals to use tab-specific user
-  res.locals.user = req.currentTabUser;
-  res.locals.isAdmin = req.currentTabRole === 'admin';
+  res.locals.user = req.getUser();
+  res.locals.isAdmin = req.getUserRole() === 'admin';
   
   next();
 });
@@ -261,7 +271,7 @@ app.use(async (req, res, next) => {
     res.locals.cartCount = 0;
     res.locals.cartItems = [];
   }
-  res.locals.isAdmin = req.session && req.session.user && req.session.user.role === 'admin';
+  // isAdmin already set by tab-aware middleware above
   // Generate CSRF token for all views
   res.locals.csrfToken = generateCsrfToken(req);
   
@@ -404,15 +414,9 @@ async function seedDemoProducts() {
 seedSampleData();
 seedDemoProducts();
 
-// Middleware to expose user to views
-app.use((req, res, next) => {
-  res.locals.user = req.session.user || null;
-  next();
-});
-
 // Auth middlewares
 function requireAuth(req, res, next) {
-  if (req.session && req.session.user) return next();
+  if (req.getUser()) return next();
   // if API, return 401 JSON, else redirect to login
   if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'unauth' });
   return res.redirect('/login');
@@ -420,7 +424,7 @@ function requireAuth(req, res, next) {
 
 function requireRole(role) {
   return (req, res, next) => {
-    if (req.session && req.session.user && req.session.user.role === role) return next();
+    if (req.getUserRole() === role) return next();
     if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'forbidden' });
     res.status(403).send('Forbidden');
   };
@@ -428,11 +432,12 @@ function requireRole(role) {
 
 function requireAnyRole(roles) {
   return (req, res, next) => {
-    if (req.session && req.session.user && roles.includes(req.session.user.role)) return next();
+    if (roles.includes(req.getUserRole())) return next();
     if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'forbidden' });
     res.status(403).send('Forbidden');
   };
 }
+
 
 // Helper: Load content into res.locals for templates
 async function loadContent(res) {
@@ -540,9 +545,13 @@ app.get('/verify/:token', async (req, res) => {
     
     await runQuery('UPDATE users SET email_verified = 1, verification_token = NULL WHERE id = ?', [user[0].id]);
     
-    // Update session if user is logged in
-    if (req.session.user && req.session.user.id === user[0].id) {
-      req.session.user.email_verified = true;
+    // Update session if user is logged in (both tab-specific and global)
+    const currentUser = req.getUser();
+    if (currentUser && currentUser.id === user[0].id) {
+      currentUser.email_verified = true;
+      if (req.session.user && req.session.user.id === user[0].id) {
+        req.session.user.email_verified = true;
+      }
     }
     
     res.render('login', { success: 'Email verified successfully! You can now log in.' });
@@ -684,7 +693,7 @@ app.get('/api/curriculum', async (req, res) => {
 });
 
 app.get('/api/session', (req, res) => {
-  res.json({ user: req.session.user || null, cart: req.session.cart || {} });
+  res.json({ user: req.getUser() || null, cart: req.session.cart || {} });
 });
 
 app.post('/api/cart/add', (req, res) => {
@@ -738,7 +747,7 @@ app.post('/api/checkout', (req, res) => {
     const id = uuidv4();
     const created = new Date().toISOString();
     const card_last4 = card_number ? card_number.slice(-4) : null;
-    dbRun('INSERT INTO orders (id, user_id, items, total, payment_method, momo_number, card_last4, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [id, req.session.user ? req.session.user.id : null, JSON.stringify(items), total, payment_method, momo_number, card_last4, created]);
+    dbRun('INSERT INTO orders (id, user_id, items, total, payment_method, momo_number, card_last4, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [id, req.getUser() ? req.getUser().id : null, JSON.stringify(items), total, payment_method, momo_number, card_last4, created]);
     if (payment_method === 'card' && stripe) {
       try {
         const session = await stripe.checkout.sessions.create({
@@ -765,7 +774,8 @@ app.post('/api/lessons', requireAuth, (req, res) => {
     const { tutor_id, student_id, scheduled_at, duration_minutes } = req.body;
     const id = uuidv4();
     const created = new Date().toISOString();
-    dbRun('INSERT INTO lessons (id, tutor_id, student_id, scheduled_at, duration_minutes, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [id, tutor_id || null, student_id || (req.session.user ? req.session.user.id : null), scheduled_at || null, duration_minutes || 30, 'scheduled', created], (err) => {
+    const currentUser = req.getUser();
+    dbRun('INSERT INTO lessons (id, tutor_id, student_id, scheduled_at, duration_minutes, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [id, tutor_id || null, student_id || (currentUser ? currentUser.id : null), scheduled_at || null, duration_minutes || 30, 'scheduled', created], (err) => {
       if (err) return res.status(500).json({ error: 'db' });
       res.json({ id, tutor_id, student_id, scheduled_at, duration_minutes });
     });
@@ -781,8 +791,9 @@ app.get('/api/lessons', async (req, res) => {
       return res.json(rows);
     }
     // fallback to session user
-    if (req.session.user) {
-      const uid = req.session.user.id;
+    const currentUser = req.getUser();
+    if (currentUser) {
+      const uid = currentUser.id;
       const rows = await runQuery('SELECT * FROM lessons WHERE student_id = ? OR tutor_id = ? ORDER BY scheduled_at DESC', [uid, uid]);
       return res.json(rows);
     }
@@ -1097,20 +1108,22 @@ app.get('/logout', (req, res) => {
 
 // User dashboard (server-rendered)
 app.get('/dashboard', async (req, res) => {
-  if (!req.session.user) return res.redirect('/login');
+  const user = req.session.tabs?.[req.tabId]?.user || req.session.user;
+  if (!user) return res.redirect('/login');
   try {
-    const upcoming = await runQuery('SELECT * FROM lessons WHERE student_id = ? AND status = ? ORDER BY scheduled_at ASC', [req.session.user.id, 'scheduled']);
-    const recentReports = await runQuery('SELECT * FROM lesson_reports WHERE student_id = ? ORDER BY created_at DESC LIMIT 6', [req.session.user.id]);
-    const recentRecs = await runQuery('SELECT r.* FROM recordings r JOIN lessons l ON r.lesson_id = l.id WHERE l.student_id = ? ORDER BY r.uploaded_at DESC LIMIT 6', [req.session.user.id]);
-    res.render('dashboard', { user: req.session.user, upcoming, recentReports, recentRecordings: recentRecs, message: req.query.message, error: req.query.error });
+    const upcoming = await runQuery('SELECT * FROM lessons WHERE student_id = ? AND status = ? ORDER BY scheduled_at ASC', [user.id, 'scheduled']);
+    const recentReports = await runQuery('SELECT * FROM lesson_reports WHERE student_id = ? ORDER BY created_at DESC LIMIT 6', [user.id]);
+    const recentRecs = await runQuery('SELECT r.* FROM recordings r JOIN lessons l ON r.lesson_id = l.id WHERE l.student_id = ? ORDER BY r.uploaded_at DESC LIMIT 6', [user.id]);
+    res.render('dashboard', { user: user, upcoming, recentReports, recentRecordings: recentRecs, message: req.query.message, error: req.query.error });
   } catch (err) {
     console.error('Dashboard error:', err);
-    res.render('dashboard', { user: req.session.user, upcoming: [], recentReports: [], recentRecordings: [], error: 'Could not load dashboard' });
+    res.render('dashboard', { user: user, upcoming: [], recentReports: [], recentRecordings: [], error: 'Could not load dashboard' });
   }
 });
 
 app.get('/account', (req, res) => {
-  if (!req.session.user) return res.redirect('/login');
+  const user = req.session.tabs?.[req.tabId]?.user || req.session.user;
+  if (!user) return res.redirect('/login');
   res.render('account', { 
     message: req.query.message,
     error: req.query.error,
@@ -1123,7 +1136,8 @@ app.post('/account/change-email', [
   body('newEmail').trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
   body('password').notEmpty().withMessage('Password is required')
 ], async (req, res) => {
-  if (!req.session.user) return res.redirect('/login');
+  const user = req.session.tabs?.[req.tabId]?.user || req.session.user;
+  if (!user) return res.redirect('/login');
   
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -1131,16 +1145,16 @@ app.post('/account/change-email', [
   }
   
   const { newEmail, password } = req.body;
-  const userId = req.session.user.id;
+  const userId = user.id;
   
   try {
-    const user = await runQuery('SELECT * FROM users WHERE id = ?', [userId]);
+    const userData = await runQuery('SELECT * FROM users WHERE id = ?', [userId]);
     
-    if (!user || user.length === 0) {
+    if (!userData || userData.length === 0) {
       return res.redirect('/account?error=User not found');
     }
     
-    const match = bcrypt.compareSync(password, user[0].password);
+    const match = bcrypt.compareSync(password, userData[0].password);
     if (!match) {
       return res.redirect('/account?error=Incorrect password');
     }
@@ -1152,8 +1166,12 @@ app.post('/account/change-email', [
     }
     
     await runQuery('UPDATE users SET email = ?, email_verified = 0 WHERE id = ?', [newEmail, userId]);
-    req.session.user.email = newEmail;
-    req.session.user.email_verified = false;
+    user.email = newEmail;
+    user.email_verified = false;
+    if (req.session.tabs && req.session.tabs[req.tabId]) {
+      req.session.tabs[req.tabId].user = user;
+    }
+    req.session.user = user;
     
     res.redirect('/account?success=Email updated successfully. Please verify your new email.');
   } catch (err) {
@@ -1172,7 +1190,8 @@ app.post('/account/change-password', [
     return true;
   })
 ], async (req, res) => {
-  if (!req.session.user) return res.redirect('/login');
+  const user = req.session.tabs?.[req.tabId]?.user || req.session.user;
+  if (!user) return res.redirect('/login');
   
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -1180,16 +1199,16 @@ app.post('/account/change-password', [
   }
   
   const { currentPassword, newPassword } = req.body;
-  const userId = req.session.user.id;
+  const userId = user.id;
   
   try {
-    const user = await runQuery('SELECT * FROM users WHERE id = ?', [userId]);
+    const userData = await runQuery('SELECT * FROM users WHERE id = ?', [userId]);
     
-    if (!user || user.length === 0) {
+    if (!userData || userData.length === 0) {
       return res.redirect('/account?error=User not found');
     }
     
-    const match = bcrypt.compareSync(currentPassword, user[0].password);
+    const match = bcrypt.compareSync(currentPassword, userData[0].password);
     if (!match) {
       return res.redirect('/account?error=Current password is incorrect');
     }
@@ -1206,12 +1225,7 @@ app.post('/account/change-password', [
 
 // Admin routes
 function requireAdmin(req, res, next) {
-  // Check tab-specific user context first, fall back to global session
-  const tabUser = req.session.tabs && req.session.tabs[req.tabId] && req.session.tabs[req.tabId].user;
-  const globalUser = req.session.user;
-  const user = tabUser || globalUser;
-  
-  if (user && user.role === 'admin') return next();
+  if (req.getUserRole() === 'admin') return next();
   res.redirect('/admin/login');
 }
 
