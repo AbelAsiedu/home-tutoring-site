@@ -907,7 +907,7 @@ app.get('/api/curriculum', (req, res) => {
 // inconsistent responses between server-rendered and Next.js frontends.
 
 // Products API
-app.post('/admin/products', upload.single('image'), (req, res) => {
+app.post('/admin/products', requireAdmin, upload.single('image'), (req, res) => {
   const { title, description, price } = req.body;
   const image_path = req.file ? `/uploads/${path.basename(req.file.path)}` : null;
   const id = uuidv4();
@@ -1298,10 +1298,12 @@ app.get('/admin/products', requireAdmin, async (req, res) => {
 });
 
 // Admin: update product
-app.post('/admin/products/:id/update', requireAdmin, (req, res) => {
+app.post('/admin/products/:id/update', requireAdmin, upload.single('image'), (req, res) => {
   const { id } = req.params;
   const { title, description, price, image_path } = req.body;
-  db.run('UPDATE products SET title = ?, description = ?, price = ?, image_path = ? WHERE id = ?', [title, description, price || 0, image_path || null, id], (err)=>{
+  const uploadedPath = req.file ? `/uploads/${path.basename(req.file.path)}` : null;
+  const finalImage = uploadedPath || image_path || null;
+  db.run('UPDATE products SET title = ?, description = ?, price = ?, image_path = ? WHERE id = ?', [title, description, price || 0, finalImage, id], (err)=>{
     if (err) return res.status(500).send('DB error');
     res.redirect('/admin/products');
   });
@@ -1413,6 +1415,17 @@ app.get('/admin/media', requireAdmin, (req, res) => {
 
 app.post('/admin/media/upload', requireAdmin, upload.single('file'), (req, res) => {
   res.redirect('/admin/media');
+});
+
+app.post('/admin/media/delete', requireAdmin, (req, res) => {
+  const rel = req.body.path || '';
+  const base = path.basename(rel.replace('/uploads/', ''));
+  const target = path.join(UPLOADS_DIR, base);
+  if (!target.startsWith(UPLOADS_DIR)) return res.status(400).send('Bad path');
+  fs.unlink(target, (err) => {
+    if (err) console.error('Delete media error', err);
+    return res.redirect('/admin/media');
+  });
 });
 
 // Admin: data exports (CSV/JSON)

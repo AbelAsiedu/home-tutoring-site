@@ -11,13 +11,26 @@
     <main class="container">
   <section class="page glass">
     <h1>Media Manager</h1>
-    <form action="/admin/media/upload" method="post" enctype="multipart/form-data" class="curved">
-      <input type="file" name="file" accept="image/*">
+    <form action="/admin/media/upload" method="post" enctype="multipart/form-data" class="curved" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="file" name="file" accept="image/*" required>
       <button type="submit">Upload</button>
+      <span class="muted">Accepted: images. Files store in /uploads/</span>
     </form>
-    <div class="media-grid">
-      <% files.forEach(function(f){ %>
-        <div class="media-item glass"><img src="<%= f %>" style="max-width:160px;display:block"><p><%= f %></p></div>
+    <div class="media-grid" style="margin-top:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
+      <% files.forEach(function(f){ const name = f.split('/').pop(); %>
+        <div class="media-item glass" style="padding:10px;display:grid;gap:8px">
+          <img src="<%= f %>" alt="media" style="width:100%;height:140px;object-fit:cover;border-radius:8px">
+          <code style="font-size:12px;word-break:break-all"><%= f %></code>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="btn ghost" style="padding:6px 10px" onclick="navigator.clipboard.writeText('<%= f %>')">Copy URL</button>
+            <form method="post" action="/admin/media/delete" onsubmit="return confirm('Delete this file?')">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="path" value="<%= f %>">
+              <button type="submit" class="btn" style="background:#dc3545">Delete</button>
+            </form>
+          </div>
+        </div>
       <% }) %>
     </div>
   </section>

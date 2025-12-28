@@ -12,6 +12,7 @@
   <section class="page glass">
     <h1>Manage Products</h1>
     <form action="/admin/products" method="post" enctype="multipart/form-data" class="product-form curved">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <input name="title" placeholder="Title" required>
       <input name="price" placeholder="Price" required>
       <input name="description" placeholder="Description">
@@ -47,12 +48,13 @@
               <td>GHS <%= p.price %></td>
               <td class="muted" style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><%= p.description %></td>
               <td>
-                <form method="post" action="/admin/products/<%= p.id %>/update" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;align-items:center">
+                <form method="post" action="/admin/products/<%= p.id %>/update" enctype="multipart/form-data" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;align-items:center">
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                   <input name="title" value="<%- p.title %>" placeholder="Title">
                   <input name="price" value="<%- p.price %>" placeholder="Price" type="number" step="0.01">
                   <input name="image_path" value="<%- p.image_path %>" placeholder="Image URL">
                   <input name="description" value="<%- p.description %>" placeholder="Description">
+                  <input type="file" name="image" accept="image/*" aria-label="Upload new image">
                   <button type="submit" class="btn">Save</button>
                 </form>
                 <form method="post" action="/admin/products/<%= p.id %>/delete" onsubmit="return confirm('Delete this product?')" style="margin-top:6px">
