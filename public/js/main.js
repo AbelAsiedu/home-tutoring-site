@@ -3,6 +3,7 @@ function initSlideshows(){
   // Initialize hero slideshows (supports multiple on the page)
   document.querySelectorAll('.hero-slideshow').forEach(slideshow => {
     const slides = slideshow.querySelectorAll('.slide');
+    console.log('Slideshow found, slides count:', slides.length);
     if (!slides.length) return;
     let idx = 0;
     slides.forEach((s,i)=>{
@@ -40,9 +41,13 @@ function initSlideshows(){
       slides[idx].style.opacity = '1';
       dots.children[idx].classList.add('active');
     }
-    function nextSlide(){ goTo((idx+1) % slides.length); }
+    function nextSlide(){ 
+      console.log('nextSlide called, current:', idx, 'next:', (idx+1) % slides.length);
+      goTo((idx+1) % slides.length); 
+    }
     function prevSlide(){ goTo((idx-1+slides.length) % slides.length); }
 
+    console.log('Starting slideshow timer');
     startTimer();
 
     slideshow.addEventListener('mouseenter', ()=> stopTimer());
