@@ -141,17 +141,47 @@
                 ed.setContent(pendingContent);
                 pendingContent = '';
               }
-              // initial render once editor is ready
-              renderKeyControls(pagePicker ? pagePicker.value : 'home');
               renderTable(entries);
+              // Apply mode after editor ready
+              if (modePicker) {
+                const applyMode = () => {
+                  const isPage = modePicker.value === 'page';
+                  if (keyInputGroup) keyInputGroup.style.display = isPage ? 'none' : '';
+                  if (keyChips) keyChips.style.display = isPage ? 'none' : '';
+                  if (fieldPicker) fieldPicker.style.display = isPage ? 'none' : '';
+                  if (fieldLabel) fieldLabel.style.display = isPage ? 'none' : '';
+                  if (isPage) {
+                    setEditorContent(buildPageHtml(pagePicker ? pagePicker.value : 'home'));
+                  } else {
+                    renderKeyControls(pagePicker ? pagePicker.value : 'home');
+                  }
+                };
+                modePicker.addEventListener('change', applyMode);
+                applyMode();
+              }
             });
           }
         });
       } else {
         // Fallback: no TinyMCE available, proceed with plain textarea
         editorReady = true;
-        renderKeyControls(pagePicker ? pagePicker.value : 'home');
         renderTable(entries);
+        if (modePicker) {
+          const applyMode = () => {
+            const isPage = modePicker.value === 'page';
+            if (keyInputGroup) keyInputGroup.style.display = isPage ? 'none' : '';
+            if (keyChips) keyChips.style.display = isPage ? 'none' : '';
+            if (fieldPicker) fieldPicker.style.display = isPage ? 'none' : '';
+            if (fieldLabel) fieldLabel.style.display = isPage ? 'none' : '';
+            if (isPage) {
+              setEditorContent(buildPageHtml(pagePicker ? pagePicker.value : 'home'));
+            } else {
+              renderKeyControls(pagePicker ? pagePicker.value : 'home');
+            }
+          };
+          modePicker.addEventListener('change', applyMode);
+          applyMode();
+        }
       }
 
       // Defaults shown on public pages when DB is empty
@@ -344,6 +374,39 @@
   </div>
 </section>`;
         }
+        if (page === 'tutors') {
+          return `
+<section class="tutors">
+  <h1 data-k="tutors_title">${get('tutors_title')}</h1>
+  <p data-k="tutors_intro">${get('tutors_intro')}</p>
+  <div class="tutors-grid">
+    <div class="tutor">
+      <h3 data-k="tutor_1_name">${get('tutor_1_name')}</h3>
+      <div data-k="tutor_1_role">${get('tutor_1_role')}</div>
+    </div>
+    <div class="tutor">
+      <h3 data-k="tutor_2_name">${get('tutor_2_name')}</h3>
+      <div data-k="tutor_2_role">${get('tutor_2_role')}</div>
+    </div>
+    <div class="tutor">
+      <h3 data-k="tutor_3_name">${get('tutor_3_name')}</h3>
+      <div data-k="tutor_3_role">${get('tutor_3_role')}</div>
+    </div>
+    <div class="tutor">
+      <h3 data-k="tutor_4_name">${get('tutor_4_name')}</h3>
+      <div data-k="tutor_4_role">${get('tutor_4_role')}</div>
+    </div>
+    <div class="tutor">
+      <h3 data-k="tutor_5_name">${get('tutor_5_name')}</h3>
+      <div data-k="tutor_5_role">${get('tutor_5_role')}</div>
+    </div>
+    <div class="tutor">
+      <h3 data-k="tutor_6_name">${get('tutor_6_name')}</h3>
+      <div data-k="tutor_6_role">${get('tutor_6_role')}</div>
+    </div>
+  </div>
+</section>`;
+        }
         return '<p>Edit this page by switching Mode to Fields.</p>';
       }
 
@@ -480,23 +543,7 @@
         });
       }
 
-      // Mode toggle: show Page HTML or Fields
-      if (modePicker) {
-        const applyMode = () => {
-          const isPage = modePicker.value === 'page';
-          if (keyInputGroup) keyInputGroup.style.display = isPage ? 'none' : '';
-          if (keyChips) keyChips.style.display = isPage ? 'none' : '';
-          if (fieldPicker) fieldPicker.style.display = isPage ? 'none' : '';
-          if (fieldLabel) fieldLabel.style.display = isPage ? 'none' : '';
-          if (isPage) {
-            setEditorContent(buildPageHtml(pagePicker ? pagePicker.value : 'home'));
-          } else {
-            renderKeyControls(pagePicker ? pagePicker.value : 'home');
-          }
-        };
-        modePicker.addEventListener('change', applyMode);
-        applyMode();
-      }
+
 
       // Intercept save for Page HTML mode and bulk update
       const contentForm = document.getElementById('contentForm');
