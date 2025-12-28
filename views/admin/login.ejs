@@ -15,9 +15,27 @@
         <form method="post" class="auth-form curved">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <input name="username" placeholder="Username" required>
-          <input name="password" type="password" placeholder="Password" required>
+          <div style="position:relative">
+            <input id="adminPassword" name="password" type="password" placeholder="Password" required style="padding-right:40px">
+            <button type="button" onclick="togglePasswordVisibility()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:transparent;border:0;cursor:pointer;padding:6px;font-size:18px" aria-label="Toggle password visibility">
+              <span id="eyeIcon">👁️</span>
+            </button>
+          </div>
           <button type="submit">Login</button>
         </form>
+        <script>
+          function togglePasswordVisibility() {
+            const input = document.getElementById('adminPassword');
+            const icon = document.getElementById('eyeIcon');
+            if (input.type === 'password') {
+              input.type = 'text';
+              icon.textContent = '🙈';
+            } else {
+              input.type = 'password';
+              icon.textContent = '👁️';
+            }
+          }
+        </script>
       </section>
     </main>
     <%- include('../partials/footer') %>
