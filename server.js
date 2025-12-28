@@ -20,7 +20,7 @@ const stripe = process.env.STRIPE_SECRET ? Stripe(process.env.STRIPE_SECRET) : n
 const next = require(path.join(__dirname, 'frontend', 'node_modules', 'next'));
 const nextApp = next({ dev: process.env.NODE_ENV !== 'production', dir: path.join(__dirname, 'frontend') });
 const nextHandle = nextApp.getRequestHandler();
-const sqlite3 = require('sqlite3').verbose();
+const { initDb: initDatabase, runQuery, runQueryOne, runExec, dbRun, dbGet, dbAll, dbPrepare, getDb } = require('./lib/db');
 const os = require('os');
 
 const app = express();
@@ -261,214 +261,86 @@ app.use((err, req, res, next) => {
   }
 });
 
-// Database
-const DB_FILE = path.join(__dirname, 'data.db');
-const db = new sqlite3.Database(DB_FILE);
+// Initialize database (Postgres via DATABASE_URL or fallback to SQLite)
+// All schema initialization is now in lib/db.js
+initDatabase();
 
-function initDb() {
-  db.serialize(() => {
-    db.run(`CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      name TEXT,
-      email TEXT UNIQUE,
-      password TEXT,
-      plain_password TEXT,
-      role TEXT DEFAULT 'user',
-      email_verified INTEGER DEFAULT 0,
-      verification_token TEXT,
-      reset_token TEXT,
-      reset_token_expiry INTEGER
-    )`);
-    
-    // Migration: Add plain_password column if it doesn't exist
-    db.run(`ALTER TABLE users ADD COLUMN plain_password TEXT`, (err) => {
-      // Ignore error if column already exists
-      if (err && !err.message.includes('duplicate column name')) {
-        console.error('Migration error:', err);
-      }
-    });
-    
-    // Migration: Add email verification columns
-    db.run(`ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0`, (err) => {
-      if (err && !err.message.includes('duplicate column name')) {
-        console.error('Migration error:', err);
-      }
-    });
-    db.run(`ALTER TABLE users ADD COLUMN verification_token TEXT`, (err) => {
-      if (err && !err.message.includes('duplicate column name')) {
-        console.error('Migration error:', err);
-      }
-    });
-    db.run(`ALTER TABLE users ADD COLUMN reset_token TEXT`, (err) => {
-      if (err && !err.message.includes('duplicate column name')) {
-        console.error('Migration error:', err);
-      }
-    });
-    db.run(`ALTER TABLE users ADD COLUMN reset_token_expiry INTEGER`, (err) => {
-      if (err && !err.message.includes('duplicate column name')) {
-        console.error('Migration error:', err);
-      }
-    });
-
-    db.run(`CREATE TABLE IF NOT EXISTS teachers (
-      id TEXT PRIMARY KEY,
-      name TEXT,
-      email TEXT,
-      bio TEXT,
-      subjects TEXT,
-      cv_path TEXT
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS applications (
-      id TEXT PRIMARY KEY,
-      name TEXT,
-      email TEXT,
-      phone TEXT,
-      message TEXT,
-      cv_path TEXT,
-      created_at TEXT
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS products (
-      id TEXT PRIMARY KEY,
-      title TEXT,
-      description TEXT,
-      price REAL,
-      image_path TEXT
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS orders (
-      id TEXT PRIMARY KEY,
-      user_id TEXT,
-      items TEXT,
-      total REAL,
-      payment_method TEXT,
-      momo_number TEXT,
-      card_last4 TEXT,
-      status TEXT DEFAULT 'pending',
-      created_at TEXT
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS messages (
-      id TEXT PRIMARY KEY,
-      name TEXT,
-      email TEXT,
-      subject TEXT,
-      message TEXT,
-      created_at TEXT
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS site_content (
-      key TEXT PRIMARY KEY,
-      value TEXT
-    )`);
-
-    // Parental dashboard & lessons
-    db.run(`CREATE TABLE IF NOT EXISTS lessons (
-      id TEXT PRIMARY KEY,
-      tutor_id TEXT,
-      student_id TEXT,
-      scheduled_at TEXT,
-      duration_minutes INTEGER,
-      status TEXT DEFAULT 'scheduled',
-      recording_url TEXT,
-      created_at TEXT
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS lesson_reports (
-      id TEXT PRIMARY KEY,
-      lesson_id TEXT,
-      tutor_id TEXT,
-      student_id TEXT,
-      summary TEXT,
-      homework TEXT,
-      progress_score INTEGER,
-      created_at TEXT
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS recordings (
-      id TEXT PRIMARY KEY,
-      lesson_id TEXT,
-      url TEXT,
-      uploaded_at TEXT,
-      notes TEXT
-    )`);
-
-    // Ensure admin user exists using environment variables for security
-    const adminId = 'admin-1';
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@modernpedagogues.com';
-    const adminPassword = process.env.ADMIN_PASSWORD || 'ChangeThisPassword123!';
-    const adminUsername = process.env.ADMIN_USERNAME || 'admin';
-    
-    db.get('SELECT * FROM users WHERE id = ?', [adminId], (err, row) => {
-      if (err) return console.error(err);
-      const targetPassword = process.env.ADMIN_PASSWORD || 'passwod';
-      const hashedTarget = bcrypt.hashSync(targetPassword, 10);
-      if (!row) {
-        db.run('INSERT INTO users (id, name, email, password, plain_password, role) VALUES (?, ?, ?, ?, ?, ?)', [adminId, 'Admin', adminEmail, hashedTarget, targetPassword, 'admin']);
-        console.log(`Admin user created: username=${adminUsername} (check env vars for credentials)`);
-      } else {
-        // Always ensure the admin password matches env or defaults to 'admin'
-        db.run('UPDATE users SET password = ?, plain_password = ? WHERE id = ?', [hashedTarget, targetPassword, adminId]);
-      }
-    });
-  });
+// Seed admin user
+async function seedAdminUser() {
+  const adminId = 'admin-1';
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@modernpedagogues.com';
+  const adminPassword = process.env.ADMIN_PASSWORD || 'passwod';
+  const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+  const hashedTarget = bcrypt.hashSync(adminPassword, 10);
+  
+  try {
+    const existing = await runQueryOne('SELECT * FROM users WHERE id = ?', [adminId]);
+    if (!existing) {
+      await runExec('INSERT INTO users (id, name, email, password, plain_password, role) VALUES (?, ?, ?, ?, ?, ?)', 
+        [adminId, 'Admin', adminEmail, hashedTarget, adminPassword, 'admin']);
+      console.log(`Admin user created: username=${adminUsername}`);
+    } else {
+      // Update admin password
+      await runExec('UPDATE users SET password = ?, plain_password = ? WHERE id = ?', 
+        [hashedTarget, adminPassword, adminId]);
+    }
+  } catch (err) {
+    console.error('Error seeding admin user:', err);
+  }
 }
 
-initDb();
+seedAdminUser();
 
 // Seed sample data for manual testing (only if no lessons exist)
-db.get('SELECT count(*) as c FROM lessons', (err, row) => {
-  if (err) return console.error('Seed check error', err);
-  if (row && row.c < 5) {
-    console.log('Seeding sample users, lesson and report for manual testing...');
-    const studentId = 'student-1';
-    const tutorId = 'tutor-1';
-    const hashed = bcrypt.hashSync('password', 10);
-    db.run('INSERT OR IGNORE INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)', [studentId, 'Test Student', 'student@example.com', hashed, 'user']);
-    db.run('INSERT OR IGNORE INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)', [tutorId, 'Test Tutor', 'tutor@example.com', hashed, 'tutor']);
-    db.run('INSERT OR IGNORE INTO teachers (id, name, email, bio, subjects) VALUES (?, ?, ?, ?, ?)', [tutorId, 'Test Tutor', 'tutor@example.com', 'Experienced tutor', 'Math,Science']);
-    const lessonId = uuidv4();
-    const scheduled = new Date(Date.now() + 24*3600*1000).toISOString();
-    db.run('INSERT INTO lessons (id, tutor_id, student_id, scheduled_at, duration_minutes, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [lessonId, tutorId, studentId, scheduled, 30, 'scheduled', new Date().toISOString()]);
-    const reportId = uuidv4();
-    db.run('INSERT INTO lesson_reports (id, lesson_id, tutor_id, student_id, summary, homework, progress_score, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [reportId, lessonId, tutorId, studentId, 'Good progress on algebra', 'Complete worksheet 3', 7, new Date().toISOString()]);
-  // Always ensure our demo titles point to the nicer SVGs (useful if demo items already exist)
-  db.run("UPDATE products SET image_path = '/images/book-primary.svg' WHERE title = 'Primary Mathematics Workbook'");
-  db.run("UPDATE products SET image_path = '/images/book-jhs-english.svg' WHERE title = 'JHS English Comprehension Pack'");
-  db.run("UPDATE products SET image_path = '/images/book-shs-science.svg' WHERE title = 'SHS Science Revision Guide'");
-  db.run("UPDATE products SET image_path = '/images/book-igcse-maths.svg' WHERE title = 'IGCSE Maths Problem Solving'");
-  db.run("UPDATE products SET image_path = '/images/book-tutor-pack.svg' WHERE title = 'Tutor Resource Pack (Digital)'");
-    const recId = uuidv4();
-    const sampleUrl = null; // no file uploaded
-    db.run('INSERT INTO recordings (id, lesson_id, url, uploaded_at, notes) VALUES (?, ?, ?, ?, ?)', [recId, lessonId, sampleUrl, new Date().toISOString(), 'Sample recording placeholder']);
+async function seedSampleData() {
+  try {
+    const lessons = await runQuery('SELECT count(*) as c FROM lessons');
+    if (lessons && lessons[0] && lessons[0].c < 5) {
+      console.log('Seeding sample users, lesson and report for manual testing...');
+      const studentId = 'student-1';
+      const tutorId = 'tutor-1';
+      const hashed = bcrypt.hashSync('password', 10);
+      await runExec('INSERT OR IGNORE INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)', [studentId, 'Test Student', 'student@example.com', hashed, 'user']);
+      await runExec('INSERT OR IGNORE INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)', [tutorId, 'Test Tutor', 'tutor@example.com', hashed, 'tutor']);
+      await runExec('INSERT OR IGNORE INTO teachers (id, name, email, bio, subjects) VALUES (?, ?, ?, ?, ?)', [tutorId, 'Test Tutor', 'tutor@example.com', 'Experienced tutor', 'Math,Science']);
+      const lessonId = uuidv4();
+      const scheduled = new Date(Date.now() + 24*3600*1000).toISOString();
+      await runExec('INSERT INTO lessons (id, tutor_id, student_id, scheduled_at, duration_minutes, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [lessonId, tutorId, studentId, scheduled, 30, 'scheduled', new Date().toISOString()]);
+      const reportId = uuidv4();
+      await runExec('INSERT INTO lesson_reports (id, lesson_id, tutor_id, student_id, summary, homework, progress_score, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [reportId, lessonId, tutorId, studentId, 'Good progress on algebra', 'Complete worksheet 3', 7, new Date().toISOString()]);
+      const recId = uuidv4();
+      await runExec('INSERT INTO recordings (id, lesson_id, url, uploaded_at, notes) VALUES (?, ?, ?, ?, ?)', [recId, lessonId, null, new Date().toISOString(), 'Sample recording placeholder']);
+    }
+  } catch (err) {
+    console.error('Seed sample data error:', err);
   }
-});
+}
 
 // Seed demo products if none exist
-db.get('SELECT count(*) as c FROM products', (err, row) => {
-  if (err) return console.error('Product seed check error', err);
-  if (row && row.c < 5) {
-    console.log('Seeding demo products for shop...');
-    const demo = [
-      { title: 'Primary Mathematics Workbook', description: 'Practice exercises aligned to the curriculum for Primary learners.', price: 30, image: '/images/book-primary.svg' },
-      { title: 'JHS English Comprehension Pack', description: 'Reading passages and comprehension questions for JHS students.', price: 45, image: '/images/book-jhs-english.svg' },
-      { title: 'SHS Science Revision Guide', description: 'Concise revision notes and past questions for SHS science subjects.', price: 60, image: '/images/book-shs-science.svg' },
-      { title: 'IGCSE Maths Problem Solving', description: 'Targeted problem sets and mark schemes for IGCSE Maths.', price: 85, image: '/images/book-igcse-maths.svg' },
-      { title: 'Tutor Resource Pack (Digital)', description: 'Editable worksheets, lesson plans and assessments (PDF bundle).', price: 20, image: '/images/book-tutor-pack.svg' }
-    ];
-    demo.forEach(p => {
-      const id = uuidv4();
-      db.run('INSERT INTO products (id, title, description, price, image_path) VALUES (?, ?, ?, ?, ?)', [id, p.title, p.description, p.price, p.image]);
-    });
-    // Ensure any earlier placeholder entries get updated to use our nicer SVGs
-    db.run("UPDATE products SET image_path = '/images/book-primary.svg' WHERE title = 'Primary Mathematics Workbook'");
-    db.run("UPDATE products SET image_path = '/images/book-jhs-english.svg' WHERE title = 'JHS English Comprehension Pack'");
-    db.run("UPDATE products SET image_path = '/images/book-shs-science.svg' WHERE title = 'SHS Science Revision Guide'");
-    db.run("UPDATE products SET image_path = '/images/book-igcse-maths.svg' WHERE title = 'IGCSE Maths Problem Solving'");
-    db.run("UPDATE products SET image_path = '/images/book-tutor-pack.svg' WHERE title = 'Tutor Resource Pack (Digital)'");
+async function seedDemoProducts() {
+  try {
+    const products = await runQuery('SELECT count(*) as c FROM products');
+    if (products && products[0] && products[0].c < 5) {
+      console.log('Seeding demo products for shop...');
+      const demo = [
+        { title: 'Primary Mathematics Workbook', description: 'Practice exercises aligned to the curriculum for Primary learners.', price: 30, image: '/images/book-primary.svg' },
+        { title: 'JHS English Comprehension Pack', description: 'Reading passages and comprehension questions for JHS students.', price: 45, image: '/images/book-jhs-english.svg' },
+        { title: 'SHS Science Revision Guide', description: 'Concise revision notes and past questions for SHS science subjects.', price: 60, image: '/images/book-shs-science.svg' },
+        { title: 'IGCSE Maths Problem Solving', description: 'Targeted problem sets and mark schemes for IGCSE Maths.', price: 85, image: '/images/book-igcse-maths.svg' },
+        { title: 'Tutor Resource Pack (Digital)', description: 'Editable worksheets, lesson plans and assessments (PDF bundle).', price: 20, image: '/images/book-tutor-pack.svg' }
+      ];
+      for (const p of demo) {
+        const id = uuidv4();
+        await runExec('INSERT INTO products (id, title, description, price, image_path) VALUES (?, ?, ?, ?, ?)', [id, p.title, p.description, p.price, p.image]);
+      }
+    }
+  } catch (err) {
+    console.error('Seed demo products error:', err);
   }
-});
+}
+
+seedSampleData();
+seedDemoProducts();
 
 // Middleware to expose user to views
 app.use((req, res, next) => {
@@ -498,15 +370,6 @@ function requireAnyRole(roles) {
     if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'forbidden' });
     res.status(403).send('Forbidden');
   };
-}
-
-// Helper to run DB queries as promise
-function runQuery(sql, params=[]) {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if (err) reject(err); else resolve(rows);
-    });
-  });
 }
 
 // Helper: Load content into res.locals for templates
@@ -558,7 +421,7 @@ app.post('/contact', (req, res) => {
   const { name, email, subject, message } = req.body;
   const id = uuidv4();
   const created = new Date().toISOString();
-  db.run('INSERT INTO messages (id, name, email, subject, message, created_at) VALUES (?, ?, ?, ?, ?, ?)', [id, name, email, subject, message, created]);
+  dbRun('INSERT INTO messages (id, name, email, subject, message, created_at) VALUES (?, ?, ?, ?, ?, ?)', [id, name, email, subject, message, created]);
   res.render('contact', { success: true });
 });
 
@@ -570,7 +433,7 @@ app.post('/apply', upload.single('cv'), (req, res) => {
   const cv_path = req.file ? `/uploads/${path.basename(req.file.path)}` : null;
   const id = uuidv4();
   const created = new Date().toISOString();
-  db.run('INSERT INTO applications (id, name, email, phone, message, cv_path, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [id, name, email, phone, message, cv_path, created]);
+  dbRun('INSERT INTO applications (id, name, email, phone, message, cv_path, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [id, name, email, phone, message, cv_path, created]);
   res.render('apply', { success: true });
 });
 
@@ -798,7 +661,7 @@ app.post('/api/checkout', (req, res) => {
   const cart = req.session.cart || {};
   const ids = clientItems ? clientItems.map(i => i.id) : Object.keys(cart);
   if (!ids.length) return res.status(400).json({ error: 'empty_cart' });
-  db.all(`SELECT * FROM products WHERE id IN (${ids.map(()=>'?').join(',')})`, ids, async (err, rows) => {
+  dbAll(`SELECT * FROM products WHERE id IN (${ids.map(()=>'?').join(',')})`, ids, async (err, rows) => {
     if (err) return res.status(500).json({ error: 'db' });
     let total = 0;
     const items = rows.map(r => {
@@ -809,7 +672,7 @@ app.post('/api/checkout', (req, res) => {
     const id = uuidv4();
     const created = new Date().toISOString();
     const card_last4 = card_number ? card_number.slice(-4) : null;
-    db.run('INSERT INTO orders (id, user_id, items, total, payment_method, momo_number, card_last4, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [id, req.session.user ? req.session.user.id : null, JSON.stringify(items), total, payment_method, momo_number, card_last4, created]);
+    dbRun('INSERT INTO orders (id, user_id, items, total, payment_method, momo_number, card_last4, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [id, req.session.user ? req.session.user.id : null, JSON.stringify(items), total, payment_method, momo_number, card_last4, created]);
     if (payment_method === 'card' && stripe) {
       try {
         const session = await stripe.checkout.sessions.create({
@@ -836,7 +699,7 @@ app.post('/api/lessons', requireAuth, (req, res) => {
     const { tutor_id, student_id, scheduled_at, duration_minutes } = req.body;
     const id = uuidv4();
     const created = new Date().toISOString();
-    db.run('INSERT INTO lessons (id, tutor_id, student_id, scheduled_at, duration_minutes, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [id, tutor_id || null, student_id || (req.session.user ? req.session.user.id : null), scheduled_at || null, duration_minutes || 30, 'scheduled', created], (err) => {
+    dbRun('INSERT INTO lessons (id, tutor_id, student_id, scheduled_at, duration_minutes, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [id, tutor_id || null, student_id || (req.session.user ? req.session.user.id : null), scheduled_at || null, duration_minutes || 30, 'scheduled', created], (err) => {
       if (err) return res.status(500).json({ error: 'db' });
       res.json({ id, tutor_id, student_id, scheduled_at, duration_minutes });
     });
@@ -890,7 +753,7 @@ app.post('/api/lessons/:id/report', requireAnyRole(['tutor','admin']), async (re
     const tutor_id = currentUser ? currentUser.id : null;
     const id = uuidv4();
     const created = new Date().toISOString();
-    db.run('INSERT INTO lesson_reports (id, lesson_id, tutor_id, student_id, summary, homework, progress_score, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [id, lesson_id, tutor_id, lesson.student_id || null, summary || null, homework || null, progress_score || null, created], (err) => {
+    dbRun('INSERT INTO lesson_reports (id, lesson_id, tutor_id, student_id, summary, homework, progress_score, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [id, lesson_id, tutor_id, lesson.student_id || null, summary || null, homework || null, progress_score || null, created], (err) => {
       if (err) return res.status(500).json({ error: 'db' });
       res.json({ id });
     });
@@ -913,10 +776,10 @@ app.post('/api/lessons/:id/recording', requireAnyRole(['tutor','admin']), upload
     const id = uuidv4();
     const uploaded_at = new Date().toISOString();
     const notes = req.body.notes || null;
-    db.run('INSERT INTO recordings (id, lesson_id, url, uploaded_at, notes) VALUES (?, ?, ?, ?, ?)', [id, lesson_id, url, uploaded_at, notes], (err) => {
+    dbRun('INSERT INTO recordings (id, lesson_id, url, uploaded_at, notes) VALUES (?, ?, ?, ?, ?)', [id, lesson_id, url, uploaded_at, notes], (err) => {
       if (err) return res.status(500).json({ error: 'db' });
       // also attach to lesson record
-      db.run('UPDATE lessons SET recording_url = ? WHERE id = ?', [url, lesson_id]);
+      dbRun('UPDATE lessons SET recording_url = ? WHERE id = ?', [url, lesson_id]);
       res.json({ id, url });
     });
   } catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
@@ -936,7 +799,7 @@ app.get('/api/dashboard', requireAuth, async (req, res) => {
 
 // JSON API endpoints for frontend apps
 app.get('/api/products', (req, res) => {
-  db.all('SELECT * FROM products', (err, rows) => {
+  dbAll('SELECT * FROM products', (err, rows) => {
     if (err) return res.status(500).json({ error: 'db' });
     res.json(rows);
   });
@@ -944,14 +807,14 @@ app.get('/api/products', (req, res) => {
 
 app.get('/api/content/:key', (req, res) => {
   const key = req.params.key;
-  db.get('SELECT value FROM site_content WHERE key = ?', [key], (err, row) => {
+  dbGet('SELECT value FROM site_content WHERE key = ?', [key], (err, row) => {
     if (err) return res.status(500).json({ error: 'db' });
     res.json({ key, value: row ? row.value : null });
   });
 });
 
 app.get('/api/curriculum', (req, res) => {
-  db.all('SELECT key, value FROM site_content WHERE key LIKE "curriculum_%"', (err, rows) => {
+  dbAll('SELECT key, value FROM site_content WHERE key LIKE "curriculum_%"', (err, rows) => {
     if (err) return res.status(500).json({ error: 'db' });
     res.json(rows);
   });
@@ -969,7 +832,7 @@ app.post('/admin/products', requireAdmin, upload.single('image'), (req, res) => 
   const priceNum = isNaN(parseFloat(price)) ? 0 : parseFloat(price);
   const image_path = req.file ? `/uploads/${path.basename(req.file.path)}` : null;
   const id = uuidv4();
-  db.run('INSERT INTO products (id, title, description, price, image_path) VALUES (?, ?, ?, ?, ?)', [id, title.trim(), description || '', priceNum, image_path], (err)=>{
+  dbRun('INSERT INTO products (id, title, description, price, image_path) VALUES (?, ?, ?, ?, ?)', [id, title.trim(), description || '', priceNum, image_path], (err)=>{
     if (err) return res.redirect('/admin/products?error=' + encodeURIComponent('Database error while creating product'));
     res.redirect('/admin/products?message=' + encodeURIComponent('Product added'));
   });
@@ -1017,7 +880,7 @@ app.post('/checkout', (req, res) => {
   const cart = req.session.cart || {};
   const ids = Object.keys(cart);
   if (!ids.length) return res.redirect('/cart');
-  db.all(`SELECT * FROM products WHERE id IN (${ids.map(()=>'?').join(',')})`, ids, async (err, rows) => {
+  dbAll(`SELECT * FROM products WHERE id IN (${ids.map(()=>'?').join(',')})`, ids, async (err, rows) => {
     if (err) return res.status(500).send('DB error');
     let total = 0;
     const items = rows.map(r => {
@@ -1027,7 +890,7 @@ app.post('/checkout', (req, res) => {
     const created = new Date().toISOString();
     const card_last4 = card_number ? card_number.slice(-4) : null;
     // If payment_method is 'card' and stripe available, create a Stripe Checkout session
-    db.run('INSERT INTO orders (id, user_id, items, total, payment_method, momo_number, card_last4, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [id, req.session.user ? req.session.user.id : null, JSON.stringify(items), total, payment_method, momo_number, card_last4, created]);
+    dbRun('INSERT INTO orders (id, user_id, items, total, payment_method, momo_number, card_last4, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [id, req.session.user ? req.session.user.id : null, JSON.stringify(items), total, payment_method, momo_number, card_last4, created]);
     if (payment_method === 'card' && stripe) {
       try {
         const session = await stripe.checkout.sessions.create({
@@ -1053,7 +916,7 @@ app.post('/checkout', (req, res) => {
 
 // Admin: list and manage orders
 app.get('/admin/orders', requireAdmin, (req, res) => {
-  db.all('SELECT * FROM orders ORDER BY created_at DESC', (err, rows) => {
+  dbAll('SELECT * FROM orders ORDER BY created_at DESC', (err, rows) => {
     if (err) return res.status(500).send('DB error');
     res.render('admin/orders', { orders: rows });
   });
@@ -1061,7 +924,7 @@ app.get('/admin/orders', requireAdmin, (req, res) => {
 
 app.post('/admin/orders/:id/status', requireAdmin, (req, res) => {
   const id = req.params.id; const { status } = req.body;
-  db.run('UPDATE orders SET status = ? WHERE id = ?', [status, id], (err) => {
+  dbRun('UPDATE orders SET status = ? WHERE id = ?', [status, id], (err) => {
     if (err) return res.status(500).send('DB error');
     res.redirect('/admin/orders');
   });
@@ -1088,7 +951,7 @@ app.post('/signup', authLimiter, [
   const hashed = bcrypt.hashSync(password, 10);
   const verificationToken = uuidv4();
   
-  db.run('INSERT INTO users (id, name, email, password, email_verified, verification_token) VALUES (?, ?, ?, ?, 0, ?)', 
+  dbRun('INSERT INTO users (id, name, email, password, email_verified, verification_token) VALUES (?, ?, ?, ?, 0, ?)', 
     [id, name, email, hashed, verificationToken], async (err) => {
     if (err) return res.render('signup', { error: 'Email already in use' });
     
@@ -1120,7 +983,7 @@ app.post('/login', authLimiter, [
   }
   
   const { email, password } = req.body;
-  db.get('SELECT * FROM users WHERE email = ? OR name = ?', [email, email], (err, user) => {
+  dbGet('SELECT * FROM users WHERE email = ? OR name = ?', [email, email], (err, user) => {
     if (err || !user) return res.render('login', { error: 'Invalid credentials' });
     if (!bcrypt.compareSync(password, user.password)) return res.render('login', { error: 'Invalid credentials' });
     req.session.user = { 
@@ -1380,7 +1243,7 @@ app.post('/admin/products/:id/update', requireAdmin, upload.single('image'), (re
   const priceNum = isNaN(parseFloat(price)) ? 0 : parseFloat(price);
   const uploadedPath = req.file ? `/uploads/${path.basename(req.file.path)}` : null;
   const finalImage = uploadedPath || image_path || null;
-  db.run('UPDATE products SET title = ?, description = ?, price = ?, image_path = ? WHERE id = ?', [title.trim(), description || '', priceNum, finalImage, id], (err)=>{
+  dbRun('UPDATE products SET title = ?, description = ?, price = ?, image_path = ? WHERE id = ?', [title.trim(), description || '', priceNum, finalImage, id], (err)=>{
     if (err) return res.redirect('/admin/products?error=' + encodeURIComponent('Database error while updating'));
     res.redirect('/admin/products?message=' + encodeURIComponent('Product updated'));
   });
@@ -1389,7 +1252,7 @@ app.post('/admin/products/:id/update', requireAdmin, upload.single('image'), (re
 // Admin: delete product
 app.post('/admin/products/:id/delete', requireAdmin, (req, res) => {
   const { id } = req.params;
-  db.run('DELETE FROM products WHERE id = ?', [id], (err)=>{
+  dbRun('DELETE FROM products WHERE id = ?', [id], (err)=>{
     if (err) return res.redirect('/admin/products?error=' + encodeURIComponent('Database error while deleting'));
     res.redirect('/admin/products?message=' + encodeURIComponent('Product deleted'));
   });
@@ -1404,7 +1267,7 @@ app.get('/admin/content', requireAdmin, async (req, res) => {
 app.post('/admin/content', requireAdmin, (req, res) => {
   const { key, value } = req.body;
   const wantsJson = (req.headers.accept || '').includes('application/json') || req.xhr;
-  db.run('INSERT OR REPLACE INTO site_content (key, value) VALUES (?, ?)', [key, value], (err)=>{
+  dbRun('INSERT OR REPLACE INTO site_content (key, value) VALUES (?, ?)', [key, value], (err)=>{
     if (err) {
       if (wantsJson) return res.status(500).json({ success: false, error: 'db' });
       return res.redirect('/admin/content?error=' + encodeURIComponent('Failed to save content'));
@@ -1418,7 +1281,7 @@ app.post('/admin/content', requireAdmin, (req, res) => {
 app.post('/admin/content/delete', requireAdmin, (req, res) => {
   const { key } = req.body;
   if (!key) return res.redirect('/admin/content');
-  db.run('DELETE FROM site_content WHERE key = ?', [key], (err)=>{
+  dbRun('DELETE FROM site_content WHERE key = ?', [key], (err)=>{
     if (err) return res.status(500).send('DB error');
     res.redirect('/admin/content');
   });
@@ -1429,7 +1292,7 @@ app.post('/admin/content/bulk', requireAdmin, (req, res) => {
   try {
     const items = Array.isArray(req.body.items) ? req.body.items : [];
     if (!items.length) return res.status(400).json({ error: 'no_items' });
-    const stmt = db.prepare('INSERT OR REPLACE INTO site_content (key, value) VALUES (?, ?)');
+    const stmt = dbPrepare('INSERT OR REPLACE INTO site_content (key, value) VALUES (?, ?)');
     items.forEach(it => stmt.run([it.key, it.value || '']));
     stmt.finalize((err) => {
       if (err) {
@@ -1467,7 +1330,7 @@ app.post('/admin/users/create', requireAdmin, [
   const id = uuidv4();
   const hashed = bcrypt.hashSync(password, 10);
   const userRole = (role === 'tutor') ? 'tutor' : 'user';
-  db.run('INSERT INTO users (id, name, email, password, plain_password, role) VALUES (?, ?, ?, ?, ?, ?)', [id, name, email, hashed, password, userRole], async (err) => {
+  dbRun('INSERT INTO users (id, name, email, password, plain_password, role) VALUES (?, ?, ?, ?, ?, ?)', [id, name, email, hashed, password, userRole], async (err) => {
     if (err) return res.redirect('/admin/users?error=Email already in use');
     
     // Send welcome email
@@ -1490,7 +1353,7 @@ app.post('/admin/users/create', requireAdmin, [
 
 app.post('/admin/users/delete', requireAdmin, (req, res) => {
   const { userId } = req.body;
-  db.run('DELETE FROM users WHERE id = ?', [userId], (err) => {
+  dbRun('DELETE FROM users WHERE id = ?', [userId], (err) => {
     if (err) return res.redirect('/admin/users?error=Failed to delete user');
     res.redirect('/admin/users?message=User deleted successfully');
   });
@@ -1502,7 +1365,7 @@ app.post('/admin/users/reset-password', requireAdmin, (req, res) => {
     return res.redirect('/admin/users?error=Password cannot be empty');
   }
   const hashed = bcrypt.hashSync(newPassword, 10);
-  db.run('UPDATE users SET password = ?, plain_password = ? WHERE id = ?', [hashed, newPassword, userId], (err) => {
+  dbRun('UPDATE users SET password = ?, plain_password = ? WHERE id = ?', [hashed, newPassword, userId], (err) => {
     if (err) return res.redirect('/admin/users?error=Failed to reset password');
     res.redirect('/admin/users?message=Password reset successfully for user');
   });
