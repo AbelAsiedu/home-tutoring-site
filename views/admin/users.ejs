@@ -34,7 +34,7 @@
         <option value="user">Student/Parent</option>
         <option value="tutor">Tutor</option>
       </select>
-      <button type="submit">Create User Account</button>
+      <button type="submit" title="Create a new user account in the system">Create User Account</button>
     </form>
   </div>
 
@@ -42,8 +42,8 @@
     <div style="display:flex;justify-content:space-between;align-items:center">
       <h2>All Users</h2>
       <div style="display:flex;gap:8px">
-        <a class="btn ghost" href="/admin/export/users">Export CSV</a>
-        <a class="btn ghost" href="/admin/export/users?fmt=json">Export JSON</a>
+        <a class="btn ghost" href="/admin/export/users" title="Download user list as CSV file">Export CSV</a>
+        <a class="btn ghost" href="/admin/export/users?fmt=json" title="Download user list as JSON file">Export JSON</a>
       </div>
     </div>
     <table>
@@ -75,12 +75,12 @@
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                   <input type="hidden" name="userId" value="<%= user.id %>">
                   <input type="text" name="newPassword" placeholder="New password" required style="width:120px; padding:4px;">
-                  <button type="submit" style="background:#ffc107; color:#000;">Reset</button>
+                  <button type="submit" style="background:#ffc107; color:#000;" title="Set a new password for this user">Reset</button>
                 </form>
                 <form method="post" action="/admin/users/delete" style="display:inline;">
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                   <input type="hidden" name="userId" value="<%= user.id %>">
-                  <button type="submit" onclick="return confirm('Delete this user?')" style="background:#dc3545;">Delete</button>
+                  <button type="submit" onclick="return confirm('Delete this user?')" style="background:#dc3545;" title="Remove this user account from the system">Delete</button>
                 </form>
               </td>
             </tr>

@@ -25,8 +25,8 @@
         <p><strong>Email Verified:</strong> <%= user.email_verified ? 'Yes' : 'No' %></p>
       </div>
       <div style="margin-top: 15px;">
-        <a href="/account" class="btn">Manage Account</a>
-        <a href="/logout" class="btn ghost" style="margin-left: 10px;">Logout</a>
+        <a href="/account" class="btn" title="Manage your account settings and security">Manage Account</a>
+        <a href="/logout" class="btn ghost" style="margin-left: 10px;" title="Sign out and end your session">Logout</a>
       </div>
     </section>
 
@@ -42,7 +42,7 @@
               <div><strong><%= new Date(lesson.scheduled_at).toLocaleString() %></strong></div>
               <div class="muted">Duration: <%= lesson.duration_minutes %> minutes</div>
               <div style="margin-top: 10px;">
-                <a href="/lessons/<%= lesson.id %>" class="btn" style="font-size: 0.9em;">View Details</a>
+                <a href="/lessons/<%= lesson.id %>" class="btn" style="font-size: 0.9em;" title="View full lesson details and notes">View Details</a>
               </div>
             </div>
           <% }); %>
@@ -78,10 +78,10 @@
     <section style="margin-top: 20px;">
       <h2>Quick Links</h2>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-        <a href="/cart" class="btn">View Cart</a>
-        <a href="/curriculum" class="btn">Curriculum</a>
-        <a href="/tutors" class="btn">Find Tutors</a>
-        <a href="/contact" class="btn">Contact Us</a>
+        <a href="/cart" class="btn" title="Review items in your shopping cart">View Cart</a>
+        <a href="/curriculum" class="btn" title="Browse our educational curriculum">Curriculum</a>
+        <a href="/tutors" class="btn" title="Find and connect with qualified tutors">Find Tutors</a>
+        <a href="/contact" class="btn" title="Get in touch with our support team">Contact Us</a>
       </div>
     </section>
   </section>

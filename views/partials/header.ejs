@@ -44,7 +44,7 @@
               <span>Cart</span>
               <span class="cart-badge" data-server-count="<%= (typeof cartCount !== 'undefined' && cartCount > 0) ? cartCount : 0 %>"><%= (typeof cartCount !== 'undefined' && cartCount > 0) ? cartCount : '' %></span>
             </a>
-            <button aria-label="Open mini cart" data-mini-toggle style="background:transparent;border:0;cursor:pointer;padding:6px;font-size:14px">▾</button>
+            <button aria-label="Open mini cart" data-mini-toggle style="background:transparent;border:0;cursor:pointer;padding:6px;font-size:14px" title="Toggle mini cart panel">▾</button>
           </div>
       </nav>
 
@@ -56,18 +56,18 @@
                 <form method="post" action="/cart/remove" style="display:inline">
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                   <input type="hidden" name="id" value="<%= item.id %>">
-                  <button class="btn-link small" type="submit">Deselect</button>
+                  <button class="btn-link small" type="submit" title="Remove this item from cart">Deselect</button>
                 </form>
               </li>
             <% }) %>
           </ul>
-          <button class="close-btn" id="cart-close-server" aria-label="Close">×</button>
-          <a href="/cart" class="button">View cart</a>
+          <button class="close-btn" id="cart-close-server" aria-label="Close" title="Close mini cart panel">×</button>
+          <a href="/cart" class="button" title="View full shopping cart">View cart</a>
           <form method="post" action="/cart/clear" style="display:inline">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <button class="button alt" type="submit">Clear cart</button>
+            <button class="button alt" type="submit" title="Remove all items from cart">Clear cart</button>
           </form>
-          <button id="cart-cancel-server" class="button ghost">Cancel</button>
+          <button id="cart-cancel-server" class="button ghost" title="Close mini cart panel">Cancel</button>
         <% } else { %>
           <div class="muted" style="padding:12px">Your cart is empty.</div>
         <% } %>

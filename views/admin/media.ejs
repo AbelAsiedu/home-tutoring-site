@@ -52,7 +52,7 @@
               <label for="fileInput" style="font-weight:600;display:block;margin-bottom:6px">Choose file</label>
               <input id="fileInput" type="file" name="file" accept="image/*" required style="width:100%;padding:6px;border:1px solid #ddd;border-radius:4px">
             </div>
-            <button type="submit" style="padding:8px 16px;background:#28a745;color:white;border:none;border-radius:4px;cursor:pointer">Upload</button>
+            <button type="submit" style="padding:8px 16px;background:#28a745;color:white;border:none;border-radius:4px;cursor:pointer" title="Upload new image to media library">Upload</button>
           </form>
         </section>
 
@@ -68,11 +68,11 @@
                 <img src="<%= f %>" alt="<%= name %>" title="<%= name %>">
                 <div class="media-item-name"><code><%= name %></code></div>
                 <div style="font-size:0.8em;color:#999;margin-top:4px">
-                  <button type="button" class="copy-url-btn" data-url="<%= f %>" style="padding:4px 8px;background:#e9ecef;border:none;border-radius:3px;cursor:pointer">Copy URL</button>
+                  <button type="button" class="copy-url-btn" data-url="<%= f %>" style="padding:4px 8px;background:#e9ecef;border:none;border-radius:3px;cursor:pointer" title="Copy image URL to clipboard">Copy URL</button>
                   <form method="post" action="/admin/media/delete" style="display:inline;margin-left:4px" class="delete-form">
                     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                     <input type="hidden" name="path" value="<%= f %>">
-                    <button type="submit" style="padding:4px 8px;background:#dc3545;color:white;border:none;border-radius:3px;cursor:pointer">Delete</button>
+                    <button type="submit" style="padding:4px 8px;background:#dc3545;color:white;border:none;border-radius:3px;cursor:pointer" title="Delete this image from media library">Delete</button>
                   </form>
                 </div>
               </div>
@@ -104,7 +104,7 @@
                     <input type="hidden" name="redirect_to" value="/admin/media">
                     <label><%= slide %> (<%= page %> <%= i+1 %>)</label>
                     <input type="text" name="value" value="<%= (mediaValues[key]) || '' %>" placeholder="/uploads/image.jpg">
-                    <button type="submit">Save</button>
+                    <button type="submit" title="Assign this image URL to the slide">Save</button>
                   </form>
                 <% }) %>
               </div>
@@ -126,7 +126,7 @@
                 <input type="hidden" name="redirect_to" value="/admin/media">
                 <label>Tutor <%= i+1 %></label>
                 <input type="text" name="value" value="<%= (mediaValues[key]) || '' %>" placeholder="/uploads/tutor.jpg">
-                <button type="submit">Save Image</button>
+                <button type="submit" title="Assign this image URL to the tutor profile card">Save Image</button>
               </form>
             <% }) } %>
           </div>

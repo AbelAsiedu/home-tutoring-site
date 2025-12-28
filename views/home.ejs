@@ -26,8 +26,8 @@
       <h1><%= content('hero_title', 'Personalised tutoring that builds confident learners') %></h1>
       <p class="lead"><%= content('hero_lead', 'One-to-one lessons from vetted tutors, curriculum-aligned resources and flexible scheduling — for Primary, JHS, SHS and international programmes.') %></p>
       <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;">
-        <a href="/curriculum" class="cta"><%= content('hero_cta_primary', 'Explore Curriculum') %></a>
-        <a href="/apply" class="btn"><%= content('hero_cta_secondary', 'Become a Tutor') %></a>
+        <a href="/curriculum" class="cta" title="Explore our complete curriculum offerings"><%= content('hero_cta_primary', 'Explore Curriculum') %></a>
+        <a href="/apply" class="btn" title="Apply to become a tutor with us"><%= content('hero_cta_secondary', 'Become a Tutor') %></a>
       </div>
       <div class="trust-logos" style="margin-top:18px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
         <div class="card small muted"><%= content('hero_badge_1', 'Trusted by schools') %></div>
@@ -49,7 +49,7 @@
             <option value="SHS">SHS</option>
             <option value="IGCSE/A-levels">IGCSE / A-Levels</option>
           </select>
-          <button class="btn" type="submit">Request trial</button>
+          <button class="btn" type="submit" title="Request a free 30-minute trial lesson">Request trial</button>
         </form>
         <div class="muted" style="font-size:0.9rem;margin-top:8px">Or call/WhatsApp <strong><%= content('booking_contact', '+233 24 000 0000') %></strong></div>
       </div>
