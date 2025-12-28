@@ -1192,7 +1192,8 @@ app.get('/admin/login', (req, res) => res.render('admin/login'));
 app.post('/admin/login', adminLimiter, (req, res) => {
   const { username, password } = req.body;
   const adminUsername = process.env.ADMIN_USERNAME || 'admin';
-  const adminPassword = process.env.ADMIN_PASSWORD || 'ChangeThisPassword123!';
+  // Keep in sync with bootstrap logic: default to 'admin' if env not set
+  const adminPassword = process.env.ADMIN_PASSWORD || 'admin';
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@modernpedagogues.com';
   
   if (username === adminUsername && password === adminPassword) {
