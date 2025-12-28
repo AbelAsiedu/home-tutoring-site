@@ -12,101 +12,248 @@
   <section class="page glass">
     <h1>Edit Site Content</h1>
     <div class="notice" style="margin-bottom:12px">
-      Pick a key, edit the text/HTML, click Save, then refresh the public page. You can also click any existing entry below to load it.
+      Choose a page, pick a field, edit the text/HTML, click Save, then refresh the public page.
     </div>
-    <div class="glass" style="margin-bottom:14px;padding:10px;display:grid;gap:8px">
-      <strong>Quick keys (click to load)</strong>
-      <div style="display:grid;gap:6px">
-        <div><em>Home</em>:
-          <button type="button" class="btn ghost" data-key="hero_title">hero_title</button>
-          <button type="button" class="btn ghost" data-key="hero_lead">hero_lead</button>
-          <button type="button" class="btn ghost" data-key="pricing_plan1_price">pricing_plan1_price</button>
-          <button type="button" class="btn ghost" data-key="testimonial_1_body">testimonial_1_body</button>
-        </div>
-        <div><em>About</em>: <button type="button" class="btn ghost" data-key="about_body">about_body</button></div>
-        <div><em>FAQ</em>: <button type="button" class="btn ghost" data-key="faq_q1">faq_q1</button> <button type="button" class="btn ghost" data-key="faq_a1">faq_a1</button></div>
-        <div><em>Tutors</em>: <button type="button" class="btn ghost" data-key="tutor_1_name">tutor_1_name</button> <button type="button" class="btn ghost" data-key="tutor_1_role">tutor_1_role</button></div>
-        <div><em>Curriculum</em>: <button type="button" class="btn ghost" data-key="curriculum_GES">curriculum_GES</button> <button type="button" class="btn ghost" data-key="curriculum_Cambridge">curriculum_Cambridge</button></div>
-        <div><em>Slides</em>: <button type="button" class="btn ghost" data-key="slide_1">slide_1</button> <button type="button" class="btn ghost" data-key="slide_2">slide_2</button></div>
+    <div class="glass" style="margin-bottom:14px;padding:10px;display:grid;gap:10px">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <label for="pagePicker" style="font-weight:600">Page</label>
+        <select id="pagePicker" style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;min-width:220px">
+          <option value="home">Home</option>
+          <option value="about">About</option>
+          <option value="faq">FAQ</option>
+          <option value="tutors">Tutors</option>
+          <option value="curriculum">Curriculum</option>
+          <option value="slides">Slides</option>
+          <option value="misc">Other</option>
+        </select>
       </div>
+      <div id="keyChips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
     </div>
-    <form action="/admin/content" method="post" class="curved">
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <label>Key (e.g. about_text, slide_1, curriculum_GES)</label>
-      <input name="key" required>
-      <label>Value (HTML allowed)</label>
-      <textarea id="editor" name="value"></textarea>
-      <button type="submit">Save Content</button>
+    <form method="post" action="/admin/content" style="display:grid;gap:12px" id="contentForm">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <div class="grid-2">
+        <div class="form-group">
+          <label for="key">Key (e.g. about_text, slide_1, curriculum_GES)</label>
+          <input type="text" id="key" name="key" placeholder="content key" required />
+        </div>
+        <div class="form-group">
+          <label for="value">Value (HTML allowed)</label>
+          <textarea id="value" name="value" rows="6" placeholder="Enter text or HTML"></textarea>
+        </div>
+      </div>
+      <button class="btn" type="submit">Save Content</button>
     </form>
     <% if (entries && entries.length) { %>
-      <div class="glass" style="margin-top:16px;padding:12px">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-          <h3 style="margin:0">Existing entries</h3>
-          <input type="search" id="entrySearch" placeholder="Filter keys" style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;min-width:200px">
+      <div class="glass" style="margin-top:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+          <h3 style="margin:0">Existing Entries</h3>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="searchEntries" type="search" placeholder="Search key or value" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;min-width:200px" />
+            <span id="entryCount" style="font-size:13px;color:#555"></span>
+          </div>
         </div>
         <table class="admin-list" id="entriesTable">
           <thead>
             <tr>
               <th>Key</th>
+              <th style="width:70%">Value preview</th>
               <th>Actions</th>
             </tr>
           </thead>
-          <tbody>
-            <% entries.forEach(function(e){ %>
-              <tr>
-                <td><strong><%= e.key %></strong></td>
-                <td style="display:flex;gap:8px">
-                  <button class="btn" onclick="fillEditor('<%- e.key %>', `<%- (e.value||'').replace(/`/g,'\\`') %>`)") type="button">Edit</button>
-                  <form method="post" action="/admin/content/delete" onsubmit="return confirm('Delete this entry?')">
-                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                    <input type="hidden" name="key" value="<%- e.key %>">
-                    <button class="btn" style="background:#dc3545" type="submit">Delete</button>
-                  </form>
-                </td>
-              </tr>
-            <% }) %>
-          </tbody>
+          <tbody></tbody>
         </table>
       </div>
     <% } %>
-    <!-- Self-hosted TinyMCE (no API key required) -->
-    <script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.3/tinymce.min.js" referrerpolicy="origin"></script>
+    <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
     <script>
-      tinymce.init({ selector: '#editor', height: 320, menubar: false, plugins: 'link lists code table', toolbar: 'undo redo | bold italic underline | bullist numlist | link table | code' });
-      function fillEditor(key, val){
-        document.querySelector('input[name=key]').value = key;
-        const editor = tinymce.get('editor');
-        if (editor) { editor.setContent(val || ''); }
-        else { document.getElementById('editor').value = val || ''; }
+      const entries = <%- JSON.stringify(entries || []) %>;
+      const pageKeys = {
+        home: [
+          'hero_title','hero_lead','pricing_plan1_price','pricing_plan2_price','pricing_plan3_price','pricing_plan1_features','pricing_plan2_features','pricing_plan3_features','testimonial_1_body','testimonial_1_name','testimonial_2_body','testimonial_2_name','cta_primary','cta_secondary'
+        ],
+        about: ['about_heading','about_body','about_stats','about_cta'],
+        faq: ['faq_intro','faq_q1','faq_a1','faq_q2','faq_a2','faq_q3','faq_a3'],
+        tutors: ['tutor_1_name','tutor_1_role','tutor_1_bio','tutor_2_name','tutor_2_role','tutor_2_bio'],
+        curriculum: ['curriculum_GES','curriculum_Cambridge','curriculum_IGCSE','curriculum_waec','curriculum_notes'],
+        slides: ['slide_1','slide_2','slide_3','slide_cta_text','slide_cta_link'],
+        misc: ['contact_phone','contact_whatsapp','contact_email','footer_privacy','navbar_cta','apply_intro','estore_intro','resources_intro']
+      };
+
+      const entryMap = entries.reduce((acc, cur) => {
+        acc[cur.key] = cur.value;
+        return acc;
+      }, {});
+
+      const keyInput = document.getElementById('key');
+      const keyChips = document.getElementById('keyChips');
+      const pagePicker = document.getElementById('pagePicker');
+      // dynamic field dropdown for selected page
+      const fieldPicker = document.createElement('select');
+      fieldPicker.id = 'fieldPicker';
+      fieldPicker.style.cssText = 'padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;min-width:220px;';
+      const fieldLabel = document.createElement('label');
+      fieldLabel.htmlFor = 'fieldPicker';
+      fieldLabel.textContent = 'Field';
+      fieldLabel.style.fontWeight = '600';
+      // insert field picker next to page picker
+      const pickersRow = document.querySelector('.glass > div');
+      if (pickersRow) {
+        pickersRow.appendChild(fieldLabel);
+        pickersRow.appendChild(fieldPicker);
+      }
+      const entryCount = document.getElementById('entryCount');
+      const searchBox = document.getElementById('searchEntries');
+      const tableBody = document.querySelector('#entriesTable tbody');
+
+      let editorReady = false;
+      let pendingContent = '';
+      tinymce.init({
+        selector: '#value',
+        height: 320,
+        menubar: false,
+        plugins: 'link lists code table',
+        toolbar: 'undo redo | bold italic underline | bullist numlist | link table | code',
+        setup: (ed) => {
+          ed.on('init', () => {
+            editorReady = true;
+            if (pendingContent) {
+              ed.setContent(pendingContent);
+              pendingContent = '';
+            }
+            // initial render once editor is ready
+            renderKeyControls(pagePicker ? pagePicker.value : 'home');
+            renderTable(entries);
+          });
+        }
+      });
+
+      function setEditorContent(html) {
+        const editor = tinymce.get('value');
+        if (editorReady && editor) {
+          editor.setContent(html || '');
+        } else {
+          pendingContent = html || '';
+          document.getElementById('value').value = html || '';
+        }
+      }
+
+      function loadEntry(key) {
+        keyInput.value = key;
+        setEditorContent(entryMap[key] || '');
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
-      // quick key buttons
-      document.querySelectorAll('[data-key]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const key = btn.getAttribute('data-key');
-          const entry = (window.entryMap || {})[key];
-          fillEditor(key, entry || '');
+
+      function renderTable(list) {
+        if (!tableBody) return;
+        tableBody.innerHTML = '';
+        list.forEach(item => {
+          const tr = document.createElement('tr');
+          tr.dataset.key = item.key;
+          const tdKey = document.createElement('td');
+          tdKey.innerHTML = `<strong>${item.key}</strong>`;
+          const tdVal = document.createElement('td');
+          tdVal.textContent = (item.value || '').replace(/\s+/g, ' ').slice(0, 140) + ((item.value || '').length > 140 ? '…' : '');
+          const tdActions = document.createElement('td');
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'btn';
+          btn.textContent = 'Edit';
+          btn.addEventListener('click', () => loadEntry(item.key));
+          tdActions.appendChild(btn);
+          const delForm = document.createElement('form');
+          delForm.method = 'post';
+          delForm.action = '/admin/content/delete';
+          delForm.onsubmit = () => confirm('Delete this entry?');
+          delForm.innerHTML = `<input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="key" value="${item.key}"><button class="btn" style="background:#dc3545" type="submit">Delete</button>`;
+          tdActions.appendChild(delForm);
+          tr.appendChild(tdKey);
+          tr.appendChild(tdVal);
+          tr.appendChild(tdActions);
+          tableBody.appendChild(tr);
         });
-      });
-      // build entry map for fast lookup and table filtering
-      window.entryMap = {};
-      <% (entries || []).forEach(function(e){ %>
-        window.entryMap['<%- e.key %>'] = `<%- (e.value||'').replace(/`/g,'\\`') %>`;
-      <% }); %>
-      const search = document.getElementById('entrySearch');
-      if (search) {
-        search.addEventListener('input', function(){
-          const term = this.value.toLowerCase();
-          document.querySelectorAll('#entriesTable tbody tr').forEach(row => {
-            const key = row.querySelector('td strong').textContent.toLowerCase();
-            row.style.display = key.includes(term) ? '' : 'none';
-          });
+        if (entryCount) {
+          entryCount.textContent = `${list.length} entries`;
+        }
+      }
+
+      function keysForPage(page) {
+        // combine static suggestions with heuristics from existing entries
+        const heuristics = {
+          home: ['hero','pricing','testimonial','cta'],
+          about: ['about'],
+          faq: ['faq'],
+          tutors: ['tutor'],
+          curriculum: ['curriculum'],
+          slides: ['slide'],
+          misc: []
+        };
+        const suggest = pageKeys[page] || [];
+        const hints = heuristics[page] || [];
+        const fromEntries = entries
+          .map(e => e.key)
+          .filter(k => hints.length ? hints.some(h => k.toLowerCase().includes(h)) : true);
+        const all = Array.from(new Set([...suggest, ...fromEntries]));
+        // for misc, exclude keys captured by other pages
+        if (page === 'misc') {
+          const other = new Set(Object.keys(pageKeys).filter(p => p !== 'misc').flatMap(p => pageKeys[p]));
+          return all.filter(k => !other.has(k));
+        }
+        return all;
+      }
+
+      function renderKeyControls(page) {
+        // chips
+        keyChips.innerHTML = '';
+        const keys = keysForPage(page);
+        keys.forEach(k => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'btn ghost';
+          btn.textContent = k;
+          btn.addEventListener('click', () => loadEntry(k));
+          keyChips.appendChild(btn);
+        });
+        if (!keyChips.children.length) {
+          const span = document.createElement('span');
+          span.textContent = 'No keys found for this page yet.';
+          span.style.color = '#666';
+          keyChips.appendChild(span);
+        }
+        // field dropdown
+        fieldPicker.innerHTML = '';
+        keys.forEach(k => {
+          const opt = document.createElement('option');
+          opt.value = k;
+          opt.textContent = k;
+          fieldPicker.appendChild(opt);
+        });
+        if (keys.length) {
+          fieldPicker.value = keys[0];
+          loadEntry(keys[0]);
+        } else {
+          setEditorContent('');
+          keyInput.value = '';
+        }
+      }
+
+      if (pagePicker) {
+        pagePicker.addEventListener('change', () => renderKeyControls(pagePicker.value));
+      }
+      fieldPicker.addEventListener('change', () => loadEntry(fieldPicker.value));
+
+      if (searchBox) {
+        searchBox.addEventListener('input', () => {
+          const term = searchBox.value.toLowerCase();
+          const filtered = entries.filter(e =>
+            (e.key || '').toLowerCase().includes(term) || (e.value || '').toLowerCase().includes(term)
+          );
+          renderTable(filtered);
         });
       }
     </script>
   </section>
-    </main>
-    <%- include('../partials/footer') %>
-    <script src="/js/main.js"></script>
-  </body>
+</main>
+<%- include('../partials/footer') %>
+<script src="/js/main.js"></script>
+</body>
 </html>
