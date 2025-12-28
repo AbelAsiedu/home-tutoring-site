@@ -71,7 +71,7 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "cdn.tiny.cloud", "cdn.jsdelivr.net", "https://js.stripe.com"],
-      styleSrc: ["'self'", "'unsafe-inline'", "cdn.tiny.cloud", "fonts.googleapis.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "cdn.tiny.cloud", "cdn.jsdelivr.net", "fonts.googleapis.com"],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
       fontSrc: ["'self'", "fonts.gstatic.com", "data:"],
       connectSrc: ["'self'", "https://api.stripe.com"],
