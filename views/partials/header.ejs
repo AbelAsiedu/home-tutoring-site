@@ -17,8 +17,8 @@
         </div>
         <% if (isAdmin) { %>
         <div class="nav-history" style="display:inline-flex;gap:6px">
-          <button type="button" aria-label="Go back" class="btn ghost" style="padding:6px 10px" onclick="history.back()">←</button>
-          <button type="button" aria-label="Go forward" class="btn ghost" style="padding:6px 10px" onclick="history.forward()">→</button>
+          <button type="button" aria-label="Go back" class="btn ghost nav-back" style="padding:6px 10px">←</button>
+          <button type="button" aria-label="Go forward" class="btn ghost nav-forward" style="padding:6px 10px">→</button>
         </div>
         <% } %>
       </div>
@@ -78,6 +78,19 @@
 
   <script>
     (function(){
+      // Admin nav back/forward with safe fallback when no history
+      const backBtn = document.querySelector('.nav-history .nav-back');
+      const fwdBtn = document.querySelector('.nav-history .nav-forward');
+      if (backBtn) backBtn.addEventListener('click', function(e){
+        e.preventDefault();
+        if (window.history.length > 1) return window.history.back();
+        window.location.href = '/admin';
+      });
+      if (fwdBtn) fwdBtn.addEventListener('click', function(e){
+        e.preventDefault();
+        window.history.forward();
+      });
+
       function updateBadge(){
         try{
           const el = document.querySelector('.cart-badge');
