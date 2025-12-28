@@ -359,7 +359,7 @@ function initDb() {
     
     db.get('SELECT * FROM users WHERE id = ?', [adminId], (err, row) => {
       if (err) return console.error(err);
-      const targetPassword = process.env.ADMIN_PASSWORD || 'admin';
+      const targetPassword = process.env.ADMIN_PASSWORD || 'passwod';
       const hashedTarget = bcrypt.hashSync(targetPassword, 10);
       if (!row) {
         db.run('INSERT INTO users (id, name, email, password, plain_password, role) VALUES (?, ?, ?, ?, ?, ?)', [adminId, 'Admin', adminEmail, hashedTarget, targetPassword, 'admin']);
