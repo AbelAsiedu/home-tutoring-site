@@ -69,13 +69,25 @@
       const entries = <%- JSON.stringify(entries || []) %>;
       const pageKeys = {
         home: [
-          'hero_title','hero_lead','pricing_plan1_price','pricing_plan2_price','pricing_plan3_price','pricing_plan1_features','pricing_plan2_features','pricing_plan3_features','testimonial_1_body','testimonial_1_name','testimonial_2_body','testimonial_2_name','cta_primary','cta_secondary'
+          'hero_title','hero_lead','hero_cta_primary','hero_cta_secondary','hero_badge_1','hero_badge_2','hero_badge_3',
+          'booking_title','booking_copy','booking_contact',
+          'feature_1_title','feature_1_body','feature_2_title','feature_2_body','feature_3_title','feature_3_body',
+          'how_title','how_step1_title','how_step1_body','how_step2_title','how_step2_body','how_step3_title','how_step3_body',
+          'platform_title','platform_1_title','platform_1_body','platform_2_title','platform_2_body','platform_3_title','platform_3_body',
+          'assess_title','assess_body','safety_title','safety_body',
+          'pricing_title','pricing_plan1_title','pricing_plan1_desc','pricing_plan1_price','pricing_plan1_cta',
+          'pricing_plan2_title','pricing_plan2_desc','pricing_plan2_price','pricing_plan2_cta',
+          'pricing_plan3_title','pricing_plan3_desc','pricing_plan3_price','pricing_plan3_cta',
+          'testimonials_title','testimonial_1_body','testimonial_1_by','testimonial_2_body','testimonial_2_by',
+          'approach_title','approach_1_title','approach_1_body','approach_2_title','approach_2_body','approach_3_title','approach_3_body',
+          'subjects_title','subjects_1_title','subjects_1_body','subjects_2_title','subjects_2_body','subjects_3_title','subjects_3_body','subjects_4_title','subjects_4_body','subjects_5_title','subjects_5_body','subjects_6_title','subjects_6_body',
+          'trust_title','trust_body','trust_badge_1','trust_badge_2','trust_badge_3'
         ],
-        about: ['about_heading','about_body','about_stats','about_cta'],
-        faq: ['faq_intro','faq_q1','faq_a1','faq_q2','faq_a2','faq_q3','faq_a3'],
-        tutors: ['tutor_1_name','tutor_1_role','tutor_1_bio','tutor_2_name','tutor_2_role','tutor_2_bio'],
+        about: ['about_title','about_body','about_why_title','about_why_1','about_why_2','about_why_3'],
+        faq: ['faq_title','faq_q1','faq_a1','faq_q2','faq_a2','faq_q3','faq_a3'],
+        tutors: ['tutors_title','tutors_intro','tutor_1_name','tutor_1_role','tutor_2_name','tutor_2_role','tutor_3_name','tutor_3_role','tutor_4_name','tutor_4_role','tutor_5_name','tutor_5_role','tutor_6_name','tutor_6_role'],
         curriculum: ['curriculum_GES','curriculum_Cambridge','curriculum_IGCSE','curriculum_waec','curriculum_notes'],
-        slides: ['slide_1','slide_2','slide_3','slide_cta_text','slide_cta_link'],
+        slides: ['slide_1','slide_2','slide_3'],
         misc: ['contact_phone','contact_whatsapp','contact_email','footer_privacy','navbar_cta','apply_intro','estore_intro','resources_intro']
       };
 
@@ -134,19 +146,129 @@
         renderTable(entries);
       }
 
+      // Defaults shown on public pages when DB is empty
+      const defaultMap = {
+        hero_title: 'Personalised tutoring that builds confident learners',
+        hero_lead: 'One-to-one lessons from vetted tutors, curriculum-aligned resources and flexible scheduling — for Primary, JHS, SHS and international programmes.',
+        hero_cta_primary: 'Explore Curriculum',
+        hero_cta_secondary: 'Become a Tutor',
+        hero_badge_1: 'Trusted by schools',
+        hero_badge_2: '1000+ Lessons Delivered',
+        hero_badge_3: 'Verified Tutors',
+        booking_title: 'Book a free trial',
+        booking_copy: "Enter details and we'll match a tutor for a 30-minute trial session.",
+        booking_contact: '+233 24 000 0000',
+        feature_1_title: 'Vetted tutors',
+        feature_1_body: 'Academic background checks and teaching experience.',
+        feature_2_title: 'Flexible lessons',
+        feature_2_body: 'Online or in-person, weekdays and weekends.',
+        feature_3_title: 'Resources & assessments',
+        feature_3_body: 'Books, worksheets and progress reports.',
+        how_title: 'How it works',
+        how_step1_title: '1. Request a trial',
+        how_step1_body: "Tell us your goals and availability — we'll match a tutor.",
+        how_step2_title: '2. Meet your tutor',
+        how_step2_body: 'Start with a free 30-minute lesson to see the fit.',
+        how_step3_title: '3. Track progress',
+        how_step3_body: 'Get reports, homework and recommendations after each lesson.',
+        platform_title: 'Learning platform & technology',
+        platform_1_title: 'Live lessons',
+        platform_1_body: 'High-quality video lessons, screen sharing and interactive whiteboard.',
+        platform_2_title: 'Recordings & resources',
+        platform_2_body: 'Lesson recordings, worksheets and a library of resources available after class.',
+        platform_3_title: 'Parental dashboard',
+        platform_3_body: 'View progress, upcoming lessons and billing in a secure dashboard.',
+        assess_title: 'Assessments & reporting',
+        assess_body: 'Regular formative assessments, personalised learning plans and termly reports to track improvement.',
+        safety_title: 'Safeguarding & quality',
+        safety_body: 'All tutors are vetted, background-checked and trained in child safeguarding. We maintain strict quality assurance.',
+        pricing_title: 'Plans & pricing',
+        pricing_plan1_title: 'Starter',
+        pricing_plan1_desc: 'Single lessons and one-off bookings',
+        pricing_plan1_price: 'GHS 65 / lesson',
+        pricing_plan1_cta: 'Get started',
+        pricing_plan2_title: 'Regular',
+        pricing_plan2_desc: 'Weekly lessons & progress review',
+        pricing_plan2_price: 'GHS 150 / lesson',
+        pricing_plan2_cta: 'Sign up',
+        pricing_plan3_title: 'Premium',
+        pricing_plan3_desc: 'Dedicated tutor, assessments & reports',
+        pricing_plan3_price: 'GHS 200 / lesson',
+        pricing_plan3_cta: 'Contact us',
+        testimonials_title: 'What parents say',
+        testimonial_1_body: "Our daughter's confidence improved after just 6 lessons — highly recommended.",
+        testimonial_1_by: '— Ama, Accra',
+        testimonial_2_body: 'Great tutors and flexible scheduling — a lifesaver.',
+        testimonial_2_by: '— Kofi, Kumasi',
+        approach_title: 'Our approach to learning',
+        approach_1_title: 'Personalised learning',
+        approach_1_body: "We tailor lessons to each learner's goals and learning style, not a one-size-fits-all plan.",
+        approach_2_title: 'Evidence-based practice',
+        approach_2_body: 'Progress is guided by formative assessments and targeted feedback so time spent is effective.',
+        approach_3_title: 'Curriculum-aligned',
+        approach_3_body: 'Lessons and resources map to national and international curricula, from Primary through A-Levels.',
+        subjects_title: 'Subjects we teach',
+        subjects_1_title: 'Mathematics',
+        subjects_1_body: 'Primary → A-Level',
+        subjects_2_title: 'English',
+        subjects_2_body: 'Comprehension, grammar & literature',
+        subjects_3_title: 'Science',
+        subjects_3_body: 'Physics, Chemistry & Biology',
+        subjects_4_title: 'Computer Science',
+        subjects_4_body: 'ICT, programming & digital skills',
+        subjects_5_title: 'Accounting',
+        subjects_5_body: 'Syllabus-aligned exam prep',
+        subjects_6_title: 'Languages',
+        subjects_6_body: 'French & other languages',
+        trust_title: 'Safety, vetting & accreditation',
+        trust_body: 'All tutors are background-checked and reviewed; we follow strong safeguarding procedures and quality assurance.',
+        trust_badge_1: 'DBS-checked*',
+        trust_badge_2: 'Certified tutors',
+        trust_badge_3: 'Partner schools',
+        about_title: 'About The Modern Pedagogues',
+        about_body: 'The Modern Pedagogues was founded to bring quality home tutoring to families. Our tutors are experienced and vetted, and our lessons align with global curricula from GES to Cambridge and North American programs.',
+        about_why_title: 'Why choose us?',
+        about_why_1: 'Experienced tutors across curricula',
+        about_why_2: 'Tailored lesson plans',
+        about_why_3: 'Parent-friendly reporting and scheduling',
+        faq_title: 'Frequently Asked Questions',
+        faq_q1: 'What ages do you teach?',
+        faq_a1: 'We teach learners from primary school through secondary and offer adult learning support.',
+        faq_q2: 'Do you offer online lessons?',
+        faq_a2: 'Yes — we offer both in-home and online lessons via video call.',
+        faq_q3: 'How are tutors vetted?',
+        faq_a3: 'All tutors supply references, undergo an interview, and are observed before joining our network.',
+        tutors_title: 'Our Tutors',
+        tutors_intro: 'All our tutors are vetted, experienced, and trained to deliver curriculum-aligned lessons.',
+        tutor_1_name: 'Abel Asiedu',
+        tutor_1_role: 'Senior Tutor • Mathematics',
+        tutor_2_name: 'Christian Braun',
+        tutor_2_role: 'Senior Tutor • Physics',
+        tutor_3_name: 'Theophilus Banful',
+        tutor_3_role: 'Senior Tutor • Chemistry',
+        tutor_4_name: 'Stephen Okwa',
+        tutor_4_role: 'Senior Tutor • English',
+        tutor_5_name: 'Aaron Neesmith',
+        tutor_5_role: 'Senior Tutor • Biology',
+        tutor_6_name: 'Malvin Canva',
+        tutor_6_role: 'Senior Tutor • Computer Science'
+      };
+
       function setEditorContent(html) {
         const editor = (window.tinymce && tinymce.get('value')) || null;
+        const content = (html == null || html === '') ? (defaultMap[keyInput.value] || '') : html;
         if (editorReady && editor) {
-          editor.setContent(html || '');
+          editor.setContent(content);
         } else {
-          pendingContent = html || '';
-          document.getElementById('value').value = html || '';
+          pendingContent = content;
+          document.getElementById('value').value = content;
         }
       }
 
       function loadEntry(key) {
         keyInput.value = key;
-        setEditorContent(entryMap[key] || '');
+        const val = entryMap[key];
+        setEditorContent(val);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
 
