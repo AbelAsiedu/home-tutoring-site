@@ -15,26 +15,33 @@
         <form method="post" class="auth-form curved">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <input name="username" placeholder="Username" required>
-          <div style="position:relative">
-            <input id="adminPassword" name="password" type="password" placeholder="Password" required style="padding-right:40px">
-            <button type="button" onclick="togglePasswordVisibility()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:transparent;border:0;cursor:pointer;padding:6px;font-size:18px" aria-label="Toggle password visibility">
+          <div style="position:relative;display:flex;align-items:center">
+            <input id="adminPassword" name="password" type="password" placeholder="Password" required style="padding-right:45px;flex:1">
+            <button type="button" id="toggleBtn" style="position:absolute;right:10px;background:transparent;border:0;cursor:pointer;padding:8px;font-size:20px;line-height:1;user-select:none;z-index:10" aria-label="Toggle password visibility">
               <span id="eyeIcon">👁️</span>
             </button>
           </div>
           <button type="submit">Login</button>
         </form>
         <script>
-          function togglePasswordVisibility() {
+          (function(){
+            const toggleBtn = document.getElementById('toggleBtn');
             const input = document.getElementById('adminPassword');
             const icon = document.getElementById('eyeIcon');
-            if (input.type === 'password') {
-              input.type = 'text';
-              icon.textContent = '🙈';
-            } else {
-              input.type = 'password';
-              icon.textContent = '👁️';
+            if (toggleBtn && input && icon) {
+              toggleBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (input.type === 'password') {
+                  input.type = 'text';
+                  icon.textContent = '🙈';
+                } else {
+                  input.type = 'password';
+                  icon.textContent = '👁️';
+                }
+              });
             }
-          }
+          })();
         </script>
       </section>
     </main>
