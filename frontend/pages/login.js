@@ -10,7 +10,7 @@ export default function Login(){
   async function submit(e){
     e.preventDefault()
     const fd = new FormData(e.target)
-    const payload = { email: fd.get('username'), password: fd.get('password') }
+    const payload = { email: fd.get('email'), password: fd.get('password') }
     await postUrlEncoded('/login', payload)
     // Check session to know if login succeeded
     const session = await fetch('/api/session', { credentials: 'include' }).then(r=>r.json())
@@ -25,7 +25,7 @@ export default function Login(){
           <h1>Login</h1>
           {error && <div style={{color:'crimson'}}>{error}</div>}
           <form onSubmit={submit} style={{display:'grid',gap:10,marginTop:12}}>
-            <input name="username" placeholder="Username or email" required />
+            <input name="email" placeholder="Username or email" required />
             <input name="password" type="password" placeholder="Password" required />
             <button className="btn" type="submit">Log in</button>
           </form>
