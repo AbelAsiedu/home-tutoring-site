@@ -139,6 +139,41 @@ app.use(session({
   }
 }));
 
+// Tab-aware session middleware: capture tab ID and store per-tab user context
+app.use((req, res, next) => {
+  const tabId = req.headers['x-tab-id'] || 'default-tab';
+  
+  // Store tab ID in session for tracking
+  if (!req.session.tabs) {
+    req.session.tabs = {};
+  }
+  
+  // Initialize tab context if not exists
+  if (!req.session.tabs[tabId]) {
+    req.session.tabs[tabId] = {
+      createdAt: new Date(),
+      user: null,
+      role: null,
+      lastActive: new Date()
+    };
+  }
+  
+  // Update last active time for this tab
+  req.session.tabs[tabId].lastActive = new Date();
+  
+  // Attach current tab's user context to request
+  req.currentTabUser = req.session.tabs[tabId].user;
+  req.currentTabRole = req.session.tabs[tabId].role;
+  req.tabId = tabId;
+  
+  // Override res.locals to use tab-specific user
+  res.locals.user = req.currentTabUser;
+  res.locals.isAdmin = req.currentTabRole === 'admin';
+  
+  next();
+});
+
+
 // Register cookie parser AFTER session (per csrf-csrf guidance)
 app.use(cookieParser());
 
@@ -1017,13 +1052,23 @@ app.post('/login', authLimiter, [
   dbGet('SELECT * FROM users WHERE email = ? OR name = ?', [email, email], (err, user) => {
     if (err || !user) return res.render('login', { error: 'Invalid credentials' });
     if (!bcrypt.compareSync(password, user.password)) return res.render('login', { error: 'Invalid credentials' });
-    req.session.user = { 
+    
+    // Store user in tab-specific context
+    const userData = { 
       id: user.id, 
       name: user.name, 
       email: user.email, 
       role: user.role || 'user',
       email_verified: user.email_verified || false
     };
+    
+    // Store in both global session and tab-specific context for backwards compatibility
+    req.session.user = userData;
+    if (!req.session.tabs) req.session.tabs = {};
+    if (!req.session.tabs[req.tabId]) req.session.tabs[req.tabId] = {};
+    req.session.tabs[req.tabId].user = userData;
+    req.session.tabs[req.tabId].role = user.role || 'user';
+    
     // Redirect based on role
     const finish = () => {
       if (user.role === 'admin') return res.redirect('/admin');
@@ -1037,7 +1082,18 @@ app.post('/login', authLimiter, [
   });
 });
 
-app.get('/logout', (req, res) => { req.session.destroy(()=>res.redirect('/')); });
+app.get('/logout', (req, res) => {
+  // Only clear current tab's session, not the entire global session
+  if (req.session.tabs && req.session.tabs[req.tabId]) {
+    req.session.tabs[req.tabId].user = null;
+    req.session.tabs[req.tabId].role = null;
+  }
+  
+  // Also clear global for backward compatibility
+  req.session.user = null;
+  
+  req.session.save(() => res.redirect('/'));
+});
 
 // User dashboard (server-rendered)
 app.get('/dashboard', async (req, res) => {
@@ -1150,8 +1206,12 @@ app.post('/account/change-password', [
 
 // Admin routes
 function requireAdmin(req, res, next) {
-  if (req.session.user && req.session.user.role === 'admin') return next();
-  // allow login using username admin and password password (per spec) as form fields
+  // Check tab-specific user context first, fall back to global session
+  const tabUser = req.session.tabs && req.session.tabs[req.tabId] && req.session.tabs[req.tabId].user;
+  const globalUser = req.session.user;
+  const user = tabUser || globalUser;
+  
+  if (user && user.role === 'admin') return next();
   res.redirect('/admin/login');
 }
 
@@ -1173,7 +1233,15 @@ app.post('/admin/login', adminLimiter, async (req, res) => {
           return [];
         });
         const user = userRows && userRows[0];
-        req.session.user = user ? { id: user.id, name: user.name, email: user.email, role: 'admin' } : { id: 'admin-1', name: 'Admin', email: adminEmail, role: 'admin' };
+        const userData = user ? { id: user.id, name: user.name, email: user.email, role: 'admin' } : { id: 'admin-1', name: 'Admin', email: adminEmail, role: 'admin' };
+        
+        // Store in tab-specific context
+        req.session.user = userData;
+        if (!req.session.tabs) req.session.tabs = {};
+        if (!req.session.tabs[req.tabId]) req.session.tabs[req.tabId] = {};
+        req.session.tabs[req.tabId].user = userData;
+        req.session.tabs[req.tabId].role = 'admin';
+        
         return req.session.save((err) => {
           if (err) console.error('Session save error:', err);
           res.redirect('/admin');
@@ -1190,7 +1258,15 @@ app.post('/admin/login', adminLimiter, async (req, res) => {
     if (targetAdmin) {
       const passMatch = bcrypt.compareSync(password, targetAdmin.password || '') || (targetAdmin.plain_password && targetAdmin.plain_password === password);
       if (passMatch) {
-        req.session.user = { id: targetAdmin.id, name: targetAdmin.name, email: targetAdmin.email, role: 'admin' };
+        const userData = { id: targetAdmin.id, name: targetAdmin.name, email: targetAdmin.email, role: 'admin' };
+        
+        // Store in tab-specific context
+        req.session.user = userData;
+        if (!req.session.tabs) req.session.tabs = {};
+        if (!req.session.tabs[req.tabId]) req.session.tabs[req.tabId] = {};
+        req.session.tabs[req.tabId].user = userData;
+        req.session.tabs[req.tabId].role = 'admin';
+        
         return req.session.save((err) => {
           if (err) console.error('Session save error:', err);
           res.redirect('/admin');
