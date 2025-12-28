@@ -12,19 +12,23 @@
   <section class="page glass">
     <h1>Edit Site Content</h1>
     <div class="notice" style="margin-bottom:12px">
-      Use the keys below to edit text on each public page without touching code. Enter the key, paste the new text/HTML, and click Save. Then refresh the public page to see it.
-      <details style="margin-top:8px">
-        <summary style="cursor:pointer">Suggested keys by page</summary>
-        <div style="padding:8px 0;display:grid;gap:6px;font-size:0.95rem">
-          <div><strong>Home:</strong> hero_title, hero_lead, hero_cta_primary, hero_cta_secondary, hero_badge_1/2/3, booking_title, booking_copy, booking_contact, feature_1/2/3_title, feature_1/2/3_body, how_title, how_step1/2/3_title, how_step1/2/3_body, platform_title, platform_1/2/3_title, platform_1/2/3_body, assess_title, assess_body, safety_title, safety_body, pricing_title, pricing_plan1/2/3_title, pricing_plan1/2/3_desc, pricing_plan1/2/3_price, pricing_plan1/2/3_cta, testimonials_title, testimonial_1/2_body, testimonial_1/2_by, approach_title, approach_1/2/3_title, approach_1/2/3_body, subjects_title, subjects_1..6_title, subjects_1..6_body, trust_title, trust_body, trust_badge_1/2/3.</div>
-          <div><strong>About:</strong> about_title, about_body, about_why_title, about_why_1/2/3.</div>
-          <div><strong>FAQ:</strong> faq_title, faq_q1/2/3, faq_a1/2/3.</div>
-          <div><strong>Tutors:</strong> tutors_title, tutors_intro, tutor_1..6_name, tutor_1..6_role.</div>
-          <div><strong>Curriculum:</strong> curriculum_GES, curriculum_Cambridge, curriculum_US, etc. (keys starting with curriculum_).</div>
-          <div><strong>Slides:</strong> slide_1, slide_2, slide_3 (image URLs for homepage hero).</div>
-          <div><strong>Anything else:</strong> create any new key you need; templates will show the default text if a key is missing.</div>
+      Pick a key, edit the text/HTML, click Save, then refresh the public page. You can also click any existing entry below to load it.
+    </div>
+    <div class="glass" style="margin-bottom:14px;padding:10px;display:grid;gap:8px">
+      <strong>Quick keys (click to load)</strong>
+      <div style="display:grid;gap:6px">
+        <div><em>Home</em>:
+          <button type="button" class="btn ghost" data-key="hero_title">hero_title</button>
+          <button type="button" class="btn ghost" data-key="hero_lead">hero_lead</button>
+          <button type="button" class="btn ghost" data-key="pricing_plan1_price">pricing_plan1_price</button>
+          <button type="button" class="btn ghost" data-key="testimonial_1_body">testimonial_1_body</button>
         </div>
-      </details>
+        <div><em>About</em>: <button type="button" class="btn ghost" data-key="about_body">about_body</button></div>
+        <div><em>FAQ</em>: <button type="button" class="btn ghost" data-key="faq_q1">faq_q1</button> <button type="button" class="btn ghost" data-key="faq_a1">faq_a1</button></div>
+        <div><em>Tutors</em>: <button type="button" class="btn ghost" data-key="tutor_1_name">tutor_1_name</button> <button type="button" class="btn ghost" data-key="tutor_1_role">tutor_1_role</button></div>
+        <div><em>Curriculum</em>: <button type="button" class="btn ghost" data-key="curriculum_GES">curriculum_GES</button> <button type="button" class="btn ghost" data-key="curriculum_Cambridge">curriculum_Cambridge</button></div>
+        <div><em>Slides</em>: <button type="button" class="btn ghost" data-key="slide_1">slide_1</button> <button type="button" class="btn ghost" data-key="slide_2">slide_2</button></div>
+      </div>
     </div>
     <form action="/admin/content" method="post" class="curved">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -36,8 +40,11 @@
     </form>
     <% if (entries && entries.length) { %>
       <div class="glass" style="margin-top:16px;padding:12px">
-        <h3>Existing entries</h3>
-        <table class="admin-list">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <h3 style="margin:0">Existing entries</h3>
+          <input type="search" id="entrySearch" placeholder="Filter keys" style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;min-width:200px">
+        </div>
+        <table class="admin-list" id="entriesTable">
           <thead>
             <tr>
               <th>Key</th>
@@ -49,7 +56,7 @@
               <tr>
                 <td><strong><%= e.key %></strong></td>
                 <td style="display:flex;gap:8px">
-                  <button class="btn" onclick="fillEditor('<%- e.key %>', `<%- (e.value||'').replace(/`/g,'\\`') %>`)" type="button">Edit</button>
+                  <button class="btn" onclick="fillEditor('<%- e.key %>', `<%- (e.value||'').replace(/`/g,'\\`') %>`)") type="button">Edit</button>
                   <form method="post" action="/admin/content/delete" onsubmit="return confirm('Delete this entry?')">
                     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                     <input type="hidden" name="key" value="<%- e.key %>">
@@ -72,6 +79,29 @@
         if (editor) { editor.setContent(val || ''); }
         else { document.getElementById('editor').value = val || ''; }
         window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      // quick key buttons
+      document.querySelectorAll('[data-key]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const key = btn.getAttribute('data-key');
+          const entry = (window.entryMap || {})[key];
+          fillEditor(key, entry || '');
+        });
+      });
+      // build entry map for fast lookup and table filtering
+      window.entryMap = {};
+      <% (entries || []).forEach(function(e){ %>
+        window.entryMap['<%- e.key %>'] = `<%- (e.value||'').replace(/`/g,'\\`') %>`;
+      <% }); %>
+      const search = document.getElementById('entrySearch');
+      if (search) {
+        search.addEventListener('input', function(){
+          const term = this.value.toLowerCase();
+          document.querySelectorAll('#entriesTable tbody tr').forEach(row => {
+            const key = row.querySelector('td strong').textContent.toLowerCase();
+            row.style.display = key.includes(term) ? '' : 'none';
+          });
+        });
       }
     </script>
   </section>
