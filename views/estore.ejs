@@ -193,12 +193,12 @@
 
   function filterProducts(type) {
     currentFilter = type;
-    
-    // Update button styles
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-      btn.classList.remove('active');
-    });
-    event.target.classList.add('active');
+    // Update button styles safely without relying on implicit event
+    const buttons = document.querySelectorAll('.filter-btn');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    const map = { all: 0, book: 1, product: 2 };
+    const idx = map[type];
+    if (typeof idx === 'number' && buttons[idx]) buttons[idx].classList.add('active');
     
     renderProducts();
   }
@@ -214,47 +214,61 @@
     }
 
     if (filtered.length === 0) {
+      const label = currentFilter === 'all' ? 'items' : (currentFilter === 'book' ? 'books' : 'products');
       grid.innerHTML = `
         <div class="empty-state" style="grid-column: 1/-1">
           <div class="empty-state-icon">📭</div>
-          <p>No <%= currentFilter === 'all' ? 'products' : (currentFilter === 'book' ? 'books' : 'products') %> available yet.</p>
+          <p>No ${label} available yet.</p>
         </div>
       `;
       return;
     }
 
-    grid.innerHTML = filtered.map(product => `
-      <div class="product-card">
-        <% if (product.image_path) { %>
-          <img src="${product.image_path}" alt="${product.title}" class="product-image" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22280%22 height=%22200%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22280%22 height=%22200%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2224%22%3E📚%3C/text%3E%3C/svg%3E'">
-        <% } else { %>
-          <div class="product-image" style="display: flex; align-items: center; justify-content: center; font-size: 48px">
-            ${product.is_downloadable ? '📚' : '📦'}
-          </div>
-        <% } %>
-        <div class="product-content">
-          <h3 class="product-title">${product.title}</h3>
-          <span class="product-type ${product.is_downloadable ? 'book' : 'physical'}">
-            ${product.is_downloadable ? '📚 Book' : '📦 Product'}
-          </span>
-          <% if (product.description) { %>
-            <p class="product-description">${product.description}</p>
-          <% } %>
-          <div class="product-footer">
-            <div class="product-price">GHS ${parseFloat(product.price).toFixed(2)}</div>
-            <button class="add-to-cart-btn" onclick="addToCart('${product.id}')" title="Add ${product.title} to cart">
-              ${product.is_downloadable ? '📥' : '🛒'} Add
-            </button>
-          </div>
-          ${product.is_downloadable ? `
-            <div style="margin-top: 8px; padding: 8px; background: #f0f8ff; border-radius: 4px; font-size: 12px; color: #0056b3">
-              ✓ Instant download after purchase
+    grid.innerHTML = filtered.map(product => {
+      const hasImage = !!product.image_path;
+      const imageHtml = hasImage
+        ? `<img src="${product.image_path}" alt="${escapeHtml(product.title)}" class="product-image" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22280%22 height=%22200%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22280%22 height=%22200%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2224%22%3E📚%3C/text%3E%3C/svg%3E'">`
+        : `<div class="product-image" style="display: flex; align-items: center; justify-content: center; font-size: 48px">${product.is_downloadable ? '📚' : '📦'}</div>`;
+
+      const descHtml = product.description ? `<p class="product-description">${escapeHtml(product.description)}</p>` : '';
+      const typeClass = product.is_downloadable ? 'book' : 'physical';
+      const typeLabel = product.is_downloadable ? '📚 Book' : '📦 Product';
+      const priceStr = (parseFloat(product.price) || 0).toFixed(2);
+      const extraNote = product.is_downloadable
+        ? `<div style="margin-top: 8px; padding: 8px; background: #f0f8ff; border-radius: 4px; font-size: 12px; color: #0056b3">✓ Instant download after purchase</div>`
+        : '';
+
+      return `
+        <div class="product-card">
+          ${imageHtml}
+          <div class="product-content">
+            <h3 class="product-title">${escapeHtml(product.title)}</h3>
+            <span class="product-type ${typeClass}">${typeLabel}</span>
+            ${descHtml}
+            <div class="product-footer">
+              <div class="product-price">GHS ${priceStr}</div>
+              <button class="add-to-cart-btn" onclick="addToCart('${product.id}')" title="Add ${escapeAttr(product.title)} to cart">
+                ${product.is_downloadable ? '📥' : '🛒'} Add
+              </button>
             </div>
-          ` : ''}
+            ${extraNote}
+          </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   }
+
+  // Basic HTML escape helpers to prevent injection
+  function escapeHtml(str) {
+    if (typeof str !== 'string') return '';
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+  function escapeAttr(str) { return escapeHtml(str).replace(/`/g, ''); }
 
   async function addToCart(productId) {
     try {
