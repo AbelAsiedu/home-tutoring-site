@@ -70,7 +70,7 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "cdn.tiny.cloud", "https://js.stripe.com"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "cdn.tiny.cloud", "cdn.jsdelivr.net", "https://js.stripe.com"],
       styleSrc: ["'self'", "'unsafe-inline'", "cdn.tiny.cloud", "fonts.googleapis.com"],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
       fontSrc: ["'self'", "fonts.gstatic.com", "data:"],
@@ -1337,6 +1337,23 @@ app.post('/admin/content/delete', requireAdmin, (req, res) => {
     if (err) return res.status(500).send('DB error');
     res.redirect('/admin/content');
   });
+});
+
+// Bulk update content entries for Page HTML mode
+app.post('/admin/content/bulk', requireAdmin, (req, res) => {
+  try {
+    const items = Array.isArray(req.body.items) ? req.body.items : [];
+    if (!items.length) return res.redirect('/admin/content');
+    const stmt = db.prepare('INSERT OR REPLACE INTO site_content (key, value) VALUES (?, ?)');
+    items.forEach(it => stmt.run([it.key, it.value || '']));
+    stmt.finalize((err) => {
+      if (err) return res.status(500).send('DB error');
+      res.redirect('/admin/content');
+    });
+  } catch (e) {
+    console.error('Bulk content update error', e);
+    res.status(500).send('Server error');
+  }
 });
 
 // Admin user management

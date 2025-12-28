@@ -26,17 +26,22 @@
           <option value="slides">Slides</option>
           <option value="misc">Other</option>
         </select>
+        <label for="modePicker" style="font-weight:600">Mode</label>
+        <select id="modePicker" style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;min-width:180px">
+          <option value="page">Page HTML</option>
+          <option value="field">Fields</option>
+        </select>
       </div>
       <div id="keyChips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
     </div>
     <form method="post" action="/admin/content" style="display:grid;gap:12px" id="contentForm">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
       <div class="grid-2">
-        <div class="form-group">
+        <div class="form-group" id="keyInputGroup">
           <label for="key">Key (e.g. about_text, slide_1, curriculum_GES)</label>
           <input type="text" id="key" name="key" placeholder="content key" required />
         </div>
-        <div class="form-group">
+        <div class="form-group" id="valueGroup">
           <label for="value">Value (HTML allowed)</label>
           <textarea id="value" name="value" rows="6" placeholder="Enter text or HTML"></textarea>
         </div>
@@ -99,6 +104,9 @@
       const keyInput = document.getElementById('key');
       const keyChips = document.getElementById('keyChips');
       const pagePicker = document.getElementById('pagePicker');
+      const modePicker = document.getElementById('modePicker');
+      const keyInputGroup = document.getElementById('keyInputGroup');
+      const valueGroup = document.getElementById('valueGroup');
       // dynamic field dropdown for selected page
       const fieldPicker = document.createElement('select');
       fieldPicker.id = 'fieldPicker';
@@ -265,6 +273,92 @@
         }
       }
 
+      function buildPageHtml(page) {
+        const get = (k) => (entryMap[k] != null && entryMap[k] !== '') ? entryMap[k] : (defaultMap[k] || '');
+        if (page === 'home') {
+          return `
+<section class="hero">
+  <h1 data-k="hero_title">${get('hero_title')}</h1>
+  <p data-k="hero_lead">${get('hero_lead')}</p>
+  <div>
+    <a data-k="hero_cta_primary">${get('hero_cta_primary')}</a>
+    <a data-k="hero_cta_secondary">${get('hero_cta_secondary')}</a>
+  </div>
+</section>
+<section class="pricing">
+  <h2 data-k="pricing_title">${get('pricing_title')}</h2>
+  <div class="plans">
+    <div class="plan">
+      <h3 data-k="pricing_plan1_title">${get('pricing_plan1_title')}</h3>
+      <div data-k="pricing_plan1_desc">${get('pricing_plan1_desc')}</div>
+      <div data-k="pricing_plan1_price">${get('pricing_plan1_price')}</div>
+    </div>
+    <div class="plan">
+      <h3 data-k="pricing_plan2_title">${get('pricing_plan2_title')}</h3>
+      <div data-k="pricing_plan2_desc">${get('pricing_plan2_desc')}</div>
+      <div data-k="pricing_plan2_price">${get('pricing_plan2_price')}</div>
+    </div>
+    <div class="plan">
+      <h3 data-k="pricing_plan3_title">${get('pricing_plan3_title')}</h3>
+      <div data-k="pricing_plan3_desc">${get('pricing_plan3_desc')}</div>
+      <div data-k="pricing_plan3_price">${get('pricing_plan3_price')}</div>
+    </div>
+  </div>
+</section>
+<section class="testimonials">
+  <h2 data-k="testimonials_title">${get('testimonials_title')}</h2>
+  <div class="testimonial">
+    <p data-k="testimonial_1_body">${get('testimonial_1_body')}</p>
+    <div data-k="testimonial_1_by">${get('testimonial_1_by')}</div>
+  </div>
+  <div class="testimonial">
+    <p data-k="testimonial_2_body">${get('testimonial_2_body')}</p>
+    <div data-k="testimonial_2_by">${get('testimonial_2_by')}</div>
+  </div>
+</section>`;
+        }
+        if (page === 'about') {
+          return `
+<section class="page">
+  <h1 data-k="about_title">${get('about_title')}</h1>
+  <p data-k="about_body">${get('about_body')}</p>
+  <h3 data-k="about_why_title">${get('about_why_title')}</h3>
+  <ul>
+    <li data-k="about_why_1">${get('about_why_1')}</li>
+    <li data-k="about_why_2">${get('about_why_2')}</li>
+    <li data-k="about_why_3">${get('about_why_3')}</li>
+  </ul>
+</section>`;
+        }
+        if (page === 'faq') {
+          return `
+<section class="faq">
+  <h1 data-k="faq_title">${get('faq_title')}</h1>
+  <div>
+    <h4 data-k="faq_q1">${get('faq_q1')}</h4>
+    <p data-k="faq_a1">${get('faq_a1')}</p>
+    <h4 data-k="faq_q2">${get('faq_q2')}</h4>
+    <p data-k="faq_a2">${get('faq_a2')}</p>
+    <h4 data-k="faq_q3">${get('faq_q3')}</h4>
+    <p data-k="faq_a3">${get('faq_a3')}</p>
+  </div>
+</section>`;
+        }
+        return '<p>Edit this page by switching Mode to Fields.</p>';
+      }
+
+      function parsePageHtml(html) {
+        const container = document.createElement('div');
+        container.innerHTML = html || '';
+        const els = container.querySelectorAll('[data-k]');
+        const items = [];
+        els.forEach(el => {
+          const k = el.getAttribute('data-k');
+          if (k) items.push({ key: k, value: el.innerHTML.trim() });
+        });
+        return items;
+      }
+
       function loadEntry(key) {
         keyInput.value = key;
         const val = entryMap[key];
@@ -366,7 +460,13 @@
       }
 
       if (pagePicker) {
-        pagePicker.addEventListener('change', () => renderKeyControls(pagePicker.value));
+        pagePicker.addEventListener('change', () => {
+          if (modePicker && modePicker.value === 'page') {
+            setEditorContent(buildPageHtml(pagePicker.value));
+          } else {
+            renderKeyControls(pagePicker.value);
+          }
+        });
       }
       fieldPicker.addEventListener('change', () => loadEntry(fieldPicker.value));
 
@@ -377,6 +477,43 @@
             (e.key || '').toLowerCase().includes(term) || (e.value || '').toLowerCase().includes(term)
           );
           renderTable(filtered);
+        });
+      }
+
+      // Mode toggle: show Page HTML or Fields
+      if (modePicker) {
+        const applyMode = () => {
+          const isPage = modePicker.value === 'page';
+          if (keyInputGroup) keyInputGroup.style.display = isPage ? 'none' : '';
+          if (isPage) {
+            setEditorContent(buildPageHtml(pagePicker ? pagePicker.value : 'home'));
+          }
+        };
+        modePicker.addEventListener('change', applyMode);
+        applyMode();
+      }
+
+      // Intercept save for Page HTML mode and bulk update
+      const contentForm = document.getElementById('contentForm');
+      if (contentForm) {
+        contentForm.addEventListener('submit', async (e) => {
+          if (modePicker && modePicker.value === 'page') {
+            e.preventDefault();
+            const ed = (window.tinymce && tinymce.get('value')) || null;
+            const html = ed ? ed.getContent() : (document.getElementById('value').value || '');
+            const items = parsePageHtml(html);
+            const csrf = '<%= csrfToken %>';
+            try {
+              await fetch('/admin/content/bulk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ _csrf: csrf, items })
+              });
+              window.location.href = '/admin/content';
+            } catch (err) {
+              alert('Failed to save page content.');
+            }
+          }
         });
       }
     </script>
