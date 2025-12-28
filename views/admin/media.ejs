@@ -131,31 +131,36 @@
             <li>Recommended image sizes: Slides (1200×400px), Tutors (200×200px).</li>
           </ul>
         </div>
+
+        <!-- Debug: Show current values -->
+        <% if (mediaValues && Object.keys(mediaValues).some(k => mediaValues[k])) { %>
+        <details style="margin-top:20px;padding:14px;background:#f8f9fa;border-radius:6px;">
+          <summary style="cursor:pointer;font-weight:600;">Debug: Current Media Values</summary>
+          <pre style="margin-top:10px;font-size:0.85em;overflow:auto;"><%= JSON.stringify(mediaValues, null, 2) %></pre>
+        </details>
+        <% } %>
       </section>
     </main>
     <%- include('../partials/footer') %>
-    <script src="/js/main.js"></script>
     <script>
-      function selectFile(url) {
-        copyToClipboard(url);
-        alert('Image URL copied to clipboard! Paste into a slide or tutor field below.');
-      }
-      
-      function copyToClipboard(text) {
+      // Define clipboard functions in global scope
+      window.copyToClipboard = function(text) {
         // Try modern clipboard API first
         if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(text).catch(err => {
+          navigator.clipboard.writeText(text).then(function() {
+            console.log('Copied:', text);
+          }).catch(function(err) {
             console.error('Clipboard API failed:', err);
             fallbackCopy(text);
           });
         } else {
           fallbackCopy(text);
         }
-      }
+      };
       
       function fallbackCopy(text) {
         // Fallback: create temporary textarea
-        const textarea = document.createElement('textarea');
+        var textarea = document.createElement('textarea');
         textarea.value = text;
         textarea.style.position = 'fixed';
         textarea.style.opacity = '0';
@@ -163,12 +168,19 @@
         textarea.focus();
         textarea.select();
         try {
-          document.execCommand('copy');
+          var successful = document.execCommand('copy');
+          console.log('Fallback copy:', successful ? 'success' : 'failed');
         } catch (err) {
           console.error('Fallback copy failed:', err);
         }
         document.body.removeChild(textarea);
       }
+      
+      window.selectFile = function(url) {
+        copyToClipboard(url);
+        alert('Image URL copied: ' + url);
+      };
     </script>
+    <script src="/js/main.js"></script>
   </body>
 </html>
