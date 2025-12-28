@@ -1343,16 +1343,19 @@ app.post('/admin/content/delete', requireAdmin, (req, res) => {
 app.post('/admin/content/bulk', requireAdmin, (req, res) => {
   try {
     const items = Array.isArray(req.body.items) ? req.body.items : [];
-    if (!items.length) return res.redirect('/admin/content');
+    if (!items.length) return res.json({ error: 'no_items' });
     const stmt = db.prepare('INSERT OR REPLACE INTO site_content (key, value) VALUES (?, ?)');
     items.forEach(it => stmt.run([it.key, it.value || '']));
     stmt.finalize((err) => {
-      if (err) return res.status(500).send('DB error');
-      res.redirect('/admin/content');
+      if (err) {
+        console.error('DB finalize error', err);
+        return res.status(500).json({ error: 'db' });
+      }
+      res.json({ success: true, updated: items.length });
     });
   } catch (e) {
     console.error('Bulk content update error', e);
-    res.status(500).send('Server error');
+    res.status(500).json({ error: 'server' });
   }
 });
 

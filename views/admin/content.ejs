@@ -485,8 +485,13 @@
         const applyMode = () => {
           const isPage = modePicker.value === 'page';
           if (keyInputGroup) keyInputGroup.style.display = isPage ? 'none' : '';
+          if (keyChips) keyChips.style.display = isPage ? 'none' : '';
+          if (fieldPicker) fieldPicker.style.display = isPage ? 'none' : '';
+          if (fieldLabel) fieldLabel.style.display = isPage ? 'none' : '';
           if (isPage) {
             setEditorContent(buildPageHtml(pagePicker ? pagePicker.value : 'home'));
+          } else {
+            renderKeyControls(pagePicker ? pagePicker.value : 'home');
           }
         };
         modePicker.addEventListener('change', applyMode);
