@@ -11,6 +11,21 @@
     <main class="container">
   <section class="page glass">
     <h1>Edit Site Content</h1>
+    <div class="notice" style="margin-bottom:12px">
+      Use the keys below to edit text on each public page without touching code. Enter the key, paste the new text/HTML, and click Save. Then refresh the public page to see it.
+      <details style="margin-top:8px">
+        <summary style="cursor:pointer">Suggested keys by page</summary>
+        <div style="padding:8px 0;display:grid;gap:6px;font-size:0.95rem">
+          <div><strong>Home:</strong> hero_title, hero_lead, hero_cta_primary, hero_cta_secondary, hero_badge_1/2/3, booking_title, booking_copy, booking_contact, feature_1/2/3_title, feature_1/2/3_body, how_title, how_step1/2/3_title, how_step1/2/3_body, platform_title, platform_1/2/3_title, platform_1/2/3_body, assess_title, assess_body, safety_title, safety_body, pricing_title, pricing_plan1/2/3_title, pricing_plan1/2/3_desc, pricing_plan1/2/3_price, pricing_plan1/2/3_cta, testimonials_title, testimonial_1/2_body, testimonial_1/2_by, approach_title, approach_1/2/3_title, approach_1/2/3_body, subjects_title, subjects_1..6_title, subjects_1..6_body, trust_title, trust_body, trust_badge_1/2/3.</div>
+          <div><strong>About:</strong> about_title, about_body, about_why_title, about_why_1/2/3.</div>
+          <div><strong>FAQ:</strong> faq_title, faq_q1/2/3, faq_a1/2/3.</div>
+          <div><strong>Tutors:</strong> tutors_title, tutors_intro, tutor_1..6_name, tutor_1..6_role.</div>
+          <div><strong>Curriculum:</strong> curriculum_GES, curriculum_Cambridge, curriculum_US, etc. (keys starting with curriculum_).</div>
+          <div><strong>Slides:</strong> slide_1, slide_2, slide_3 (image URLs for homepage hero).</div>
+          <div><strong>Anything else:</strong> create any new key you need; templates will show the default text if a key is missing.</div>
+        </div>
+      </details>
+    </div>
     <form action="/admin/content" method="post" class="curved">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <label>Key (e.g. about_text, slide_1, curriculum_GES)</label>
