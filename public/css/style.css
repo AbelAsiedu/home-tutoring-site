@@ -12,9 +12,9 @@
 }
 *{box-sizing:border-box}
 html,body{height:100%}
-body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;background:linear-gradient(180deg,var(--bg-1),var(--bg-2));color:#0f172a;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;line-height:1.45}
+body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;background:linear-gradient(180deg,var(--bg-1),var(--bg-2));color:var(--text-primary);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;line-height:1.45}
 .container{max-width:1100px;margin:0 auto;padding:28px}
-.glass{background:linear-gradient(180deg, rgba(255,255,255,0.7), rgba(245,248,255,0.6));backdrop-filter: blur(8px);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
+.glass{background:var(--glass);backdrop-filter: blur(8px);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
 .hero{display:flex;gap:24px;align-items:center}
 .hero .left{flex:1}
 .hero h1{font-size:2.2rem;margin:0 0 12px}
@@ -28,17 +28,17 @@ body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI"
 .product .title{font-weight:600}
 
 /* Cart badge and mini-cart */
-.badge{background:#ef4444;color:#fff;padding:4px 8px;border-radius:999px;font-size:0.85rem;margin-left:6px}
-.mini-cart{position:absolute;background:#fff;border:1px solid rgba(12,15,20,0.06);padding:10px;border-radius:8px;box-shadow:0 8px 24px rgba(2,6,23,0.08);opacity:0;transform:translateY(-8px);transition:opacity 180ms ease, transform 180ms ease;pointer-events:none}
+.badge{background:var(--danger-bg);color:var(--danger-text);padding:4px 8px;border-radius:999px;font-size:0.85rem;margin-left:6px}
+.mini-cart{position:absolute;background:var(--card-bg);border:1px solid var(--border-light);padding:10px;border-radius:8px;box-shadow:var(--shadow);opacity:0;transform:translateY(-8px);transition:opacity 180ms ease, transform 180ms ease;pointer-events:none}
 .mini-cart.show{opacity:1;transform:translateY(0);pointer-events:auto}
 .mini-cart .close-btn{position:absolute;right:8px;top:8px;border:0;background:transparent;font-size:18px;line-height:1;padding:6px;cursor:pointer}
 .mini-cart{padding-top:26px}
 .site-header{position:relative}
 .btn{padding:8px 12px;border-radius:10px;border:none;background:var(--accent-2);color:white;cursor:pointer}
-.btn.ghost{background:transparent;border:1px solid rgba(15,23,42,0.06);color:var(--accent-2)}
-form input,form textarea,form select{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(15,23,42,0.08);margin-top:6px}
+.btn.ghost{background:transparent;border:1px solid var(--border-light);color:var(--accent-2)}
+form input,form textarea,form select{width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-light);margin-top:6px}
 .muted{color:var(--muted);font-size:0.95rem}
-header.site-header{backdrop-filter: blur(6px);background:linear-gradient(180deg, rgba(255,255,255,0.75), rgba(255,255,255,0.6));border-bottom:1px solid rgba(12,15,20,0.04);position:sticky;top:0;z-index:40}
+header.site-header{backdrop-filter: blur(6px);background:var(--glass);border-bottom:1px solid var(--border-light);position:sticky;top:0;z-index:40}
 .nav-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 20px}
 .nav-links{display:flex;gap:12px;align-items:center;justify-content:center;flex:1;flex-wrap:wrap}
 .nav-links a{color:var(--accent-2);text-decoration:none;padding:6px 8px;border-radius:8px}
@@ -77,15 +77,15 @@ footer.site-footer{margin-top:40px;padding:28px 20px;color:var(--muted)}
 /* Admin-specific tweaks */
 .admin-stats{display:flex;gap:12px;margin-bottom:12px}
 .stat{padding:12px}
-.site-footer{background:#f6fff9;padding:20px;margin-top:30px}
+.site-footer{background:var(--card-bg);padding:20px;margin-top:30px}
 
 /* Admin table styles for server-rendered admin pages */
 .admin-list{width:100%;border-collapse:collapse}
-.admin-list th,.admin-list td{padding:10px;border-bottom:1px solid rgba(0,0,0,0.06);text-align:left}
+.admin-list th,.admin-list td{padding:10px;border-bottom:1px solid var(--border-light);text-align:left}
 .admin-list tr:hover{background:rgba(11,43,43,0.02)}
 
 /* Compact footer styles */
-.site-footer.compact{padding:14px 12px;background:linear-gradient(180deg, rgba(250,255,250,0.6), rgba(245,248,255,0.6));border-top:1px solid rgba(12,15,20,0.03)}
+.site-footer.compact{padding:14px 12px;background:var(--bg-2);border-top:1px solid var(--border-light)}
 .site-footer.compact .footer-inner{display:flex;justify-content:space-between;gap:12px;align-items:center}
 .site-footer.compact .footer-left{flex:1}
 .site-footer.compact .footer-links{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
@@ -103,7 +103,7 @@ footer.site-footer{margin-top:40px;padding:28px 20px;color:var(--muted)}
 .hero-right{width:360px;display:flex;align-items:center;justify-content:center}
 .booking-card{width:100%;max-width:320px;padding:18px;border-radius:12px}
 .booking-card h3{margin:0 0 6px}
-.booking-card form input,.booking-card form select{width:100%;padding:10px;margin-top:8px;border-radius:8px;border:1px solid rgba(15,23,42,0.06)}
+.booking-card form input,.booking-card form select{width:100%;padding:10px;margin-top:8px;border-radius:8px;border:1px solid var(--border-light)}
 .booking-card .btn{margin-top:12px}
 .feature-card{padding:16px}
 .tutor-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
@@ -148,7 +148,7 @@ footer.site-footer{margin-top:40px;padding:28px 20px;color:var(--muted)}
 /* Ensure slides stay behind main content and lesson-plans sit above */
 .hero-slideshow{z-index:0}
 .lesson-plans{position:relative;z-index:2;padding:18px}
-.lesson-plans .plan-card{background:linear-gradient(180deg, rgba(255,255,255,0.85), rgba(245,248,255,0.85));padding:12px;border-radius:10px;box-shadow:var(--shadow)}
+.lesson-plans .plan-card{background:var(--card-bg);padding:12px;border-radius:10px;box-shadow:var(--shadow)}
 
 @media(max-width:720px){
   .hero-slideshow{height:260px}
@@ -207,11 +207,11 @@ form select {
   width:100%;
   padding:12px 14px;
   border-radius:10px;
-  border:1.5px solid rgba(15,23,42,0.12);
-  background:rgba(255,255,255,0.8);
+  border:1.5px solid var(--border-light);
+  background:var(--card-bg);
   font-family:inherit;
   font-size:1rem;
-  color:#0f172a;
+  color:var(--text-primary);
   transition:all 200ms ease;
 }
 
@@ -222,8 +222,8 @@ form textarea:focus,
 form select:focus {
   outline:none;
   border-color:var(--accent-2);
-  background:white;
-  box-shadow:0 0 0 3px rgba(59,130,246,0.1);
+  background:var(--card-bg);
+  box-shadow:0 0 0 3px rgba(59,130,246,0.2);
 }
 
 form textarea {
@@ -237,7 +237,7 @@ form label {
   margin-top:12px;
   margin-bottom:6px;
   font-weight:500;
-  color:#1f2937;
+  color:var(--text-secondary);
   font-size:0.95rem;
 }
 
@@ -296,15 +296,15 @@ form button[type="submit"]:active {
 }
 
 .notice.error {
-  background:rgba(239,68,68,0.1);
-  border:1px solid rgba(239,68,68,0.2);
-  color:#dc2626;
+  background:var(--danger-bg-light);
+  border:1px solid var(--danger-bg);
+  color:var(--danger-text);
 }
 
 .notice.success {
-  background:rgba(34,197,94,0.1);
-  border:1px solid rgba(34,197,94,0.2);
-  color:#16a34a;
+  background:var(--success-bg-light);
+  border:1px solid var(--success-bg);
+  color:var(--success-text);
 }
 
 .notice::before {
@@ -351,15 +351,15 @@ form p a:hover {
 .checkbox-group label {
   margin:0;
   padding:12px;
-  background:rgba(255,255,255,0.6);
-  border:1px solid rgba(15,23,42,0.06);
+  background:var(--card-bg);
+  border:1px solid var(--border-light);
   border-radius:8px;
   cursor:pointer;
   transition:all 150ms ease;
 }
 
 .checkbox-group label:hover {
-  background:rgba(255,255,255,0.9);
+  background:var(--card-bg-hover);
   border-color:var(--accent-2);
 }
 
@@ -371,7 +371,7 @@ form p a:hover {
 form h2 {
   font-size:1.4rem;
   margin:20px 0 12px;
-  color:#1f2937;
+  color:var(--text-secondary);
 }
 
 /* Mobile responsive */
@@ -396,15 +396,15 @@ form h2 {
   position: relative;
 }
 
-[title]:hover::after {
+[title]:hover::before {
   content: attr(title);
   position: absolute;
   bottom: 125%;
   left: 50%;
   transform: translateX(-50%);
   padding: 6px 12px;
-  background-color: rgba(8, 51, 68, 0.95);
-  color: white;
+  background-color: var(--tooltip-bg);
+  color: var(--tooltip-text);
   border-radius: 6px;
   font-size: 0.85rem;
   white-space: nowrap;
@@ -421,7 +421,7 @@ form h2 {
   left: 50%;
   transform: translateX(-50%);
   border: 5px solid transparent;
-  border-top-color: rgba(8, 51, 68, 0.95);
+  border-top-color: var(--tooltip-bg);
   z-index: 1000;
   pointer-events: none;
   animation: tooltipFadeIn 0.2s ease-in-out;

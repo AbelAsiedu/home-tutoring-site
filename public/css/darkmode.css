@@ -1,0 +1,365 @@
+/* Dark Mode Theme — CSS Variables & Auto Switching */
+
+/* Light Mode (Default) */
+:root {
+  --bg-1: #eaf7f1;
+  --bg-2: #e8f1ff;
+  --accent: #2aa198;
+  --accent-2: #3b82f6;
+  --muted: #6b7280;
+  --text-primary: #0f172a;
+  --text-secondary: #6b7280;
+  --glass: rgba(255, 255, 255, 0.55);
+  --glass-strong: rgba(255, 255, 255, 0.75);
+  --border-light: rgba(12, 15, 20, 0.06);
+  --border-lighter: rgba(12, 15, 20, 0.03);
+  --shadow: 0 8px 30px rgba(12, 15, 20, 0.08);
+  --card-bg: #ffffff;
+  --input-bg: #ffffff;
+  --input-border: rgba(15, 23, 42, 0.08);
+  --header-bg: rgba(255, 255, 255, 0.75);
+  --footer-bg: #f6fff9;
+  --hover-bg: rgba(11, 43, 43, 0.02);
+  --btn-hover: #2563eb;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --card-bg-hover: rgba(255,255,255,0.9);
+  --danger-bg: #ef4444;
+  --danger-text: #dc2626;
+  --danger-bg-light: rgba(239,68,68,0.1);
+  --success-bg: #10b981;
+  --success-text: #16a34a;
+  --success-bg-light: rgba(34,197,94,0.1);
+  --tooltip-bg: rgba(8, 51, 68, 0.95);
+  --tooltip-text: white;
+  --radius: 14px;
+}
+
+/* Dark Mode */
+[data-theme='dark'] {
+  --bg-1: #0f172a;
+  --bg-2: #1e293b;
+  --accent: #06b6d4;
+  --accent-2: #3b82f6;
+  --muted: #94a3b8;
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --glass: rgba(30, 41, 59, 0.65);
+  --glass-strong: rgba(30, 41, 59, 0.85);
+  --border-light: rgba(203, 213, 225, 0.12);
+  --border-lighter: rgba(203, 213, 225, 0.06);
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+  --card-bg: #1e293b;
+  --input-bg: #0f172a;
+  --input-border: rgba(203, 213, 225, 0.2);
+  --header-bg: rgba(15, 23, 42, 0.85);
+  --footer-bg: #0f172a;
+  --hover-bg: rgba(148, 163, 184, 0.05);
+  --btn-hover: #60a5fa;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+}
+
+/* System preference detection */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg-1: #0f172a;
+    --bg-2: #1e293b;
+    --accent: #06b6d4;
+    --accent-2: #3b82f6;
+    --muted: #94a3b8;
+    --text-primary: #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --glass: rgba(30, 41, 59, 0.65);
+    --glass-strong: rgba(30, 41, 59, 0.85);
+    --border-light: rgba(203, 213, 225, 0.12);
+    --border-lighter: rgba(203, 213, 225, 0.06);
+    --shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+    --card-bg: #1e293b;
+    --input-bg: #0f172a;
+    --input-border: rgba(203, 213, 225, 0.2);
+    --header-bg: rgba(15, 23, 42, 0.85);
+    --footer-bg: #0f172a;
+    --hover-bg: rgba(148, 163, 184, 0.05);
+    --btn-hover: #60a5fa;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --error: #ef4444;
+    --card-bg-hover: rgba(203, 213, 225, 0.15);
+    --danger-bg: #ef4444;
+    --danger-text: #fca5a5;
+    --danger-bg-light: rgba(239,68,68,0.2);
+    --success-bg: #10b981;
+    --success-text: #86efac;
+    --success-bg-light: rgba(34,197,94,0.2);
+    --tooltip-bg: rgba(30, 41, 59, 0.95);
+    --tooltip-text: #f1f5f9;
+}
+
+/* Apply variables to base elements */
+body {
+  background: linear-gradient(180deg, var(--bg-1), var(--bg-2));
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body, html {
+  background-color: var(--bg-1);
+}
+
+a {
+  color: var(--accent-2);
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--btn-hover);
+}
+
+/* Header */
+header.site-header {
+  background: linear-gradient(
+    180deg,
+    var(--header-bg),
+    rgba(255, 255, 255, 0.6)
+  );
+  border-bottom: 1px solid var(--border-lighter);
+}
+
+[data-theme='dark'] header.site-header {
+  background: linear-gradient(
+    180deg,
+    var(--header-bg),
+    rgba(15, 23, 42, 0.7)
+  );
+}
+
+/* Cards and glass-morphism */
+.glass {
+  background: var(--glass-strong);
+  color: var(--text-primary);
+}
+
+.card {
+  background: var(--glass);
+  color: var(--text-primary);
+}
+
+/* Forms */
+form input,
+form textarea,
+form select {
+  background: var(--input-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--input-border);
+}
+
+form input::placeholder,
+form textarea::placeholder {
+  color: var(--text-secondary);
+}
+
+/* Buttons */
+.btn {
+  background: var(--accent-2);
+  color: white;
+  transition: background-color 0.2s ease;
+}
+
+.btn:hover {
+  background: var(--btn-hover);
+}
+
+.btn.ghost {
+  background: transparent;
+  border: 1px solid var(--border-light);
+  color: var(--accent-2);
+}
+
+.btn.ghost:hover {
+  border-color: var(--accent-2);
+  background: var(--hover-bg);
+}
+
+/* Tables */
+.admin-list th,
+.admin-list td {
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-primary);
+}
+
+.admin-list tr:hover {
+  background: var(--hover-bg);
+}
+
+/* Footer */
+footer.site-footer {
+  background: var(--footer-bg);
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border-lighter);
+}
+
+/* Alerts and messages */
+.alert {
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.alert.success {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.alert.error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+[data-theme='dark'] .alert.success {
+  background: rgba(16, 185, 129, 0.15);
+}
+
+[data-theme='dark'] .alert.error {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+/* Mini cart */
+.mini-cart {
+  background: var(--card-bg);
+  border: 1px solid var(--border-light);
+  color: var(--text-primary);
+}
+
+/* Product cards */
+.product-card {
+  background: var(--card-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.product-card:hover {
+  box-shadow: var(--shadow);
+}
+
+/* Badges */
+.badge {
+  background: var(--error);
+  color: white;
+}
+
+.product-type {
+  background: var(--glass);
+  color: var(--text-primary);
+}
+
+.product-type.book {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--success);
+}
+
+[data-theme='dark'] .product-type.book {
+  background: rgba(16, 185, 129, 0.2);
+}
+
+.product-type.physical {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--accent-2);
+}
+
+[data-theme='dark'] .product-type.physical {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+/* Links and text */
+.muted {
+  color: var(--text-secondary);
+}
+
+/* Smooth transitions for all theme changes */
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Faster transitions for interactive elements */
+.btn,
+a,
+input,
+textarea,
+select {
+  transition: all 0.2s ease;
+}
+
+/* Slideshow and hero elements */
+.hero-slideshow {
+  background: var(--glass);
+  border-radius: var(--radius);
+}
+
+.slide {
+  background: var(--bg-1);
+}
+
+/* Page styling */
+.page {
+  background: var(--glass-strong);
+  color: var(--text-primary);
+}
+
+/* Checkout and special forms */
+.checkout-form {
+  background: var(--glass);
+  color: var(--text-primary);
+}
+
+.checkout-form label {
+  color: var(--text-primary);
+}
+
+/* Filter buttons */
+.filter-btn {
+  background: var(--card-bg);
+  color: var(--text-primary);
+  border: 2px solid var(--border-light);
+  transition: all 0.2s ease;
+}
+
+.filter-btn:hover {
+  border-color: var(--accent-2);
+}
+
+.filter-btn.active {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+  color: white;
+}
+
+/* Empty state */
+.empty-state {
+  color: var(--text-secondary);
+}
+
+/* Download and special info boxes */
+.checkout-info {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .checkout-info {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+/* Dark mode animations - reduce motion if preferred */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
