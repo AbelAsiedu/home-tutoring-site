@@ -542,6 +542,7 @@ app.get('/', async (req, res) => {
 });
 
 app.get('/about', async (req, res) => {
+  await loadContent(res);
   const about = await runQuery('SELECT value FROM site_content WHERE key = ?', ['about_text']);
   res.render('about', { about: about[0] ? about[0].value : null });
 });
@@ -1399,13 +1400,16 @@ app.post('/admin/products/:id/delete', requireAdmin, (req, res) => {
 
 app.get('/admin/content', requireAdmin, async (req, res) => {
   const entries = await runQuery('SELECT key, value FROM site_content');
-  res.render('admin/content', { entries: entries || [] });
+  const { message, error } = req.query;
+  res.render('admin/content', { entries: entries || [], message, error });
 });
 
 app.post('/admin/content', requireAdmin, (req, res) => {
   const { key, value } = req.body;
-  db.run('INSERT OR REPLACE INTO site_content (key, value) VALUES (?, ?)', [key, value]);
-  res.redirect('/admin');
+  db.run('INSERT OR REPLACE INTO site_content (key, value) VALUES (?, ?)', [key, value], (err)=>{
+    if (err) return res.redirect('/admin/content?error=' + encodeURIComponent('Failed to save content'));
+    res.redirect('/admin/content?message=' + encodeURIComponent('Content saved'));
+  });
 });
 
 // Admin: delete a content entry
@@ -1422,7 +1426,7 @@ app.post('/admin/content/delete', requireAdmin, (req, res) => {
 app.post('/admin/content/bulk', requireAdmin, (req, res) => {
   try {
     const items = Array.isArray(req.body.items) ? req.body.items : [];
-    if (!items.length) return res.json({ error: 'no_items' });
+    if (!items.length) return res.status(400).json({ error: 'no_items' });
     const stmt = db.prepare('INSERT OR REPLACE INTO site_content (key, value) VALUES (?, ?)');
     items.forEach(it => stmt.run([it.key, it.value || '']));
     stmt.finalize((err) => {

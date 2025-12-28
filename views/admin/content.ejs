@@ -11,6 +11,12 @@
     <main class="container">
   <section class="page glass">
     <h1>Edit Site Content</h1>
+    <% if (message) { %>
+      <div class="notice" style="margin-bottom:12px;color:#0a6c3d;background:#e6f4ea"> <%= message %> </div>
+    <% } %>
+    <% if (error) { %>
+      <div class="notice" style="margin-bottom:12px;color:#b00020;background:#fdecef"> <%= error %> </div>
+    <% } %>
     <div class="notice" style="margin-bottom:12px">
       Choose a page, pick a field, edit the text/HTML, click Save, then refresh the public page.
     </div>
@@ -576,12 +582,18 @@
             const items = parsePageHtml(html);
             const csrf = '<%= csrfToken %>';
             try {
-              await fetch('/admin/content/bulk', {
+              const resp = await fetch('/admin/content/bulk', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ _csrf: csrf, items })
               });
-              window.location.href = '/admin/content';
+              let data = {};
+              try { data = await resp.json(); } catch (parseErr) { data = {}; }
+              if (!resp.ok || (data && data.error)) {
+                alert('Failed to save page content.');
+                return;
+              }
+              window.location.href = '/admin/content?message=' + encodeURIComponent('Content saved');
             } catch (err) {
               alert('Failed to save page content.');
             }
