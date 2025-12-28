@@ -155,6 +155,7 @@ function verifyCsrfToken(req) {
 // CSRF protection middleware
 const csrfProtection = (req, res, next) => {
   const csrfExempt = [
+    '/signup','/login',
     '/api/cart/add','/api/cart/remove','/api/cart/clear','/api/cart','/api/session',
     '/api/products','/api/content','/api/curriculum'
   ];
