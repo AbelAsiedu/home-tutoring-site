@@ -54,16 +54,6 @@ app.set('views', path.join(__dirname, 'views'));
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(UPLOADS_DIR));
-// Serve a built Next.js static export if present
-const FRONTEND_OUT = path.join(__dirname, 'frontend-out');
-if (fs.existsSync(FRONTEND_OUT)) {
-  app.use(express.static(FRONTEND_OUT));
-  app.get('*', (req, res, next) => {
-    const indexPath = path.join(FRONTEND_OUT, 'index.html');
-    if (fs.existsSync(indexPath)) return res.sendFile(indexPath);
-    next();
-  });
-}
 
 // Security: Helmet middleware for security headers
 app.use(helmet({
@@ -934,17 +924,6 @@ app.get('/api/dashboard', requireAuth, async (req, res) => {
     res.json({ upcoming, recentReports, recentRecordings: recentRecs });
   } catch (e) { res.status(500).json({ error: 'db' }); }
 });
-
-// Serve Next.js static export if present
-const frontOut = path.join(__dirname, 'frontend', 'out');
-if (fs.existsSync(frontOut)) {
-  app.use(express.static(frontOut));
-  app.get('*', (req, res, next) => {
-    const idx = path.join(frontOut, 'index.html');
-    if (fs.existsSync(idx)) return res.sendFile(idx);
-    next();
-  });
-}
 
 // JSON API endpoints for frontend apps
 app.get('/api/products', (req, res) => {
