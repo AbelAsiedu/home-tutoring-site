@@ -391,7 +391,58 @@ form h2 {
   }
 }
 
+/* Tooltip styles */
+[title] {
+  position: relative;
+}
 
+[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  background-color: rgba(8, 51, 68, 0.95);
+  color: white;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+  animation: tooltipFadeIn 0.2s ease-in-out;
+}
 
+[title]:hover::before {
+  content: '';
+  position: absolute;
+  bottom: 118%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: rgba(8, 51, 68, 0.95);
+  z-index: 1000;
+  pointer-events: none;
+  animation: tooltipFadeIn 0.2s ease-in-out;
+}
 
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Prevent tooltip overflow on mobile */
+@media(max-width:720px) {
+  [title]:hover::after,
+  [title]:hover::before {
+    display: none;
+  }
+}
 

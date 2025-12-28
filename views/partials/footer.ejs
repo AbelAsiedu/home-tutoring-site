@@ -14,14 +14,14 @@
   <div style="text-align:center;margin-top:16px;padding-top:12px;border-top:1px solid rgba(15,23,42,0.06)">
     <div style="display:inline-flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center;justify-content:center">
       <% if (typeof user !== 'undefined' && user) { %>
-        <a href="/account" class="btn ghost">Hi <%= user.name %></a>
+        <a href="/account" class="btn ghost" title="View and edit your account settings">Hi <%= user.name %></a>
         <% if (typeof isAdmin !== 'undefined' && isAdmin) { %>
-          <a href="/admin" class="btn ghost">Dashboard</a>
+          <a href="/admin" class="btn ghost" title="Access admin control panel">Dashboard</a>
         <% } %>
-        <a href="/logout" class="btn">Logout</a>
+        <a href="/logout" class="btn" title="Log out of your account">Logout</a>
       <% } else { %>
-        <a href="/login" class="btn ghost">Login</a>
-        <a href="/signup" class="btn">Sign up</a>
+        <a href="/login" class="btn ghost" title="Sign in to your account">Login</a>
+        <a href="/signup" class="btn" title="Create a new account">Sign up</a>
       <% } %>
     </div>
   </div>
