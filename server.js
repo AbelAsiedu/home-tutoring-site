@@ -291,7 +291,25 @@ async function seedAdminUser() {
   }
 }
 
+// Seed default site content keys
+async function seedSiteContent() {
+  try {
+    // Ensure slide keys exist
+    const slideKeys = ['slide_1', 'slide_2', 'slide_3'];
+    for (const key of slideKeys) {
+      const exists = await runQueryOne('SELECT * FROM site_content WHERE key = ?', [key]);
+      if (!exists) {
+        await runExec('INSERT INTO site_content (key, value) VALUES (?, ?)', [key, '']);
+        console.log(`Created site_content key: ${key}`);
+      }
+    }
+  } catch (err) {
+    console.error('Error seeding site content:', err);
+  }
+}
+
 seedAdminUser();
+seedSiteContent();
 
 // Seed sample data for manual testing (only if no lessons exist)
 async function seedSampleData() {

@@ -2,9 +2,15 @@
   <!-- Hero slideshow (full width) -->
   <section class="hero-slideshow">
     <div class="hero-slideshow-inner">
-      <% if (slides && slides.length) { %>
+      <% 
+        // Use slides from DB only if they exist AND have non-empty values
+        const hasValidSlides = slides && slides.length && slides.some(s => s && s.value && s.value.trim());
+      %>
+      <% if (hasValidSlides) { %>
         <% slides.forEach(function(s,i){ %>
-          <div class="slide"><img src="<%= s.value %>" alt="slide-<%= i %>"></div>
+          <% if (s && s.value && s.value.trim()) { %>
+            <div class="slide"><img src="<%= s.value %>" alt="slide-<%= i %>"></div>
+          <% } %>
         <% }) %>
       <% } else { %>
         <div class="slide"><img src="/images/slide2.svg" alt="slide-default"></div>
