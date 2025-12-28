@@ -14,8 +14,8 @@
     <div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0">
       <span class="muted">Manage and export orders</span>
       <div style="display:flex;gap:8px">
-        <a class="btn ghost" href="/admin/export/orders">Export CSV</a>
-        <a class="btn ghost" href="/admin/export/orders?fmt=json">Export JSON</a>
+        <a class="btn ghost" href="/admin/export/orders" title="Download orders as CSV file">Export CSV</a>
+        <a class="btn ghost" href="/admin/export/orders?fmt=json" title="Download orders as JSON file">Export JSON</a>
       </div>
     </div>
     <div class="list curved">
@@ -33,7 +33,7 @@
               <option value="paid" <%= o.status==='paid'?'selected':'' %>>Paid</option>
               <option value="cancelled" <%= o.status==='cancelled'?'selected':'' %>>Cancelled</option>
             </select>
-            <button type="submit">Update</button>
+            <button type="submit" title="Update order status">Update</button>
           </form>
         </div>
       <% }) %>

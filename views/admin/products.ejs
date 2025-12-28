@@ -23,12 +23,12 @@
       <input name="price" placeholder="Price" required type="number" min="0" step="0.01">
       <input name="description" placeholder="Description">
       <input type="file" name="image" accept="image/*">
-      <button type="submit">Add Product</button>
+      <button type="submit" title="Add a new product to the store">Add Product</button>
     </form>
     <div class="glass" style="margin-top:16px;padding:12px">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <h3 style="margin:0">All Products</h3>
-        <a class="btn ghost" href="/admin/export/products">Export CSV</a>
+        <a class="btn ghost" href="/admin/export/products" title="Download product list as CSV file">Export CSV</a>
       </div>
       <table class="admin-list" style="margin-top:10px">
         <thead>
@@ -61,11 +61,11 @@
                   <input name="image_path" value="<%- p.image_path %>" placeholder="Image URL">
                   <input name="description" value="<%- p.description %>" placeholder="Description">
                   <input type="file" name="image" accept="image/*" aria-label="Upload new image">
-                  <button type="submit" class="btn">Save</button>
+                  <button type="submit" class="btn" title="Save changes to this product">Save</button>
                 </form>
                 <form method="post" action="/admin/products/<%= p.id %>/delete" onsubmit="return confirm('Delete this product?')" style="margin-top:6px">
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <button type="submit" class="btn" style="background:#dc3545">Delete</button>
+                  <button type="submit" class="btn" style="background:#dc3545" title="Delete this product">Delete</button>
                 </form>
               </td>
             </tr>

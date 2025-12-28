@@ -7,7 +7,7 @@
   <% } else { %>
     <form action="/cart/clear" method="post" style="margin-bottom:12px">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <button class="btn ghost" type="submit">Clear cart</button>
+      <button class="btn ghost" type="submit" title="Remove all items from your cart">Clear cart</button>
     </form>
     <table class="cart-table curved">
       <thead><tr><th>Title</th><th>Qty</th><th>Price</th></tr></thead>
@@ -24,7 +24,7 @@
       <input name="card_number" placeholder="Card number (simulated)">
       <label><input type="radio" name="payment_method" value="momo"> Mobile Money (Momo)</label>
       <input name="momo_number" placeholder="Momo number">
-      <button type="submit">Place Order</button>
+      <button type="submit" title="Complete your purchase">Place Order</button>
     </form>
   <% } %>
 </section>
