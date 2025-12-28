@@ -294,13 +294,21 @@
 
       function setEditorContent(html) {
         const editor = (window.tinymce && tinymce.get('value')) || null;
-        const content = (html == null || html === '') ? (defaultMap[keyInput.value] || '') : html;
+        const content = (html != null && html !== '') ? html : '';
         if (editorReady && editor) {
           editor.setContent(content);
         } else {
           pendingContent = content;
           document.getElementById('value').value = content;
         }
+      }
+
+      function loadFieldEntry(key) {
+        keyInput.value = key;
+        const val = entryMap[key];
+        const content = (val != null && val !== '') ? val : (defaultMap[key] || '');
+        setEditorContent(content);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
 
       function buildPageHtml(page) {
@@ -444,7 +452,7 @@
           btn.type = 'button';
           btn.className = 'btn';
           btn.textContent = 'Edit';
-          btn.addEventListener('click', () => loadEntry(item.key));
+          btn.addEventListener('click', () => loadFieldEntry(item.key));
           tdActions.appendChild(btn);
           const delForm = document.createElement('form');
           delForm.method = 'post';
@@ -496,7 +504,7 @@
           btn.type = 'button';
           btn.className = 'btn ghost';
           btn.textContent = k;
-          btn.addEventListener('click', () => loadEntry(k));
+          btn.addEventListener('click', () => loadFieldEntry(k));
           keyChips.appendChild(btn);
         });
         if (!keyChips.children.length) {
@@ -515,7 +523,7 @@
         });
         if (keys.length) {
           fieldPicker.value = keys[0];
-          loadEntry(keys[0]);
+          loadFieldEntry(keys[0]);
         } else {
           setEditorContent('');
           keyInput.value = '';
@@ -531,7 +539,7 @@
           }
         });
       }
-      fieldPicker.addEventListener('change', () => loadEntry(fieldPicker.value));
+      fieldPicker.addEventListener('change', () => loadFieldEntry(fieldPicker.value));
 
       if (searchBox) {
         searchBox.addEventListener('input', () => {
