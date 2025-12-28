@@ -5,6 +5,10 @@
   <% if (!items.length) { %>
     <p>Your cart is empty.</p>
   <% } else { %>
+    <form action="/cart/clear" method="post" style="margin-bottom:12px">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button class="btn ghost" type="submit">Clear cart</button>
+    </form>
     <table class="cart-table curved">
       <thead><tr><th>Title</th><th>Qty</th><th>Price</th></tr></thead>
       <tbody>
@@ -15,6 +19,7 @@
     </table>
     <form action="/checkout" method="post" class="checkout-form curved">
       <h3>Checkout</h3>
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <label><input type="radio" name="payment_method" value="card" checked> Credit/Debit Card</label>
       <input name="card_number" placeholder="Card number (simulated)">
       <label><input type="radio" name="payment_method" value="momo"> Mobile Money (Momo)</label>
