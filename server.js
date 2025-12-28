@@ -971,10 +971,14 @@ app.get('/api/curriculum', (req, res) => {
 // Products API
 app.post('/admin/products', requireAdmin, upload.single('image'), (req, res) => {
   const { title, description, price } = req.body;
+  if (!title) return res.redirect('/admin/products?error=' + encodeURIComponent('Title is required'));
+  const priceNum = isNaN(parseFloat(price)) ? 0 : parseFloat(price);
   const image_path = req.file ? `/uploads/${path.basename(req.file.path)}` : null;
   const id = uuidv4();
-  db.run('INSERT INTO products (id, title, description, price, image_path) VALUES (?, ?, ?, ?, ?)', [id, title, description, price || 0, image_path]);
-  res.redirect('/admin/products');
+  db.run('INSERT INTO products (id, title, description, price, image_path) VALUES (?, ?, ?, ?, ?)', [id, title.trim(), description || '', priceNum, image_path], (err)=>{
+    if (err) return res.redirect('/admin/products?error=' + encodeURIComponent('Database error while creating product'));
+    res.redirect('/admin/products?message=' + encodeURIComponent('Product added'));
+  });
 });
 
 // Simple cart in session
@@ -1365,18 +1369,22 @@ app.get('/admin/applications', requireAdmin, async (req, res) => {
 
 app.get('/admin/products', requireAdmin, async (req, res) => {
   const products = await runQuery('SELECT * FROM products');
-  res.render('admin/products', { products });
+  const message = req.query.message || '';
+  const error = req.query.error || '';
+  res.render('admin/products', { products, message, error });
 });
 
 // Admin: update product
 app.post('/admin/products/:id/update', requireAdmin, upload.single('image'), (req, res) => {
   const { id } = req.params;
   const { title, description, price, image_path } = req.body;
+  if (!title) return res.redirect('/admin/products?error=' + encodeURIComponent('Title is required'));
+  const priceNum = isNaN(parseFloat(price)) ? 0 : parseFloat(price);
   const uploadedPath = req.file ? `/uploads/${path.basename(req.file.path)}` : null;
   const finalImage = uploadedPath || image_path || null;
-  db.run('UPDATE products SET title = ?, description = ?, price = ?, image_path = ? WHERE id = ?', [title, description, price || 0, finalImage, id], (err)=>{
-    if (err) return res.status(500).send('DB error');
-    res.redirect('/admin/products');
+  db.run('UPDATE products SET title = ?, description = ?, price = ?, image_path = ? WHERE id = ?', [title.trim(), description || '', priceNum, finalImage, id], (err)=>{
+    if (err) return res.redirect('/admin/products?error=' + encodeURIComponent('Database error while updating'));
+    res.redirect('/admin/products?message=' + encodeURIComponent('Product updated'));
   });
 });
 
@@ -1384,8 +1392,8 @@ app.post('/admin/products/:id/update', requireAdmin, upload.single('image'), (re
 app.post('/admin/products/:id/delete', requireAdmin, (req, res) => {
   const { id } = req.params;
   db.run('DELETE FROM products WHERE id = ?', [id], (err)=>{
-    if (err) return res.status(500).send('DB error');
-    res.redirect('/admin/products');
+    if (err) return res.redirect('/admin/products?error=' + encodeURIComponent('Database error while deleting'));
+    res.redirect('/admin/products?message=' + encodeURIComponent('Product deleted'));
   });
 });
 
