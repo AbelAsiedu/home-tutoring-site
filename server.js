@@ -1379,7 +1379,9 @@ app.post('/admin/users/reset-password', requireAdmin, (req, res) => {
 // Admin media manager
 app.get('/admin/media', requireAdmin, async (req, res) => {
   try {
+    console.log('Loading media manager...');
     const files = await fs.promises.readdir(UPLOADS_DIR);
+    console.log('Found files:', files);
     const fileUrls = files.filter(f => f !== '.gitkeep').map(f => `/uploads/${f}`);
 
     const mediaKeys = [
@@ -1392,19 +1394,26 @@ app.get('/admin/media', requireAdmin, async (req, res) => {
     rows.forEach(r => { mediaValues[r.key] = r.value || ''; });
 
     const { message, error } = req.query;
+    console.log('Rendering media with', fileUrls.length, 'files and message:', message);
     res.render('admin/media', { files: fileUrls, mediaValues, mediaKeys, message, error });
   } catch (err) {
     console.error('Admin media error:', err);
-    res.status(500).send('Server error');
+    res.status(500).render('admin/media', { files: [], mediaValues: {}, mediaKeys: [], error: 'Failed to load media manager', message: null });
   }
 });
 
 app.post('/admin/media/upload', requireAdmin, upload.single('file'), async (req, res) => {
-  if (!req.file) {
-    return res.redirect('/admin/media?error=No file selected');
+  try {
+    if (!req.file) {
+      return res.redirect('/admin/media?error=No file selected');
+    }
+    console.log('File uploaded:', req.file.filename);
+    // Reload page with success message
+    return res.redirect('/admin/media?message=Image uploaded successfully: ' + encodeURIComponent(req.file.filename));
+  } catch (err) {
+    console.error('Upload error:', err);
+    res.redirect('/admin/media?error=Upload failed');
   }
-  // Reload page with success message
-  res.redirect('/admin/media?message=Image uploaded successfully: ' + encodeURIComponent(req.file.filename));
 });
 
 app.post('/admin/media/delete', requireAdmin, (req, res) => {

@@ -63,7 +63,7 @@
             <p class="muted" style="margin:0;font-size:0.95em">Click an image below, then assign it to a slide or tutor in Step 3.</p>
           </div>
           <div class="media-grid">
-            <% files.forEach(function(f){ const name = f.split('/').pop(); %>
+            <% if (files && Array.isArray(files)) { files.forEach(function(f){ const name = f.split('/').pop(); %>
               <div class="media-item" onclick="selectFile('<%= f %>')">
                 <img src="<%= f %>" alt="<%= name %>" title="<%= name %>">
                 <div class="media-item-name"><code><%= name %></code></div>
@@ -76,9 +76,9 @@
                   </form>
                 </div>
               </div>
-            <% }) %>
+            <% }) } %>
           </div>
-          <% if (!files || files.length === 0) { %>
+          <% if (!files || !Array.isArray(files) || files.length === 0) { %>
             <p class="muted" style="margin-top:10px;text-align:center">No images uploaded yet. Upload one in Step 1.</p>
           <% } %>
         </section>
@@ -90,15 +90,15 @@
             <p class="muted" style="margin:0;font-size:0.95em">Paste the image URL (or copy from an image above) into each slide field.</p>
           </div>
           <div class="binding-grid">
-            <% ['slide_1','slide_2','slide_3'].forEach(function(key, i){ %>
+            <% if (mediaValues) { ['slide_1','slide_2','slide_3'].forEach(function(key, i){ %>
               <form method="post" action="/admin/content" class="binding-form">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <input type="hidden" name="key" value="<%= key %>">
                 <label><%= key %> (Hero Slide <%= i+1 %>)</label>
-                <input type="text" name="value" value="<%= (mediaValues && mediaValues[key]) || '' %>" placeholder="/uploads/image.jpg">
+                <input type="text" name="value" value="<%= (mediaValues[key]) || '' %>" placeholder="/uploads/image.jpg">
                 <button type="submit">Save Slide</button>
               </form>
-            <% }) %>
+            <% }) } %>
           </div>
         </section>
 
@@ -109,15 +109,15 @@
             <p class="muted" style="margin:0;font-size:0.95em">Set an image URL for each tutor's profile card.</p>
           </div>
           <div class="binding-grid">
-            <% ['tutor_1_img','tutor_2_img','tutor_3_img','tutor_4_img','tutor_5_img','tutor_6_img'].forEach(function(key, i){ %>
+            <% if (mediaValues) { ['tutor_1_img','tutor_2_img','tutor_3_img','tutor_4_img','tutor_5_img','tutor_6_img'].forEach(function(key, i){ %>
               <form method="post" action="/admin/content" class="binding-form">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <input type="hidden" name="key" value="<%= key %>">
                 <label>Tutor <%= i+1 %></label>
-                <input type="text" name="value" value="<%= (mediaValues && mediaValues[key]) || '' %>" placeholder="/uploads/tutor.jpg">
+                <input type="text" name="value" value="<%= (mediaValues[key]) || '' %>" placeholder="/uploads/tutor.jpg">
                 <button type="submit">Save Image</button>
               </form>
-            <% }) %>
+            <% }) } %>
           </div>
         </section>
 
