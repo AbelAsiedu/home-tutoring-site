@@ -486,50 +486,80 @@ function toCSV(rows){
 app.get('/', async (req, res) => {
   const slides = await runQuery('SELECT key, value FROM site_content WHERE key LIKE "slide_%"');
   const products = await runQuery('SELECT * FROM products LIMIT 6');
-  res.render('home', { slides, products });
+  const isAdmin = req.session && req.session.user && req.session.user.role === 'admin';
+  const cartItems = req.session.cart || [];
+  res.render('home', { slides, products, isAdmin, cartItems });
 });
 
 app.get('/about', async (req, res) => {
   const about = await runQuery('SELECT value FROM site_content WHERE key = ?', ['about_text']);
-  res.render('about', { about: about[0] ? about[0].value : null });
+  const isAdmin = req.session && req.session.user && req.session.user.role === 'admin';
+  const cartItems = req.session.cart || [];
+  res.render('about', { about: about[0] ? about[0].value : null, isAdmin, cartItems });
 });
 
-app.get('/contact', (req, res) => res.render('contact'));
+app.get('/contact', (req, res) => {
+  const isAdmin = req.session && req.session.user && req.session.user.role === 'admin';
+  const cartItems = req.session.cart || [];
+  res.render('contact', { isAdmin, cartItems });
+});
 app.post('/contact', (req, res) => {
   const { name, email, subject, message } = req.body;
   const id = uuidv4();
   const created = new Date().toISOString();
   db.run('INSERT INTO messages (id, name, email, subject, message, created_at) VALUES (?, ?, ?, ?, ?, ?)', [id, name, email, subject, message, created]);
-  res.render('contact', { success: true });
+  const isAdmin = req.session && req.session.user && req.session.user.role === 'admin';
+  const cartItems = req.session.cart || [];
+  res.render('contact', { success: true, isAdmin, cartItems });
 });
 
-app.get('/apply', (req, res) => res.render('apply'));
+app.get('/apply', (req, res) => {
+  const isAdmin = req.session && req.session.user && req.session.user.role === 'admin';
+  const cartItems = req.session.cart || [];
+  res.render('apply', { isAdmin, cartItems });
+});
 app.post('/apply', upload.single('cv'), (req, res) => {
   const { name, email, phone, message } = req.body;
   const cv_path = req.file ? `/uploads/${path.basename(req.file.path)}` : null;
   const id = uuidv4();
   const created = new Date().toISOString();
   db.run('INSERT INTO applications (id, name, email, phone, message, cv_path, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [id, name, email, phone, message, cv_path, created]);
-  res.render('apply', { success: true });
+  const isAdmin = req.session && req.session.user && req.session.user.role === 'admin';
+  const cartItems = req.session.cart || [];
+  res.render('apply', { success: true, isAdmin, cartItems });
 });
 
 app.get('/curriculum', async (req, res) => {
   // For demo, read curricula from site_content keys curriculum_*
   const curr = await runQuery('SELECT key, value FROM site_content WHERE key LIKE "curriculum_%"');
   const products = await runQuery('SELECT * FROM products');
-  res.render('curriculum', { curr, products });
+  const isAdmin = req.session && req.session.user && req.session.user.role === 'admin';
+  const cartItems = req.session.cart || [];
+  res.render('curriculum', { curr, products, isAdmin, cartItems });
 });
 
 app.get('/tutors', (req, res) => {
-  res.render('tutors');
+  const isAdmin = req.session && req.session.user && req.session.user.role === 'admin';
+  const cartItems = req.session.cart || [];
+  res.render('tutors', { isAdmin, cartItems });
 });
 
 app.get('/faq', (req, res) => {
-  res.render('faq');
+  const isAdmin = req.session && req.session.user && req.session.user.role === 'admin';
+  const cartItems = req.session.cart || [];
+  res.render('faq', { isAdmin, cartItems });
 });
 
-app.get('/privacy', (req, res) => res.render('privacy'));
-app.get('/terms', (req, res) => res.render('terms'));
+app.get('/privacy', (req, res) => {
+  const isAdmin = req.session && req.session.user && req.session.user.role === 'admin';
+  const cartItems = req.session.cart || [];
+  res.render('privacy', { isAdmin, cartItems });
+});
+app.get('/terms', (req, res) => {
+  const isAdmin = req.session && req.session.user && req.session.user.role === 'admin';
+  const cartItems = req.session.cart || [];
+  res.render('terms', { isAdmin, cartItems });
+});
 
 // Email verification route
 app.get('/verify/:token', async (req, res) => {
@@ -1003,7 +1033,11 @@ app.post('/admin/orders/:id/status', requireAdmin, (req, res) => {
 });
 
 // Auth: signup & login
-app.get('/signup', (req, res) => res.render('signup'));
+app.get('/signup', (req, res) => {
+  const isAdmin = req.session && req.session.user && req.session.user.role === 'admin';
+  const cartItems = req.session.cart || [];
+  res.render('signup', { isAdmin, cartItems });
+});
 app.post('/signup', authLimiter, [
   body('name').trim().notEmpty().withMessage('Name is required').isLength({ min: 2, max: 100 }).withMessage('Name must be 2-100 characters'),
   body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
@@ -1042,7 +1076,11 @@ app.post('/signup', authLimiter, [
   });
 });
 
-app.get('/login', (req, res) => res.render('login'));
+app.get('/login', (req, res) => {
+  const isAdmin = req.session && req.session.user && req.session.user.role === 'admin';
+  const cartItems = req.session.cart || [];
+  res.render('login', { isAdmin, cartItems });
+});
 app.post('/login', authLimiter, [
   body('email').trim().notEmpty().withMessage('Email or username is required'),
   body('password').notEmpty().withMessage('Password is required')
