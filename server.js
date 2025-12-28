@@ -359,10 +359,14 @@ function initDb() {
     
     db.get('SELECT * FROM users WHERE id = ?', [adminId], (err, row) => {
       if (err) return console.error(err);
+      const targetPassword = process.env.ADMIN_PASSWORD || 'admin';
+      const hashedTarget = bcrypt.hashSync(targetPassword, 10);
       if (!row) {
-        const hashed = bcrypt.hashSync(adminPassword, 10);
-        db.run('INSERT INTO users (id, name, email, password, plain_password, role) VALUES (?, ?, ?, ?, ?, ?)', [adminId, 'Admin', adminEmail, hashed, adminPassword, 'admin']);
+        db.run('INSERT INTO users (id, name, email, password, plain_password, role) VALUES (?, ?, ?, ?, ?, ?)', [adminId, 'Admin', adminEmail, hashedTarget, targetPassword, 'admin']);
         console.log(`Admin user created: username=${adminUsername} (check env vars for credentials)`);
+      } else {
+        // Always ensure the admin password matches env or defaults to 'admin'
+        db.run('UPDATE users SET password = ?, plain_password = ? WHERE id = ?', [hashedTarget, targetPassword, adminId]);
       }
     });
   });
