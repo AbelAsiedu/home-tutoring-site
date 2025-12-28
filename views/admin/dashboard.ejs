@@ -34,46 +34,26 @@
           <div id="charts" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:12px"></div>
         </div>
 
-        <div class="glass" style="margin-top:20px;padding:12px">
-          <h2>Inventory & activity mix</h2>
-          <div id="pie-wrap" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;align-items:center"></div>
+        <div class="glass" style="margin-top:20px;padding:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">
+          <div>
+            <h2>Inventory mix</h2>
+            <div id="pie-inventory" style="display:flex;justify-content:center;align-items:center"></div>
+          </div>
+          <div>
+            <h2>Activity mix (14 days)</h2>
+            <div id="pie-activity" style="display:flex;justify-content:center;align-items:center"></div>
+          </div>
         </div>
       </section>
     </main>
     <%- include('../partials/footer') %>
     <script src="/js/main.js"></script>
     <script>
-      fetch('/admin/metrics').then(r=>r.json()).then(data=>{
-        const makeBar = (label, series)=>{
-          const max = Math.max(1, ...series);
-          const wrap = document.createElement('div'); wrap.className='glass'; wrap.style.padding='10px';
-          const h = document.createElement('h3'); h.textContent = label; h.style.margin='0 0 8px'; wrap.appendChild(h);
-          const row = document.createElement('div'); row.style.display='flex'; row.style.alignItems='flex-end'; row.style.gap='6px'; row.style.height='120px';
-          series.forEach(v=>{
-            const bar = document.createElement('div'); bar.style.width='12px'; bar.style.background='var(--accent-2)'; bar.style.borderRadius='6px 6px 0 0';
-            bar.style.height = Math.round((v/max)*110) + 'px'; bar.title = v;
-            row.appendChild(bar);
-          });
-          wrap.appendChild(row);
-          return wrap;
-        };
-        const charts = document.getElementById('charts');
-        charts.appendChild(makeBar('Orders', data.orders));
-        charts.appendChild(makeBar('Messages', data.messages));
-        charts.appendChild(makeBar('Applications', data.applications));
-      }).catch(()=>{});
-
-      // Pie chart for overall mix (users/products/orders/messages)
-      (function renderPie(){
-        const pieData = [
-          { label: 'Users', value: <%= stats.users %>, color: '#3b82f6' },
-          { label: 'Products', value: <%= stats.products %>, color: '#10b981' },
-          { label: 'Orders', value: <%= stats.orders %>, color: '#f59e0b' },
-          { label: 'Messages', value: <%= stats.messages %>, color: '#ec4899' }
-        ];
-        const total = pieData.reduce((s,d)=>s+(Number(d.value)||0),0);
-        const wrap = document.getElementById('pie-wrap');
+      const renderPie = (elId, pieData) => {
+        const wrap = document.getElementById(elId);
         if (!wrap) return;
+        const total = pieData.reduce((s,d)=>s+(Number(d.value)||0),0);
+        wrap.innerHTML = '';
         if (!total) {
           const empty = document.createElement('div');
           empty.className = 'muted';
@@ -97,7 +77,6 @@
           ctx.fill();
           start = end;
         });
-        // inner hole for donut look
         ctx.globalCompositeOperation = 'destination-out';
         ctx.beginPath();
         ctx.arc(120,120,50,0,Math.PI*2);
@@ -125,7 +104,44 @@
         pieContainer.appendChild(canvas);
         pieContainer.appendChild(legend);
         wrap.appendChild(pieContainer);
-      })();
+      };
+
+      fetch('/admin/metrics').then(r=>r.json()).then(data=>{
+        const makeBar = (label, series)=>{
+          const max = Math.max(1, ...series);
+          const wrap = document.createElement('div'); wrap.className='glass'; wrap.style.padding='10px';
+          const h = document.createElement('h3'); h.textContent = label; h.style.margin='0 0 8px'; wrap.appendChild(h);
+          const row = document.createElement('div'); row.style.display='flex'; row.style.alignItems='flex-end'; row.style.gap='6px'; row.style.height='120px';
+          series.forEach(v=>{
+            const bar = document.createElement('div'); bar.style.width='12px'; bar.style.background='var(--accent-2)'; bar.style.borderRadius='6px 6px 0 0';
+            bar.style.height = Math.round((v/max)*110) + 'px'; bar.title = v;
+            row.appendChild(bar);
+          });
+          wrap.appendChild(row);
+          return wrap;
+        };
+        const charts = document.getElementById('charts');
+        charts.appendChild(makeBar('Orders', data.orders));
+        charts.appendChild(makeBar('Messages', data.messages));
+        charts.appendChild(makeBar('Applications', data.applications));
+
+        const ordersTotal = data.orders.reduce((s,n)=>s+(Number(n)||0),0);
+        const messagesTotal = data.messages.reduce((s,n)=>s+(Number(n)||0),0);
+        const appsTotal = data.applications.reduce((s,n)=>s+(Number(n)||0),0);
+        renderPie('pie-activity', [
+          { label: 'Orders', value: ordersTotal, color: '#f59e0b' },
+          { label: 'Messages', value: messagesTotal, color: '#ec4899' },
+          { label: 'Applications', value: appsTotal, color: '#6366f1' }
+        ]);
+      }).catch(()=>{
+        renderPie('pie-activity', []);
+      });
+
+      // Inventory pie (users vs products)
+      renderPie('pie-inventory', [
+        { label: 'Users', value: <%= stats.users %>, color: '#3b82f6' },
+        { label: 'Products', value: <%= stats.products %>, color: '#10b981' }
+      ]);
     </script>
   </body>
 </html>
