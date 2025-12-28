@@ -143,15 +143,19 @@
               }
               renderTable(entries);
               // Apply mode after editor ready
+              console.log('TinyMCE ready, modePicker:', modePicker);
               if (modePicker) {
                 const applyMode = () => {
                   const isPage = modePicker.value === 'page';
+                  console.log('Applying mode:', isPage ? 'page' : 'field', 'for page:', pagePicker ? pagePicker.value : 'none');
                   if (keyInputGroup) keyInputGroup.style.display = isPage ? 'none' : '';
                   if (keyChips) keyChips.style.display = isPage ? 'none' : '';
                   if (fieldPicker) fieldPicker.style.display = isPage ? 'none' : '';
                   if (fieldLabel) fieldLabel.style.display = isPage ? 'none' : '';
                   if (isPage) {
-                    setEditorContent(buildPageHtml(pagePicker ? pagePicker.value : 'home'));
+                    const html = buildPageHtml(pagePicker ? pagePicker.value : 'home');
+                    console.log('Built page HTML length:', html ? html.length : 0);
+                    setEditorContent(html);
                   } else {
                     renderKeyControls(pagePicker ? pagePicker.value : 'home');
                   }
@@ -293,13 +297,21 @@
       };
 
       function setEditorContent(html) {
-        const editor = (window.tinymce && tinymce.get('value')) || null;
-        const content = (html != null && html !== '') ? html : '';
-        if (editorReady && editor) {
-          editor.setContent(content);
-        } else {
-          pendingContent = content;
-          document.getElementById('value').value = content;
+        console.log('setEditorContent called with html length:', html ? html.length : 0);
+        try {
+          const editor = (window.tinymce && tinymce.get('value')) || null;
+          const content = (html != null && html !== '') ? html : '';
+          console.log('Editor ready:', editorReady, 'Editor exists:', !!editor, 'Content length:', content.length);
+          if (editorReady && editor) {
+            editor.setContent(content);
+            console.log('Content set in editor');
+          } else {
+            pendingContent = content;
+            document.getElementById('value').value = content;
+            console.log('Content set in textarea/pending');
+          }
+        } catch (err) {
+          console.error('Error setting editor content:', err);
         }
       }
 
