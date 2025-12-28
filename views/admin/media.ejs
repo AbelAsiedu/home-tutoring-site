@@ -17,6 +17,48 @@
       <button type="submit">Upload</button>
       <span class="muted">Accepted: images. Files store in /uploads/</span>
     </form>
+
+    <datalist id="mediaFilesList">
+      <% files.forEach(function(f){ %>
+        <option value="<%= f %>"></option>
+      <% }) %>
+    </datalist>
+
+    <section class="glass" style="margin-top:14px;padding:14px;display:grid;gap:12px">
+      <div>
+        <h2 style="margin:0 0 6px">Slideshow bindings</h2>
+        <p class="muted" style="margin:0">Choose an uploaded image for each slide. Uses site_content keys slide_1, slide_2, slide_3.</p>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">
+        <% ['slide_1','slide_2','slide_3'].forEach(function(key){ %>
+          <form method="post" action="/admin/content" class="glass" style="padding:10px;display:grid;gap:8px">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="key" value="<%= key %>">
+            <label style="font-weight:600">Assign <%= key %></label>
+            <input list="mediaFilesList" type="text" name="value" value="<%= (mediaValues && mediaValues[key]) || '' %>" placeholder="/uploads/hero.jpg" required>
+            <button type="submit">Save</button>
+          </form>
+        <% }) %>
+      </div>
+    </section>
+
+    <section class="glass" style="margin-top:14px;padding:14px;display:grid;gap:12px">
+      <div>
+        <h2 style="margin:0 0 6px">Tutor images</h2>
+        <p class="muted" style="margin:0">Set image URLs for tutor cards. Uses site_content keys tutor_1_img through tutor_6_img.</p>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">
+        <% ['tutor_1_img','tutor_2_img','tutor_3_img','tutor_4_img','tutor_5_img','tutor_6_img'].forEach(function(key){ %>
+          <form method="post" action="/admin/content" class="glass" style="padding:10px;display:grid;gap:8px">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="key" value="<%= key %>">
+            <label style="font-weight:600">Assign <%= key %></label>
+            <input list="mediaFilesList" type="text" name="value" value="<%= (mediaValues && mediaValues[key]) || '' %>" placeholder="/uploads/tutor.jpg" required>
+            <button type="submit">Save</button>
+          </form>
+        <% }) %>
+      </div>
+    </section>
     <div class="media-grid" style="margin-top:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
       <% files.forEach(function(f){ const name = f.split('/').pop(); %>
         <div class="media-item glass" style="padding:10px;display:grid;gap:8px">

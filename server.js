@@ -403,7 +403,7 @@ function toCSV(rows){
 // Routes
 app.get('/', async (req, res) => {
   await loadContent(res);
-  const slides = await runQuery('SELECT key, value FROM site_content WHERE key LIKE "slide_%"');
+  const slides = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'slide_%'");
   const products = await runQuery('SELECT * FROM products LIMIT 6');
   res.render('home', { slides, products });
 });
@@ -439,7 +439,7 @@ app.post('/apply', upload.single('cv'), (req, res) => {
 
 app.get('/curriculum', async (req, res) => {
   // For demo, read curricula from site_content keys curriculum_*
-  const curr = await runQuery('SELECT key, value FROM site_content WHERE key LIKE "curriculum_%"');
+  const curr = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'curriculum_%'");
   const products = await runQuery('SELECT * FROM products');
   res.render('curriculum', { curr, products });
 });
@@ -612,7 +612,7 @@ app.get('/api/content/:key', async (req, res) => {
 
 app.get('/api/curriculum', async (req, res) => {
   try {
-    const curr = await runQuery('SELECT key, value FROM site_content WHERE key LIKE "curriculum_%"');
+    const curr = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'curriculum_%'");
     res.json(curr);
   } catch (e) { res.status(500).json({ error: 'db' }); }
 });
@@ -814,7 +814,7 @@ app.get('/api/content/:key', (req, res) => {
 });
 
 app.get('/api/curriculum', (req, res) => {
-  dbAll('SELECT key, value FROM site_content WHERE key LIKE "curriculum_%"', (err, rows) => {
+  dbAll("SELECT key, value FROM site_content WHERE key LIKE 'curriculum_%'", (err, rows) => {
     if (err) return res.status(500).json({ error: 'db' });
     res.json(rows);
   });
@@ -1377,13 +1377,25 @@ app.post('/admin/users/reset-password', requireAdmin, (req, res) => {
 });
 
 // Admin media manager
-app.get('/admin/media', requireAdmin, (req, res) => {
-  // list files in uploads
-  fs.readdir(UPLOADS_DIR, (err, files) => {
-    if (err) return res.status(500).send('FS error');
+app.get('/admin/media', requireAdmin, async (req, res) => {
+  try {
+    const files = await fs.promises.readdir(UPLOADS_DIR);
     const fileUrls = files.filter(f => f !== '.gitkeep').map(f => `/uploads/${f}`);
-    res.render('admin/media', { files: fileUrls });
-  });
+
+    const mediaKeys = [
+      'slide_1','slide_2','slide_3',
+      'tutor_1_img','tutor_2_img','tutor_3_img','tutor_4_img','tutor_5_img','tutor_6_img'
+    ];
+    const placeholders = mediaKeys.map(()=>'?').join(',');
+    const rows = mediaKeys.length ? await runQuery(`SELECT key, value FROM site_content WHERE key IN (${placeholders})`, mediaKeys) : [];
+    const mediaValues = Object.fromEntries(mediaKeys.map(k => [k, '']));
+    rows.forEach(r => { mediaValues[r.key] = r.value || ''; });
+
+    res.render('admin/media', { files: fileUrls, mediaValues, mediaKeys });
+  } catch (err) {
+    console.error('Admin media error:', err);
+    res.status(500).send('Server error');
+  }
 });
 
 app.post('/admin/media/upload', requireAdmin, upload.single('file'), (req, res) => {

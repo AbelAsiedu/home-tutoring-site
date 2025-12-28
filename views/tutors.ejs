@@ -3,9 +3,9 @@
   <!-- Server-side slideshow (auto-initialised by public/js/main.js) -->
   <section class="hero-slideshow" style="height:240px;">
     <div class="hero-slideshow-inner">
-      <div class="slide"><img loading="lazy" src="/images/slide2.svg" alt="slide-1"></div>
-      <div class="slide"><img loading="lazy" src="/images/hero-illustration.svg" alt="slide-2"></div>
-      <div class="slide"><img loading="lazy" src="/images/slide2.svg" alt="slide-3"></div>
+      <div class="slide"><img loading="lazy" src="<%= content('slide_1', '/images/slide2.svg') %>" alt="slide-1"></div>
+      <div class="slide"><img loading="lazy" src="<%= content('slide_2', '/images/hero-illustration.svg') %>" alt="slide-2"></div>
+      <div class="slide"><img loading="lazy" src="<%= content('slide_3', '/images/slide2.svg') %>" alt="slide-3"></div>
     </div>
   </section>
   <section class="glass" style="padding:18px;">
@@ -13,32 +13,32 @@
     <p class="muted"><%= content('tutors_intro', 'All our tutors are vetted, experienced, and trained to deliver curriculum-aligned lessons.') %></p>
     <div class="product-grid" style="margin-top:12px;">
       <div class="card glass" style="text-align:center;padding:14px;">
-        <img src="/images/tutor-placeholder.svg" alt="Tutor" style="width:120px;height:120px;margin:0 auto;"/>
+        <img src="<%= content('tutor_1_img', '/images/tutor-placeholder.svg') %>" alt="Tutor" style="width:120px;height:120px;margin:0 auto;"/>
         <h3><%= content('tutor_1_name', 'Abel Asiedu') %></h3>
         <div class="muted"><%= content('tutor_1_role', 'Senior Tutor • Mathematics') %></div>
       </div>
       <div class="card glass" style="text-align:center;padding:14px;">
-        <img src="/images/tutor-placeholder.svg" alt="Tutor" style="width:120px;height:120px;margin:0 auto;"/>
+        <img src="<%= content('tutor_2_img', '/images/tutor-placeholder.svg') %>" alt="Tutor" style="width:120px;height:120px;margin:0 auto;"/>
         <h3><%= content('tutor_2_name', 'Christian Braun') %></h3>
         <div class="muted"><%= content('tutor_2_role', 'Senior Tutor • Physics') %></div>
       </div>
       <div class="card glass" style="text-align:center;padding:14px;">
-        <img src="/images/tutor-placeholder.svg" alt="Tutor" style="width:120px;height:120px;margin:0 auto;"/>
+        <img src="<%= content('tutor_3_img', '/images/tutor-placeholder.svg') %>" alt="Tutor" style="width:120px;height:120px;margin:0 auto;"/>
         <h3><%= content('tutor_3_name', 'Theophilus Banful') %></h3>
         <div class="muted"><%= content('tutor_3_role', 'Senior Tutor • Chemistry') %></div>
       </div>
       <div class="card glass" style="text-align:center;padding:14px;">
-        <img src="/images/tutor-placeholder.svg" alt="Tutor" style="width:120px;height:120px;margin:0 auto;"/>
+        <img src="<%= content('tutor_4_img', '/images/tutor-placeholder.svg') %>" alt="Tutor" style="width:120px;height:120px;margin:0 auto;"/>
         <h3><%= content('tutor_4_name', 'Stephen Okwa') %></h3>
         <div class="muted"><%= content('tutor_4_role', 'Senior Tutor • English') %></div>
       </div>
       <div class="card glass" style="text-align:center;padding:14px;">
-        <img src="/images/tutor-placeholder.svg" alt="Tutor" style="width:120px;height:120px;margin:0 auto;"/>
+        <img src="<%= content('tutor_5_img', '/images/tutor-placeholder.svg') %>" alt="Tutor" style="width:120px;height:120px;margin:0 auto;"/>
         <h3><%= content('tutor_5_name', 'Aaron Neesmith') %></h3>
         <div class="muted"><%= content('tutor_5_role', 'Senior Tutor • Biology') %></div>
       </div>
       <div class="card glass" style="text-align:center;padding:14px;">
-        <img src="/images/tutor-placeholder.svg" alt="Tutor" style="width:120px;height:120px;margin:0 auto;"/>
+        <img src="<%= content('tutor_6_img', '/images/tutor-placeholder.svg') %>" alt="Tutor" style="width:120px;height:120px;margin:0 auto;"/>
         <h3><%= content('tutor_6_name', 'Malvin Canva') %></h3>
         <div class="muted"><%= content('tutor_6_role', 'Senior Tutor • Computer Science') %></div>
       </div>
