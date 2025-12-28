@@ -108,8 +108,8 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(cors({ origin: true, credentials: true }));
 
-// Optional: force HTTPS redirect when explicitly required
-if (FORCE_HTTPS) {
+// Force HTTPS when behind proxy to keep secure cookies and sessions working
+if (FORCE_HTTPS || process.env.NODE_ENV === 'production') {
   app.use((req, res, next) => {
     const forwarded = req.headers['x-forwarded-proto'];
     const isSecure = (req.connection && req.connection.encrypted) || forwarded === 'https' || req.protocol === 'https';
