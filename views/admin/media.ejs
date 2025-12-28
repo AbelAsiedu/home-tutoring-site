@@ -83,30 +83,39 @@
           <% } %>
         </section>
 
-        <!-- Step 3: Assign to Slides -->
+        <!-- Step 3: Assign to Slides for Each Page -->
         <section class="binding-section">
           <div class="step">
-            <strong>Step 3a: Assign Images to Slideshow Slides</strong>
-            <p class="muted" style="margin:0;font-size:0.95em">Paste the image URL (or copy from an image above) into each slide field.</p>
+            <strong>Step 3: Assign Images to Page Slideshows</strong>
+            <p class="muted" style="margin:0;font-size:0.95em">Customize the slideshow for each page by pasting image URLs into the fields below.</p>
           </div>
-          <div class="binding-grid">
-            <% if (mediaValues) { ['slide_1','slide_2','slide_3'].forEach(function(key, i){ %>
-              <form method="post" action="/admin/content" class="binding-form">
-                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                <input type="hidden" name="key" value="<%= key %>">
-                <input type="hidden" name="redirect_to" value="/admin/media">
-                <label><%= key %> (Hero Slide <%= i+1 %>)</label>
-                <input type="text" name="value" value="<%= (mediaValues[key]) || '' %>" placeholder="/uploads/image.jpg">
-                <button type="submit">Save Slide</button>
-              </form>
-            <% }) } %>
-          </div>
+          
+          <% const pages = ['home', 'tutors', 'curriculum', 'about']; %>
+          <% pages.forEach(function(page){ %>
+            <div style="margin-bottom:20px;padding:14px;background:#f0f7ff;border-radius:6px;border-left:4px solid #007bff">
+              <h4 style="margin:0 0 12px;color:#333"><%= page.charAt(0).toUpperCase() + page.slice(1) %> Page Slideshow</h4>
+              <div class="binding-grid">
+                <% ['slide_1','slide_2','slide_3'].forEach(function(slide, i){ 
+                     const key = page + '_' + slide;
+                %>
+                  <form method="post" action="/admin/content" class="binding-form">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="key" value="<%= key %>">
+                    <input type="hidden" name="redirect_to" value="/admin/media">
+                    <label><%= slide %> (<%= page %> <%= i+1 %>)</label>
+                    <input type="text" name="value" value="<%= (mediaValues[key]) || '' %>" placeholder="/uploads/image.jpg">
+                    <button type="submit">Save</button>
+                  </form>
+                <% }) %>
+              </div>
+            </div>
+          <% }) %>
         </section>
 
         <!-- Step 4: Assign to Tutor Images -->
         <section class="binding-section">
           <div class="step">
-            <strong>Step 3b: Assign Images to Tutor Cards</strong>
+            <strong>Step 4: Assign Images to Tutor Cards</strong>
             <p class="muted" style="margin:0;font-size:0.95em">Set an image URL for each tutor's profile card.</p>
           </div>
           <div class="binding-grid">

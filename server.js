@@ -294,8 +294,15 @@ async function seedAdminUser() {
 // Seed default site content keys
 async function seedSiteContent() {
   try {
-    // Ensure slide keys exist
-    const slideKeys = ['slide_1', 'slide_2', 'slide_3'];
+    // Ensure slide keys exist for each page
+    const pages = ['home', 'tutors', 'curriculum', 'about'];
+    const slideKeys = [];
+    for (const page of pages) {
+      slideKeys.push(`${page}_slide_1`);
+      slideKeys.push(`${page}_slide_2`);
+      slideKeys.push(`${page}_slide_3`);
+    }
+    
     for (const key of slideKeys) {
       const exists = await runQueryOne('SELECT * FROM site_content WHERE key = ?', [key]);
       if (!exists) {
@@ -424,14 +431,14 @@ function toCSV(rows){
 // Routes
 app.get('/', async (req, res) => {
   await loadContent(res);
-  const slides = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'slide_%' ORDER BY key");
-  console.log('Home page - slides from DB:', JSON.stringify(slides));
+  const slides = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'home_slide_%' ORDER BY key");
   const products = await runQuery('SELECT * FROM products LIMIT 6');
   res.render('home', { slides, products });
 });
 
 app.get('/about', async (req, res) => {
   await loadContent(res);
+  const slides = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'about_slide_%' ORDER BY key");
   const about = await runQuery('SELECT value FROM site_content WHERE key = ?', ['about_text']);
   res.render('about', { about: about[0] ? about[0].value : null });
 });
@@ -461,14 +468,16 @@ app.post('/apply', upload.single('cv'), (req, res) => {
 
 app.get('/curriculum', async (req, res) => {
   // For demo, read curricula from site_content keys curriculum_*
-  const curr = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'curriculum_%'");
+  const curr = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'curriculum_%' AND key NOT LIKE 'curriculum_slide_%'");
+  const slides = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'curriculum_slide_%' ORDER BY key");
   const products = await runQuery('SELECT * FROM products');
-  res.render('curriculum', { curr, products });
+  res.render('curriculum', { curr, products, slides });
 });
 
 app.get('/tutors', async (req, res) => {
   await loadContent(res);
-  res.render('tutors');
+  const slides = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'tutors_slide_%' ORDER BY key");
+  res.render('tutors', { slides });
 });
 
 app.get('/faq', async (req, res) => {
@@ -1407,10 +1416,18 @@ app.get('/admin/media', requireAdmin, async (req, res) => {
     console.log('Found files:', files);
     const fileUrls = files.filter(f => f !== '.gitkeep').map(f => `/uploads/${f}`);
 
-    const mediaKeys = [
-      'slide_1','slide_2','slide_3',
-      'tutor_1_img','tutor_2_img','tutor_3_img','tutor_4_img','tutor_5_img','tutor_6_img'
-    ];
+    // Build media keys for all pages
+    const pages = ['home', 'tutors', 'curriculum', 'about'];
+    const slideKeys = [];
+    for (const page of pages) {
+      slideKeys.push(`${page}_slide_1`);
+      slideKeys.push(`${page}_slide_2`);
+      slideKeys.push(`${page}_slide_3`);
+    }
+    
+    const tutorKeys = ['tutor_1_img','tutor_2_img','tutor_3_img','tutor_4_img','tutor_5_img','tutor_6_img'];
+    const mediaKeys = [...slideKeys, ...tutorKeys];
+    
     const placeholders = mediaKeys.map(()=>'?').join(',');
     const rows = mediaKeys.length ? await runQuery(`SELECT key, value FROM site_content WHERE key IN (${placeholders})`, mediaKeys) : [];
     const mediaValues = Object.fromEntries(mediaKeys.map(k => [k, '']));
