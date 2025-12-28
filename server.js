@@ -300,9 +300,9 @@ async function seedSampleData() {
       const studentId = 'student-1';
       const tutorId = 'tutor-1';
       const hashed = bcrypt.hashSync('password', 10);
-      await runExec('INSERT OR IGNORE INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)', [studentId, 'Test Student', 'student@example.com', hashed, 'user']);
-      await runExec('INSERT OR IGNORE INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)', [tutorId, 'Test Tutor', 'tutor@example.com', hashed, 'tutor']);
-      await runExec('INSERT OR IGNORE INTO teachers (id, name, email, bio, subjects) VALUES (?, ?, ?, ?, ?)', [tutorId, 'Test Tutor', 'tutor@example.com', 'Experienced tutor', 'Math,Science']);
+      await runExec('INSERT INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING', [studentId, 'Test Student', 'student@example.com', hashed, 'user']);
+      await runExec('INSERT INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING', [tutorId, 'Test Tutor', 'tutor@example.com', hashed, 'tutor']);
+      await runExec('INSERT INTO teachers (id, name, email, bio, subjects) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING', [tutorId, 'Test Tutor', 'tutor@example.com', 'Experienced tutor', 'Math,Science']);
       const lessonId = uuidv4();
       const scheduled = new Date(Date.now() + 24*3600*1000).toISOString();
       await runExec('INSERT INTO lessons (id, tutor_id, student_id, scheduled_at, duration_minutes, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [lessonId, tutorId, studentId, scheduled, 30, 'scheduled', new Date().toISOString()]);
@@ -1267,7 +1267,7 @@ app.get('/admin/content', requireAdmin, async (req, res) => {
 app.post('/admin/content', requireAdmin, (req, res) => {
   const { key, value } = req.body;
   const wantsJson = (req.headers.accept || '').includes('application/json') || req.xhr;
-  dbRun('INSERT OR REPLACE INTO site_content (key, value) VALUES (?, ?)', [key, value], (err)=>{
+  dbRun('INSERT INTO site_content (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = EXCLUDED.value', [key, value], (err)=>{
     if (err) {
       if (wantsJson) return res.status(500).json({ success: false, error: 'db' });
       return res.redirect('/admin/content?error=' + encodeURIComponent('Failed to save content'));
@@ -1292,14 +1292,19 @@ app.post('/admin/content/bulk', requireAdmin, (req, res) => {
   try {
     const items = Array.isArray(req.body.items) ? req.body.items : [];
     if (!items.length) return res.status(400).json({ error: 'no_items' });
-    const stmt = dbPrepare('INSERT OR REPLACE INTO site_content (key, value) VALUES (?, ?)');
-    items.forEach(it => stmt.run([it.key, it.value || '']));
-    stmt.finalize((err) => {
-      if (err) {
-        console.error('DB finalize error', err);
-        return res.status(500).json({ error: 'db' });
-      }
-      res.json({ success: true, updated: items.length });
+    const stmt = dbPrepare('INSERT INTO site_content (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = EXCLUDED.value');
+    const promises = items.map(it => stmt.run([it.key, it.value || '']));
+    Promise.all(promises).then(()=>{
+      stmt.finalize((err) => {
+        if (err) {
+          console.error('DB finalize error', err);
+          return res.status(500).json({ error: 'db' });
+        }
+        res.json({ success: true, updated: items.length });
+      });
+    }).catch((err)=>{
+      console.error('Bulk content update error', err);
+      res.status(500).json({ error: 'db' });
     });
   } catch (e) {
     console.error('Bulk content update error', e);
