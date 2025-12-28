@@ -1194,7 +1194,7 @@ app.post('/admin/login', adminLimiter, async (req, res) => {
     const usernameRaw = (req.body.username || '').trim();
     const password = req.body.password || '';
     const adminUsername = process.env.ADMIN_USERNAME || 'admin';
-    const adminPassword = process.env.ADMIN_PASSWORD || 'admin'; // keep in sync with bootstrap reset
+    const adminPassword = process.env.ADMIN_PASSWORD || 'passwod'; // keep in sync with bootstrap reset
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@modernpedagogues.com';
 
     // Path 1: explicit env credentials match
