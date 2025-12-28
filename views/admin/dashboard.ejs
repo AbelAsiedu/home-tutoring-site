@@ -121,19 +121,21 @@
           return wrap;
         };
         const charts = document.getElementById('charts');
-        charts.appendChild(makeBar('Orders', data.orders));
-        charts.appendChild(makeBar('Messages', data.messages));
-        charts.appendChild(makeBar('Applications', data.applications));
+        charts.appendChild(makeBar('Orders', data.orders || []));
+        charts.appendChild(makeBar('Messages', data.messages || []));
+        charts.appendChild(makeBar('Applications', data.applications || []));
 
-        const ordersTotal = data.orders.reduce((s,n)=>s+(Number(n)||0),0);
-        const messagesTotal = data.messages.reduce((s,n)=>s+(Number(n)||0),0);
-        const appsTotal = data.applications.reduce((s,n)=>s+(Number(n)||0),0);
+        const ordersTotal = (data.orders || []).reduce((s,n)=>s+(Number(n)||0),0);
+        const messagesTotal = (data.messages || []).reduce((s,n)=>s+(Number(n)||0),0);
+        const appsTotal = (data.applications || []).reduce((s,n)=>s+(Number(n)||0),0);
+        console.log('Activity totals:', { ordersTotal, messagesTotal, appsTotal });
         renderPie('pie-activity', [
           { label: 'Orders', value: ordersTotal, color: '#f59e0b' },
           { label: 'Messages', value: messagesTotal, color: '#ec4899' },
           { label: 'Applications', value: appsTotal, color: '#6366f1' }
         ]);
-      }).catch(()=>{
+      }).catch(err=>{
+        console.error('Metrics fetch failed:', err);
         renderPie('pie-activity', []);
       });
 
