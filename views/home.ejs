@@ -17,23 +17,23 @@
 <main class="container">
   <section class="hero">
     <div class="hero-left">
-      <h1>Personalised tutoring that builds confident learners</h1>
-      <p class="lead">One-to-one lessons from vetted tutors, curriculum-aligned resources and flexible scheduling — for Primary, JHS, SHS and international programmes.</p>
+      <h1><%= content('hero_title', 'Personalised tutoring that builds confident learners') %></h1>
+      <p class="lead"><%= content('hero_lead', 'One-to-one lessons from vetted tutors, curriculum-aligned resources and flexible scheduling — for Primary, JHS, SHS and international programmes.') %></p>
       <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;">
-        <a href="/curriculum" class="cta">Explore Curriculum</a>
-        <a href="/apply" class="btn">Become a Tutor</a>
+        <a href="/curriculum" class="cta"><%= content('hero_cta_primary', 'Explore Curriculum') %></a>
+        <a href="/apply" class="btn"><%= content('hero_cta_secondary', 'Become a Tutor') %></a>
       </div>
       <div class="trust-logos" style="margin-top:18px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-        <div class="card small muted">Trusted by schools</div>
-        <div class="card small muted">1000+ Lessons Delivered</div>
-        <div class="card small muted">Verified Tutors</div>
+        <div class="card small muted"><%= content('hero_badge_1', 'Trusted by schools') %></div>
+        <div class="card small muted"><%= content('hero_badge_2', '1000+ Lessons Delivered') %></div>
+        <div class="card small muted"><%= content('hero_badge_3', 'Verified Tutors') %></div>
       </div>
     </div>
 
     <div class="hero-right glass">
       <div class="booking-card">
-        <h3>Book a free trial</h3>
-        <p class="muted">Enter details and we'll match a tutor for a 30-minute trial session.</p>
+        <h3><%= content('booking_title', 'Book a free trial') %></h3>
+        <p class="muted"><%= content('booking_copy', "Enter details and we'll match a tutor for a 30-minute trial session.") %></p>
         <form action="/contact" method="post">
           <input name="name" placeholder="Full name" required />
           <input name="phone" placeholder="Phone or WhatsApp" required />
@@ -45,92 +45,92 @@
           </select>
           <button class="btn" type="submit">Request trial</button>
         </form>
-        <div class="muted" style="font-size:0.9rem;margin-top:8px">Or call/WhatsApp <strong>+233 24 000 0000</strong></div>
+        <div class="muted" style="font-size:0.9rem;margin-top:8px">Or call/WhatsApp <strong><%= content('booking_contact', '+233 24 000 0000') %></strong></div>
       </div>
     </div>
   </section>
 
   <section class="features" style="margin-top:22px">
     <div class="feature-card glass">
-      <h4>Vetted tutors</h4>
-      <p class="muted">Academic background checks and teaching experience.</p>
+      <h4><%= content('feature_1_title', 'Vetted tutors') %></h4>
+      <p class="muted"><%= content('feature_1_body', 'Academic background checks and teaching experience.') %></p>
     </div>
     <div class="feature-card glass">
-      <h4>Flexible lessons</h4>
-      <p class="muted">Online or in-person, weekdays and weekends.</p>
+      <h4><%= content('feature_2_title', 'Flexible lessons') %></h4>
+      <p class="muted"><%= content('feature_2_body', 'Online or in-person, weekdays and weekends.') %></p>
     </div>
     <div class="feature-card glass">
-      <h4>Resources & assessments</h4>
-      <p class="muted">Books, worksheets and progress reports.</p>
+      <h4><%= content('feature_3_title', 'Resources & assessments') %></h4>
+      <p class="muted"><%= content('feature_3_body', 'Books, worksheets and progress reports.') %></p>
     </div>
   </section>
 
   <section class="how-it-works" style="margin-top:28px">
-    <h2>How it works</h2>
+    <h2><%= content('how_title', 'How it works') %></h2>
     <div class="steps-grid">
       <div class="step card glass">
-        <strong>1. Request a trial</strong>
-        <p class="muted">Tell us your goals and availability — we'll match a tutor.</p>
+        <strong><%= content('how_step1_title', '1. Request a trial') %></strong>
+        <p class="muted"><%= content('how_step1_body', "Tell us your goals and availability — we'll match a tutor.") %></p>
       </div>
       <div class="step card glass">
-        <strong>2. Meet your tutor</strong>
-        <p class="muted">Start with a free 30-minute lesson to see the fit.</p>
+        <strong><%= content('how_step2_title', '2. Meet your tutor') %></strong>
+        <p class="muted"><%= content('how_step2_body', 'Start with a free 30-minute lesson to see the fit.') %></p>
       </div>
       <div class="step card glass">
-        <strong>3. Track progress</strong>
-        <p class="muted">Get reports, homework and recommendations after each lesson.</p>
+        <strong><%= content('how_step3_title', '3. Track progress') %></strong>
+        <p class="muted"><%= content('how_step3_body', 'Get reports, homework and recommendations after each lesson.') %></p>
       </div>
     </div>
   </section>
 
   <section class="platform" style="margin-top:28px">
-    <h2>Learning platform & technology</h2>
+    <h2><%= content('platform_title', 'Learning platform & technology') %></h2>
     <div class="platform-grid">
       <div class="platform-card card glass">
-        <h4>Live lessons</h4>
-        <p class="muted">High-quality video lessons, screen sharing and interactive whiteboard.</p>
+        <h4><%= content('platform_1_title', 'Live lessons') %></h4>
+        <p class="muted"><%= content('platform_1_body', 'High-quality video lessons, screen sharing and interactive whiteboard.') %></p>
       </div>
       <div class="platform-card card glass">
-        <h4>Recordings & resources</h4>
-        <p class="muted">Lesson recordings, worksheets and a library of resources available after class.</p>
+        <h4><%= content('platform_2_title', 'Recordings & resources') %></h4>
+        <p class="muted"><%= content('platform_2_body', 'Lesson recordings, worksheets and a library of resources available after class.') %></p>
       </div>
       <div class="platform-card card glass">
-        <h4>Parental dashboard</h4>
-        <p class="muted">View progress, upcoming lessons and billing in a secure dashboard.</p>
+        <h4><%= content('platform_3_title', 'Parental dashboard') %></h4>
+        <p class="muted"><%= content('platform_3_body', 'View progress, upcoming lessons and billing in a secure dashboard.') %></p>
       </div>
     </div>
   </section>
 
   <section class="assessments" style="margin-top:28px">
-    <h2>Assessments & reporting</h2>
-    <p class="muted">Regular formative assessments, personalised learning plans and termly reports to track improvement.</p>
+    <h2><%= content('assess_title', 'Assessments & reporting') %></h2>
+    <p class="muted"><%= content('assess_body', 'Regular formative assessments, personalised learning plans and termly reports to track improvement.') %></p>
   </section>
 
   <section class="safeguarding" style="margin-top:28px">
-    <h2>Safeguarding & quality</h2>
-    <p class="muted">All tutors are vetted, background-checked and trained in child safeguarding. We maintain strict quality assurance.</p>
+    <h2><%= content('safety_title', 'Safeguarding & quality') %></h2>
+    <p class="muted"><%= content('safety_body', 'All tutors are vetted, background-checked and trained in child safeguarding. We maintain strict quality assurance.') %></p>
   </section>
 
   <section class="pricing" style="margin-top:28px">
-    <h2>Plans & pricing</h2>
+    <h2><%= content('pricing_title', 'Plans & pricing') %></h2>
     <div class="pricing-grid">
       <div class="plan card glass">
-        <h3>Starter</h3>
-        <div class="muted">Single lessons and one-off bookings</div>
-        <div class="price">GHS 65 / lesson</div>
-        <a href="/contact" class="btn">Get started</a>
+        <h3><%= content('pricing_plan1_title', 'Starter') %></h3>
+        <div class="muted"><%= content('pricing_plan1_desc', 'Single lessons and one-off bookings') %></div>
+        <div class="price"><%= content('pricing_plan1_price', 'GHS 65 / lesson') %></div>
+        <a href="/contact" class="btn"><%= content('pricing_plan1_cta', 'Get started') %></a>
       </div>
       <div class="plan card glass">
-        <h3>Regular</h3>
-        <div class="muted">Weekly lessons & progress review</div>
-        <div class="price">GHS 150 / lesson</div>
-        <a href="/contact" class="btn">Sign up</a>
+        <h3><%= content('pricing_plan2_title', 'Regular') %></h3>
+        <div class="muted"><%= content('pricing_plan2_desc', 'Weekly lessons & progress review') %></div>
+        <div class="price"><%= content('pricing_plan2_price', 'GHS 150 / lesson') %></div>
+        <a href="/contact" class="btn"><%= content('pricing_plan2_cta', 'Sign up') %></a>
       </div>
       <div class="plan card glass">
-        <h3>Premium</h3>
-        <div class="muted">Dedicated tutor, assessments & reports</div>
-        <div class="price">GHS 200 / lesson</div>
-        <a href="/contact" class="btn">Contact us</a>
+        <h3><%= content('pricing_plan3_title', 'Premium') %></h3>
+        <div class="muted"><%= content('pricing_plan3_desc', 'Dedicated tutor, assessments & reports') %></div>
+        <div class="price"><%= content('pricing_plan3_price', 'GHS 200 / lesson') %></div>
+        <a href="/contact" class="btn"><%= content('pricing_plan3_cta', 'Contact us') %></a>
       </div>
     </div>
   </section>
@@ -138,56 +138,56 @@
   <!-- Tutors preview removed per request -->
 
   <section class="testimonials" style="margin-top:28px">
-    <h2>What parents say</h2>
+    <h2><%= content('testimonials_title', 'What parents say') %></h2>
     <div class="testimonial-grid">
       <div class="testimonial card glass">
-        <p>"Our daughter's confidence improved after just 6 lessons — highly recommended."</p>
-        <div class="muted">— Ama, Accra</div>
+        <p><%= content('testimonial_1_body', "Our daughter's confidence improved after just 6 lessons — highly recommended.") %></p>
+        <div class="muted"><%= content('testimonial_1_by', '— Ama, Accra') %></div>
       </div>
       <div class="testimonial card glass">
-        <p>"Great tutors and flexible scheduling — a lifesaver."</p>
-        <div class="muted">— Kofi, Kumasi</div>
+        <p><%= content('testimonial_2_body', 'Great tutors and flexible scheduling — a lifesaver.') %></p>
+        <div class="muted"><%= content('testimonial_2_by', '— Kofi, Kumasi') %></div>
       </div>
     </div>
   </section>
 
   <section class="approach" style="margin-top:32px">
-    <h2>Our approach to learning</h2>
+    <h2><%= content('approach_title', 'Our approach to learning') %></h2>
     <div class="approach-grid">
       <div class="card glass">
-        <h4>Personalised learning</h4>
-        <p class="muted">We tailor lessons to each learner's goals and learning style, not a one-size-fits-all plan.</p>
+        <h4><%= content('approach_1_title', 'Personalised learning') %></h4>
+        <p class="muted"><%= content('approach_1_body', "We tailor lessons to each learner's goals and learning style, not a one-size-fits-all plan.") %></p>
       </div>
       <div class="card glass">
-        <h4>Evidence-based practice</h4>
-        <p class="muted">Progress is guided by formative assessments and targeted feedback so time spent is effective.</p>
+        <h4><%= content('approach_2_title', 'Evidence-based practice') %></h4>
+        <p class="muted"><%= content('approach_2_body', 'Progress is guided by formative assessments and targeted feedback so time spent is effective.') %></p>
       </div>
       <div class="card glass">
-        <h4>Curriculum-aligned</h4>
-        <p class="muted">Lessons and resources map to national and international curricula, from Primary through A-Levels.</p>
+        <h4><%= content('approach_3_title', 'Curriculum-aligned') %></h4>
+        <p class="muted"><%= content('approach_3_body', 'Lessons and resources map to national and international curricula, from Primary through A-Levels.') %></p>
       </div>
     </div>
   </section>
 
   <section class="subjects" style="margin-top:28px">
-    <h2>Subjects we teach</h2>
+    <h2><%= content('subjects_title', 'Subjects we teach') %></h2>
     <div class="subjects-grid">
-      <div class="card glass"><strong>Mathematics</strong><div class="muted">Primary → A-Level</div></div>
-      <div class="card glass"><strong>English</strong><div class="muted">Comprehension, grammar & literature</div></div>
-      <div class="card glass"><strong>Science</strong><div class="muted">Physics, Chemistry & Biology</div></div>
-      <div class="card glass"><strong>Computer Science</strong><div class="muted">ICT, programming & digital skills</div></div>
-      <div class="card glass"><strong>Accounting</strong><div class="muted">Syllabus-aligned exam prep</div></div>
-      <div class="card glass"><strong>Languages</strong><div class="muted">French & other languages</div></div>
+      <div class="card glass"><strong><%= content('subjects_1_title', 'Mathematics') %></strong><div class="muted"><%= content('subjects_1_body', 'Primary → A-Level') %></div></div>
+      <div class="card glass"><strong><%= content('subjects_2_title', 'English') %></strong><div class="muted"><%= content('subjects_2_body', 'Comprehension, grammar & literature') %></div></div>
+      <div class="card glass"><strong><%= content('subjects_3_title', 'Science') %></strong><div class="muted"><%= content('subjects_3_body', 'Physics, Chemistry & Biology') %></div></div>
+      <div class="card glass"><strong><%= content('subjects_4_title', 'Computer Science') %></strong><div class="muted"><%= content('subjects_4_body', 'ICT, programming & digital skills') %></div></div>
+      <div class="card glass"><strong><%= content('subjects_5_title', 'Accounting') %></strong><div class="muted"><%= content('subjects_5_body', 'Syllabus-aligned exam prep') %></div></div>
+      <div class="card glass"><strong><%= content('subjects_6_title', 'Languages') %></strong><div class="muted"><%= content('subjects_6_body', 'French & other languages') %></div></div>
     </div>
   </section>
 
   <section class="trust" style="margin-top:28px">
-    <h2>Safety, vetting & accreditation</h2>
-    <p class="muted">All tutors are background-checked and reviewed; we follow strong safeguarding procedures and quality assurance.</p>
+    <h2><%= content('trust_title', 'Safety, vetting & accreditation') %></h2>
+    <p class="muted"><%= content('trust_body', 'All tutors are background-checked and reviewed; we follow strong safeguarding procedures and quality assurance.') %></p>
     <div class="accreditation-logos" style="margin-top:12px;display:flex;gap:12px;flex-wrap:wrap">
-      <div class="card small muted">DBS-checked*</div>
-      <div class="card small muted">Certified tutors</div>
-      <div class="card small muted">Partner schools</div>
+      <div class="card small muted"><%= content('trust_badge_1', 'DBS-checked*') %></div>
+      <div class="card small muted"><%= content('trust_badge_2', 'Certified tutors') %></div>
+      <div class="card small muted"><%= content('trust_badge_3', 'Partner schools') %></div>
     </div>
   </section>
 
