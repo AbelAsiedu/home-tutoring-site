@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>The Modern Pedagogues</title>
     <link rel="stylesheet" href="/css/style.css" />
+    <script src="/js/tab-session.js"></script>
   </head>
   <body>
 
@@ -16,9 +17,10 @@
           <span class="brand-text">The Modern Pedagogues</span>
         </div>
         <% if (isAdmin) { %>
-        <div class="nav-history" style="display:inline-flex;gap:6px">
+        <div class="nav-history" style="display:inline-flex;gap:6px;align-items:center">
           <button type="button" aria-label="Go back" class="btn ghost nav-back" style="padding:6px 10px">←</button>
           <button type="button" aria-label="Go forward" class="btn ghost nav-forward" style="padding:6px 10px">→</button>
+          <a href="/admin" class="btn ghost" style="padding:6px 12px;font-size:14px">Dashboard</a>
         </div>
         <% } %>
       </div>
