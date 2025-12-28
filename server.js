@@ -381,7 +381,8 @@ async function loadContent(res) {
     contentMap[row.key] = row.value;
   });
   res.locals.content = function(key, defaultValue = '') {
-    return contentMap[key] !== undefined ? contentMap[key] : defaultValue;
+    const val = contentMap[key] !== undefined && contentMap[key] !== '' ? contentMap[key] : defaultValue;
+    return val;
   };
 }
 
