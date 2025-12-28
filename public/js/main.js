@@ -219,8 +219,11 @@ function initSlideshows(){
 }
 
 // Run immediately if DOM is already ready, else wait for DOMContentLoaded
+console.log('Document readyState:', document.readyState);
 if (document.readyState === 'loading') {
+  console.log('Adding DOMContentLoaded listener for initSlideshows');
   document.addEventListener('DOMContentLoaded', initSlideshows);
 } else {
+  console.log('DOM already loaded, calling initSlideshows directly');
   initSlideshows();
 }
