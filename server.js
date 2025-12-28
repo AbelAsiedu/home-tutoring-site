@@ -164,6 +164,11 @@ function verifyCsrfToken(req) {
 
 // CSRF protection middleware
 const csrfProtection = (req, res, next) => {
+  const csrfExempt = [
+    '/api/cart/add','/api/cart/remove','/api/cart/clear','/api/cart','/api/session',
+    '/api/products','/api/content','/api/curriculum'
+  ];
+  if (csrfExempt.includes(req.path)) return next();
   if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
     if (!verifyCsrfToken(req)) {
       console.warn(`[CSRF] Token mismatch for ${req.path}`);
@@ -1106,12 +1111,10 @@ app.post('/signup', authLimiter, [
         name,
         verificationUrl
       });
-      req.session.user = { id, name, email, role: 'user', email_verified: false };
-      res.redirect('/dashboard?message=Please check your email to verify your account');
+      res.redirect('/login?success=' + encodeURIComponent('Account created. Check your email to verify, then log in.'));
     } catch (emailError) {
       console.error('Failed to send verification email:', emailError);
-      req.session.user = { id, name, email, role: 'user', email_verified: false };
-      res.redirect('/dashboard?error=Account created but failed to send verification email');
+      res.redirect('/login?error=' + encodeURIComponent('Account created but failed to send verification email. Please log in and try verifying again.'));
     }
   });
 });
@@ -1140,9 +1143,15 @@ app.post('/login', authLimiter, [
       email_verified: user.email_verified || false
     };
     // Redirect based on role
-    if (user.role === 'admin') return res.redirect('/admin');
-    if (user.role === 'tutor') return res.redirect('/tutor/lessons');
-    res.redirect('/dashboard');
+    const finish = () => {
+      if (user.role === 'admin') return res.redirect('/admin');
+      if (user.role === 'tutor') return res.redirect('/tutor/lessons');
+      res.redirect('/dashboard');
+    };
+    req.session.save((err)=>{
+      if (err) console.error('Session save error (login):', err);
+      finish();
+    });
   });
 });
 
