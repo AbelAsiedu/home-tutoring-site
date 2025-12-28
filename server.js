@@ -197,6 +197,19 @@ app.use(async (req, res, next) => {
   res.locals.isAdmin = req.session && req.session.user && req.session.user.role === 'admin';
   // Generate CSRF token for all views
   res.locals.csrfToken = generateCsrfToken(req);
+  
+  // Content helper function for templates
+  res.locals.content = function(key, defaultValue = '') {
+    if (!res.locals._contentCache) {
+      res.locals._contentCache = {};
+    }
+    if (res.locals._contentCache[key] !== undefined) {
+      return res.locals._contentCache[key];
+    }
+    // Return default for now - will be populated by route handlers
+    return defaultValue;
+  };
+  
   next();
 });
 
@@ -466,6 +479,18 @@ function runQuery(sql, params=[]) {
   });
 }
 
+// Helper: Load content into res.locals for templates
+async function loadContent(res) {
+  const content = await runQuery('SELECT key, value FROM site_content');
+  const contentMap = {};
+  content.forEach(row => {
+    contentMap[row.key] = row.value;
+  });
+  res.locals.content = function(key, defaultValue = '') {
+    return contentMap[key] !== undefined ? contentMap[key] : defaultValue;
+  };
+}
+
 // Helper: convert rows to CSV string
 function toCSV(rows){
   if (!rows || !rows.length) return '';
@@ -484,6 +509,7 @@ function toCSV(rows){
 
 // Routes
 app.get('/', async (req, res) => {
+  await loadContent(res);
   const slides = await runQuery('SELECT key, value FROM site_content WHERE key LIKE "slide_%"');
   const products = await runQuery('SELECT * FROM products LIMIT 6');
   const isAdmin = req.session && req.session.user && req.session.user.role === 'admin';
@@ -538,13 +564,15 @@ app.get('/curriculum', async (req, res) => {
   res.render('curriculum', { curr, products, isAdmin, cartItems });
 });
 
-app.get('/tutors', (req, res) => {
+app.get('/tutors', async (req, res) => {
+  await loadContent(res);
   const isAdmin = req.session && req.session.user && req.session.user.role === 'admin';
   const cartItems = req.session.cart || [];
   res.render('tutors', { isAdmin, cartItems });
 });
 
-app.get('/faq', (req, res) => {
+app.get('/faq', async (req, res) => {
+  await loadContent(res);
   const isAdmin = req.session && req.session.user && req.session.user.role === 'admin';
   const cartItems = req.session.cart || [];
   res.render('faq', { isAdmin, cartItems });
