@@ -30,6 +30,7 @@ const PORT = process.env.PORT || 3001;
 const USE_HTTPS = !!(process.env.SSL_KEY && process.env.SSL_CERT);
 const FORCE_HTTPS = process.env.FORCE_HTTPS === 'true';
 const TRUST_PROXY = process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true';
+const COOKIE_SAMESITE = process.env.COOKIE_SAMESITE || (process.env.NODE_ENV === 'production' ? 'none' : 'lax');
 // In many hosting environments (Heroku, etc.) the app runs behind a proxy
 // which terminates TLS. Ensure Express trusts the proxy so `req.protocol`
 // and secure cookies are handled correctly. Allow explicit override via
@@ -127,7 +128,11 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'very-secret-key',
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 1000 * 60 * 60 * 24, secure: !!(USE_HTTPS || process.env.NODE_ENV === 'production'), sameSite: 'lax' }
+  cookie: {
+    maxAge: 1000 * 60 * 60 * 24,
+    secure: !!(USE_HTTPS || process.env.NODE_ENV === 'production'),
+    sameSite: COOKIE_SAMESITE === 'none' ? 'none' : 'lax'
+  }
 }));
 
 // Register cookie parser AFTER session (per csrf-csrf guidance)
