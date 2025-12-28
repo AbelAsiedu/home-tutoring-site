@@ -1266,15 +1266,16 @@ app.get('/admin/content', requireAdmin, async (req, res) => {
 });
 
 app.post('/admin/content', requireAdmin, (req, res) => {
-  const { key, value } = req.body;
+  const { key, value, redirect_to } = req.body;
   const wantsJson = (req.headers.accept || '').includes('application/json') || req.xhr;
+  const redirectPath = redirect_to || '/admin/content';
   dbRun('INSERT INTO site_content (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = EXCLUDED.value', [key, value], (err)=>{
     if (err) {
       if (wantsJson) return res.status(500).json({ success: false, error: 'db' });
-      return res.redirect('/admin/content?error=' + encodeURIComponent('Failed to save content'));
+      return res.redirect(redirectPath + '?error=' + encodeURIComponent('Failed to save content'));
     }
     if (wantsJson) return res.json({ success: true });
-    res.redirect('/admin/content?message=' + encodeURIComponent('Content saved'));
+    res.redirect(redirectPath + '?message=' + encodeURIComponent('Content saved: ' + key));
   });
 });
 

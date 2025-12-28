@@ -68,8 +68,8 @@
                 <img src="<%= f %>" alt="<%= name %>" title="<%= name %>">
                 <div class="media-item-name"><code><%= name %></code></div>
                 <div style="font-size:0.8em;color:#999;margin-top:4px">
-                  <button type="button" onclick="event.stopPropagation();navigator.clipboard.writeText('<%= f %>');alert('Copied!');" style="padding:4px 8px;background:#e9ecef;border:none;border-radius:3px;cursor:pointer">Copy URL</button>
-                  <form method="post" action="/admin/media/delete" style="display:inline;margin-left:4px" onsubmit="return confirm('Delete <%= name %>?')">
+                  <button type="button" onclick="event.stopPropagation();copyToClipboard('<%= f %>');alert('Copied!');" style="padding:4px 8px;background:#e9ecef;border:none;border-radius:3px;cursor:pointer">Copy URL</button>
+                  <form method="post" action="/admin/media/delete" style="display:inline;margin-left:4px" onsubmit="event.stopPropagation();return confirm('Delete <%= name %>?')">
                     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                     <input type="hidden" name="path" value="<%= f %>">
                     <button type="submit" style="padding:4px 8px;background:#dc3545;color:white;border:none;border-radius:3px;cursor:pointer">Delete</button>
@@ -94,6 +94,7 @@
               <form method="post" action="/admin/content" class="binding-form">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <input type="hidden" name="key" value="<%= key %>">
+                <input type="hidden" name="redirect_to" value="/admin/media">
                 <label><%= key %> (Hero Slide <%= i+1 %>)</label>
                 <input type="text" name="value" value="<%= (mediaValues[key]) || '' %>" placeholder="/uploads/image.jpg">
                 <button type="submit">Save Slide</button>
@@ -113,6 +114,7 @@
               <form method="post" action="/admin/content" class="binding-form">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <input type="hidden" name="key" value="<%= key %>">
+                <input type="hidden" name="redirect_to" value="/admin/media">
                 <label>Tutor <%= i+1 %></label>
                 <input type="text" name="value" value="<%= (mediaValues[key]) || '' %>" placeholder="/uploads/tutor.jpg">
                 <button type="submit">Save Image</button>
@@ -135,8 +137,37 @@
     <script src="/js/main.js"></script>
     <script>
       function selectFile(url) {
-        navigator.clipboard.writeText(url);
+        copyToClipboard(url);
         alert('Image URL copied to clipboard! Paste into a slide or tutor field below.');
+      }
+      
+      function copyToClipboard(text) {
+        // Try modern clipboard API first
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).catch(err => {
+            console.error('Clipboard API failed:', err);
+            fallbackCopy(text);
+          });
+        } else {
+          fallbackCopy(text);
+        }
+      }
+      
+      function fallbackCopy(text) {
+        // Fallback: create temporary textarea
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        try {
+          document.execCommand('copy');
+        } catch (err) {
+          console.error('Fallback copy failed:', err);
+        }
+        document.body.removeChild(textarea);
       }
     </script>
   </body>
