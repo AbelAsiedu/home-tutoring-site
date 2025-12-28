@@ -1391,15 +1391,20 @@ app.get('/admin/media', requireAdmin, async (req, res) => {
     const mediaValues = Object.fromEntries(mediaKeys.map(k => [k, '']));
     rows.forEach(r => { mediaValues[r.key] = r.value || ''; });
 
-    res.render('admin/media', { files: fileUrls, mediaValues, mediaKeys });
+    const { message, error } = req.query;
+    res.render('admin/media', { files: fileUrls, mediaValues, mediaKeys, message, error });
   } catch (err) {
     console.error('Admin media error:', err);
     res.status(500).send('Server error');
   }
 });
 
-app.post('/admin/media/upload', requireAdmin, upload.single('file'), (req, res) => {
-  res.redirect('/admin/media');
+app.post('/admin/media/upload', requireAdmin, upload.single('file'), async (req, res) => {
+  if (!req.file) {
+    return res.redirect('/admin/media?error=No file selected');
+  }
+  // Reload page with success message
+  res.redirect('/admin/media?message=Image uploaded successfully: ' + encodeURIComponent(req.file.filename));
 });
 
 app.post('/admin/media/delete', requireAdmin, (req, res) => {

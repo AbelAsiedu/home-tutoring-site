@@ -5,79 +5,139 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Media - Admin</title>
     <link rel="stylesheet" href="/css/style.css" />
+    <style>
+      .upload-section { background: linear-gradient(135deg, rgba(100,200,255,0.1), rgba(150,100,255,0.1)); border-radius: 8px; padding: 18px; margin-bottom: 20px; }
+      .step { display: grid; gap: 8px; margin-bottom: 14px; }
+      .step strong { font-size: 1.1em; color: #333; }
+      .media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-top: 14px; }
+      .media-item { border: 2px solid #ddd; border-radius: 6px; padding: 10px; transition: all 0.2s; cursor: pointer; }
+      .media-item:hover { border-color: #007bff; box-shadow: 0 0 8px rgba(0,123,255,0.2); }
+      .media-item img { width: 100%; height: 120px; object-fit: cover; border-radius: 4px; margin-bottom: 6px; }
+      .media-item-name { font-size: 0.85em; word-break: break-all; color: #666; }
+      .binding-section { background: #f9f9f9; border-radius: 8px; padding: 16px; margin-top: 20px; }
+      .binding-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 10px; }
+      .binding-form { background: white; border: 1px solid #ddd; border-radius: 6px; padding: 10px; }
+      .binding-form label { font-weight: 600; display: block; margin-bottom: 6px; }
+      .binding-form input { width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9em; }
+      .binding-form button { width: 100%; padding: 8px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 8px; }
+      .binding-form button:hover { background: #0056b3; }
+      .message { padding: 10px; border-radius: 4px; margin-bottom: 12px; }
+      .message.success { background: #d4edda; color: #155724; }
+      .message.error { background: #f8d7da; color: #721c24; }
+    </style>
   </head>
   <body>
     <%- include('../partials/header') %>
     <main class="container">
-  <section class="page glass">
-    <h1>Media Manager</h1>
-    <form action="/admin/media/upload" method="post" enctype="multipart/form-data" class="curved" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <input type="file" name="file" accept="image/*" required>
-      <button type="submit">Upload</button>
-      <span class="muted">Accepted: images. Files store in /uploads/</span>
-    </form>
+      <section class="page glass">
+        <h1>Media Manager</h1>
+        <p class="muted">Upload images, then assign them to slideshows or tutor cards.</p>
 
-    <datalist id="mediaFilesList">
-      <% files.forEach(function(f){ %>
-        <option value="<%= f %>"></option>
-      <% }) %>
-    </datalist>
+        <% if (message) { %>
+          <div class="message success"><%= message %></div>
+        <% } %>
+        <% if (error) { %>
+          <div class="message error"><%= error %></div>
+        <% } %>
 
-    <section class="glass" style="margin-top:14px;padding:14px;display:grid;gap:12px">
-      <div>
-        <h2 style="margin:0 0 6px">Slideshow bindings</h2>
-        <p class="muted" style="margin:0">Choose an uploaded image for each slide. Uses site_content keys slide_1, slide_2, slide_3.</p>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">
-        <% ['slide_1','slide_2','slide_3'].forEach(function(key){ %>
-          <form method="post" action="/admin/content" class="glass" style="padding:10px;display:grid;gap:8px">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <input type="hidden" name="key" value="<%= key %>">
-            <label style="font-weight:600">Assign <%= key %></label>
-            <input list="mediaFilesList" type="text" name="value" value="<%= (mediaValues && mediaValues[key]) || '' %>" placeholder="/uploads/hero.jpg" required>
-            <button type="submit">Save</button>
-          </form>
-        <% }) %>
-      </div>
-    </section>
-
-    <section class="glass" style="margin-top:14px;padding:14px;display:grid;gap:12px">
-      <div>
-        <h2 style="margin:0 0 6px">Tutor images</h2>
-        <p class="muted" style="margin:0">Set image URLs for tutor cards. Uses site_content keys tutor_1_img through tutor_6_img.</p>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">
-        <% ['tutor_1_img','tutor_2_img','tutor_3_img','tutor_4_img','tutor_5_img','tutor_6_img'].forEach(function(key){ %>
-          <form method="post" action="/admin/content" class="glass" style="padding:10px;display:grid;gap:8px">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <input type="hidden" name="key" value="<%= key %>">
-            <label style="font-weight:600">Assign <%= key %></label>
-            <input list="mediaFilesList" type="text" name="value" value="<%= (mediaValues && mediaValues[key]) || '' %>" placeholder="/uploads/tutor.jpg" required>
-            <button type="submit">Save</button>
-          </form>
-        <% }) %>
-      </div>
-    </section>
-    <div class="media-grid" style="margin-top:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
-      <% files.forEach(function(f){ const name = f.split('/').pop(); %>
-        <div class="media-item glass" style="padding:10px;display:grid;gap:8px">
-          <img src="<%= f %>" alt="media" style="width:100%;height:140px;object-fit:cover;border-radius:8px">
-          <code style="font-size:12px;word-break:break-all"><%= f %></code>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button type="button" class="btn ghost" style="padding:6px 10px" onclick="navigator.clipboard.writeText('<%= f %>')">Copy URL</button>
-            <form method="post" action="/admin/media/delete" onsubmit="return confirm('Delete this file?')">
-              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-              <input type="hidden" name="path" value="<%= f %>">
-              <button type="submit" class="btn" style="background:#dc3545">Delete</button>
-            </form>
+        <!-- Step 1: Upload -->
+        <section class="upload-section">
+          <div class="step">
+            <strong>Step 1: Upload an Image</strong>
+            <p class="muted" style="margin:0;font-size:0.95em">Choose an image file to upload to /uploads/</p>
           </div>
+          <form action="/admin/media/upload" method="post" enctype="multipart/form-data" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <div style="flex:1;min-width:200px">
+              <label for="fileInput" style="font-weight:600;display:block;margin-bottom:6px">Choose file</label>
+              <input id="fileInput" type="file" name="file" accept="image/*" required style="width:100%;padding:6px;border:1px solid #ddd;border-radius:4px">
+            </div>
+            <button type="submit" style="padding:8px 16px;background:#28a745;color:white;border:none;border-radius:4px;cursor:pointer">Upload</button>
+          </form>
+        </section>
+
+        <!-- Step 2: View Uploaded Files -->
+        <section>
+          <div class="step">
+            <strong>Step 2: Select an Uploaded Image</strong>
+            <p class="muted" style="margin:0;font-size:0.95em">Click an image below, then assign it to a slide or tutor in Step 3.</p>
+          </div>
+          <div class="media-grid">
+            <% files.forEach(function(f){ const name = f.split('/').pop(); %>
+              <div class="media-item" onclick="selectFile('<%= f %>')">
+                <img src="<%= f %>" alt="<%= name %>" title="<%= name %>">
+                <div class="media-item-name"><code><%= name %></code></div>
+                <div style="font-size:0.8em;color:#999;margin-top:4px">
+                  <button type="button" onclick="event.stopPropagation();navigator.clipboard.writeText('<%= f %>');alert('Copied!');" style="padding:4px 8px;background:#e9ecef;border:none;border-radius:3px;cursor:pointer">Copy URL</button>
+                  <form method="post" action="/admin/media/delete" style="display:inline;margin-left:4px" onsubmit="return confirm('Delete <%= name %>?')">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="path" value="<%= f %>">
+                    <button type="submit" style="padding:4px 8px;background:#dc3545;color:white;border:none;border-radius:3px;cursor:pointer">Delete</button>
+                  </form>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+          <% if (!files || files.length === 0) { %>
+            <p class="muted" style="margin-top:10px;text-align:center">No images uploaded yet. Upload one in Step 1.</p>
+          <% } %>
+        </section>
+
+        <!-- Step 3: Assign to Slides -->
+        <section class="binding-section">
+          <div class="step">
+            <strong>Step 3a: Assign Images to Slideshow Slides</strong>
+            <p class="muted" style="margin:0;font-size:0.95em">Paste the image URL (or copy from an image above) into each slide field.</p>
+          </div>
+          <div class="binding-grid">
+            <% ['slide_1','slide_2','slide_3'].forEach(function(key, i){ %>
+              <form method="post" action="/admin/content" class="binding-form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="key" value="<%= key %>">
+                <label><%= key %> (Hero Slide <%= i+1 %>)</label>
+                <input type="text" name="value" value="<%= (mediaValues && mediaValues[key]) || '' %>" placeholder="/uploads/image.jpg">
+                <button type="submit">Save Slide</button>
+              </form>
+            <% }) %>
+          </div>
+        </section>
+
+        <!-- Step 4: Assign to Tutor Images -->
+        <section class="binding-section">
+          <div class="step">
+            <strong>Step 3b: Assign Images to Tutor Cards</strong>
+            <p class="muted" style="margin:0;font-size:0.95em">Set an image URL for each tutor's profile card.</p>
+          </div>
+          <div class="binding-grid">
+            <% ['tutor_1_img','tutor_2_img','tutor_3_img','tutor_4_img','tutor_5_img','tutor_6_img'].forEach(function(key, i){ %>
+              <form method="post" action="/admin/content" class="binding-form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="key" value="<%= key %>">
+                <label>Tutor <%= i+1 %></label>
+                <input type="text" name="value" value="<%= (mediaValues && mediaValues[key]) || '' %>" placeholder="/uploads/tutor.jpg">
+                <button type="submit">Save Image</button>
+              </form>
+            <% }) %>
+          </div>
+        </section>
+
+        <div style="margin-top:20px;padding:14px;background:#e7f3ff;border-radius:6px;border-left:4px solid #007bff">
+          <strong>Tips:</strong>
+          <ul style="margin:8px 0 0;padding-left:20px;font-size:0.95em">
+            <li>After saving a slide or tutor image, visit the <strong>Home</strong> or <strong>Tutors</strong> page to see the changes live.</li>
+            <li>You can reuse the same image for multiple slides or tutors.</li>
+            <li>Recommended image sizes: Slides (1200×400px), Tutors (200×200px).</li>
+          </ul>
         </div>
-      <% }) %>
-    </div>
-  </section>
+      </section>
     </main>
     <%- include('../partials/footer') %>
     <script src="/js/main.js"></script>
+    <script>
+      function selectFile(url) {
+        navigator.clipboard.writeText(url);
+        alert('Image URL copied to clipboard! Paste into a slide or tutor field below.');
+      }
+    </script>
   </body>
 </html>
