@@ -31,6 +31,7 @@ const USE_HTTPS = !!(process.env.SSL_KEY && process.env.SSL_CERT);
 const FORCE_HTTPS = process.env.FORCE_HTTPS === 'true';
 const TRUST_PROXY = process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true';
 const COOKIE_SAMESITE = process.env.COOKIE_SAMESITE || (process.env.NODE_ENV === 'production' ? 'none' : 'lax');
+const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || undefined; // allow sharing across subdomains
 // In many hosting environments (Heroku, etc.) the app runs behind a proxy
 // which terminates TLS. Ensure Express trusts the proxy so `req.protocol`
 // and secure cookies are handled correctly. Allow explicit override via
@@ -128,10 +129,12 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'very-secret-key',
   resave: false,
   saveUninitialized: false,
+  proxy: true, // trust x-forwarded-proto for secure cookies
   cookie: {
     maxAge: 1000 * 60 * 60 * 24,
     secure: !!(USE_HTTPS || process.env.NODE_ENV === 'production'),
-    sameSite: COOKIE_SAMESITE === 'none' ? 'none' : 'lax'
+    sameSite: COOKIE_SAMESITE === 'none' ? 'none' : 'lax',
+    domain: COOKIE_DOMAIN || undefined
   }
 }));
 
