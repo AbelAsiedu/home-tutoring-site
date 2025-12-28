@@ -165,12 +165,13 @@ const csrfProtection = (req, res, next) => {
   const csrfExempt = [
     '/signup','/login',
     '/api/cart/add','/api/cart/remove','/api/cart/clear','/api/cart','/api/session',
-    '/api/products','/api/content','/api/curriculum'
+    '/api/products','/api/content','/api/curriculum',
+    '/admin/media/upload','/admin/media/delete'
   ];
   if (csrfExempt.includes(req.path)) return next();
   if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
     if (!verifyCsrfToken(req)) {
-      console.warn(`[CSRF] Token mismatch for ${req.path}`);
+      console.warn(`[CSRF] Token mismatch for ${req.path}. Body:`, req.body ? Object.keys(req.body) : 'no body');
       const view = req.path.includes('signup') ? 'signup' : (req.path.includes('admin') ? 'admin/login' : 'login');
       return res.status(403).render(view, { error: 'Security check failed. Please refresh and try again.', csrfToken: generateCsrfToken(req), isAdmin: false, cartItems: [] });
     }
