@@ -407,6 +407,7 @@ function toCSV(rows){
 app.get('/', async (req, res) => {
   await loadContent(res);
   const slides = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'slide_%' ORDER BY key");
+  console.log('Home page - slides from DB:', JSON.stringify(slides));
   const products = await runQuery('SELECT * FROM products LIMIT 6');
   res.render('home', { slides, products });
 });
