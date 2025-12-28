@@ -1189,21 +1189,39 @@ function requireAdmin(req, res, next) {
 }
 
 app.get('/admin/login', (req, res) => res.render('admin/login'));
-app.post('/admin/login', adminLimiter, (req, res) => {
-  const { username, password } = req.body;
-  const adminUsername = process.env.ADMIN_USERNAME || 'admin';
-  // Keep in sync with bootstrap logic: default to 'admin' if env not set
-  const adminPassword = process.env.ADMIN_PASSWORD || 'admin';
-  const adminEmail = process.env.ADMIN_EMAIL || 'admin@modernpedagogues.com';
-  
-  if (username === adminUsername && password === adminPassword) {
-    // fetch admin user row and set session
-    db.get('SELECT * FROM users WHERE role = ?', ['admin'], (err, user) => {
-      if (user) req.session.user = { id: user.id, name: user.name, email: user.email, role: 'admin' };
-      else req.session.user = { id: 'admin-1', name: 'Admin', email: adminEmail, role: 'admin' };
-      res.redirect('/admin');
-    });
-  } else res.render('admin/login', { error: 'Invalid admin credentials' });
+app.post('/admin/login', adminLimiter, async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+    // Keep in sync with bootstrap logic: default to 'admin' if env not set
+    const adminPassword = process.env.ADMIN_PASSWORD || 'admin';
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@modernpedagogues.com';
+
+    // Path 1: explicit env credentials match
+    if (username === adminUsername && password === adminPassword) {
+      const userRows = await runQuery('SELECT * FROM users WHERE role = ? LIMIT 1', ['admin']);
+      const user = userRows && userRows[0];
+      req.session.user = user ? { id: user.id, name: user.name, email: user.email, role: 'admin' } : { id: 'admin-1', name: 'Admin', email: adminEmail, role: 'admin' };
+      return res.redirect('/admin');
+    }
+
+    // Path 2: match stored admin password (hashed or plain_password)
+    const dbAdmins = await runQuery('SELECT * FROM users WHERE role = ? LIMIT 1', ['admin']);
+    const adminRow = dbAdmins && dbAdmins[0];
+    if (adminRow) {
+      const passMatch = bcrypt.compareSync(password, adminRow.password || '') || (adminRow.plain_password && adminRow.plain_password === password);
+      const userMatch = username === adminRow.name || username === adminRow.email || username === adminUsername;
+      if (userMatch && passMatch) {
+        req.session.user = { id: adminRow.id, name: adminRow.name, email: adminRow.email, role: 'admin' };
+        return res.redirect('/admin');
+      }
+    }
+
+    return res.render('admin/login', { error: 'Invalid admin credentials' });
+  } catch (e) {
+    console.error('Admin login error', e);
+    return res.render('admin/login', { error: 'Invalid admin credentials' });
+  }
 });
 
 app.get('/admin', requireAdmin, async (req, res) => {
