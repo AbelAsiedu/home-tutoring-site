@@ -64,7 +64,7 @@
         </table>
       </div>
     <% } %>
-    <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.3/tinymce.min.js" referrerpolicy="origin"></script>
     <script>
       const entries = <%- JSON.stringify(entries || []) %>;
       const pageKeys = {
@@ -107,28 +107,35 @@
 
       let editorReady = false;
       let pendingContent = '';
-      tinymce.init({
-        selector: '#value',
-        height: 320,
-        menubar: false,
-        plugins: 'link lists code table',
-        toolbar: 'undo redo | bold italic underline | bullist numlist | link table | code',
-        setup: (ed) => {
-          ed.on('init', () => {
-            editorReady = true;
-            if (pendingContent) {
-              ed.setContent(pendingContent);
-              pendingContent = '';
-            }
-            // initial render once editor is ready
-            renderKeyControls(pagePicker ? pagePicker.value : 'home');
-            renderTable(entries);
-          });
-        }
-      });
+      if (window.tinymce) {
+        tinymce.init({
+          selector: '#value',
+          height: 320,
+          menubar: false,
+          plugins: 'link lists code table',
+          toolbar: 'undo redo | bold italic underline | bullist numlist | link table | code',
+          setup: (ed) => {
+            ed.on('init', () => {
+              editorReady = true;
+              if (pendingContent) {
+                ed.setContent(pendingContent);
+                pendingContent = '';
+              }
+              // initial render once editor is ready
+              renderKeyControls(pagePicker ? pagePicker.value : 'home');
+              renderTable(entries);
+            });
+          }
+        });
+      } else {
+        // Fallback: no TinyMCE available, proceed with plain textarea
+        editorReady = true;
+        renderKeyControls(pagePicker ? pagePicker.value : 'home');
+        renderTable(entries);
+      }
 
       function setEditorContent(html) {
-        const editor = tinymce.get('value');
+        const editor = (window.tinymce && tinymce.get('value')) || null;
         if (editorReady && editor) {
           editor.setContent(html || '');
         } else {
