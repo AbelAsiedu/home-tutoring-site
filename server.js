@@ -480,7 +480,7 @@ app.get('/about', async (req, res) => {
   await loadContent(res);
   const slides = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'about_slide_%' ORDER BY key");
   const about = await runQuery('SELECT value FROM site_content WHERE key = ?', ['about_text']);
-  res.render('about', { about: about[0] ? about[0].value : null });
+  res.render('about', { slides, about: about[0] ? about[0].value : null });
 });
 
 app.get('/contact', (req, res) => {
