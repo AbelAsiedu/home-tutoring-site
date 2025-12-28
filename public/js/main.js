@@ -1,57 +1,87 @@
 // Simple slideshow auto-advance
 function initSlideshows(){
+  console.log('=== initSlideshows called ===');
   // Initialize hero slideshows (supports multiple on the page)
-  document.querySelectorAll('.hero-slideshow').forEach(slideshow => {
+  const slideshowElements = document.querySelectorAll('.hero-slideshow');
+  console.log('Found .hero-slideshow elements:', slideshowElements.length);
+  
+  slideshowElements.forEach((slideshow, slideshowIdx) => {
+    console.log(`Processing slideshow #${slideshowIdx}`);
     const slides = slideshow.querySelectorAll('.slide');
-    console.log('Slideshow found, slides count:', slides.length);
-    if (!slides.length) return;
+    console.log(`  - Found ${slides.length} slides`);
+    
+    if (!slides.length) {
+      console.log(`  - No slides found, skipping`);
+      return;
+    }
+    
+    // Ensure hero-slideshow-inner is position relative (for absolute positioning context)
+    const inner = slideshow.querySelector('.hero-slideshow-inner');
+    if (inner) {
+      inner.style.position = 'relative';
+    }
+    
     let idx = 0;
-    slides.forEach((s,i)=>{
-      s.style.opacity = i===0 ? '1' : '0';
+    slides.forEach((s, i) => {
+      s.style.opacity = i === 0 ? '1' : '0';
       s.style.transition = 'opacity 700ms ease, transform 220ms ease';
       s.style.position = 'absolute';
-      s.style.top = 0; s.style.left = 0; s.style.width = '100%'; s.style.height = '100%';
+      s.style.inset = '0';
+      s.style.width = '100%';
+      s.style.height = '100%';
       s.style.transform = 'translateX(0)';
+      console.log(`  - Slide ${i}: opacity=${s.style.opacity}`);
     });
 
-    // indicators
+    // Create indicators (dots)
     const dots = document.createElement('div');
     dots.className = 'slide-dots';
-    slides.forEach((_,i)=>{
+    slides.forEach((_, i) => {
       const b = document.createElement('button');
-      b.className = 'dot' + (i===0 ? ' active' : '');
-      b.setAttribute('aria-label', `Go to slide ${i+1}`);
-      b.addEventListener('click', ()=>{
+      b.className = 'dot' + (i === 0 ? ' active' : '');
+      b.setAttribute('aria-label', `Go to slide ${i + 1}`);
+      b.addEventListener('click', () => {
         goTo(i);
       });
       dots.appendChild(b);
     });
     slideshow.appendChild(dots);
+    console.log(`  - Created ${slides.length} dots`);
 
     let timer;
-    const startTimer = ()=> { clearInterval(timer); timer = setInterval(()=> nextSlide(), 4500); };
-    const stopTimer = ()=> { clearInterval(timer); };
+    const startTimer = () => {
+      clearInterval(timer);
+      timer = setInterval(() => nextSlide(), 4500);
+      console.log(`  - Timer started`);
+    };
+    const stopTimer = () => {
+      clearInterval(timer);
+    };
 
-    function goTo(i){
-      if (i === idx) return;
+    function goTo(newIdx) {
+      if (newIdx === idx) return;
+      console.log(`  - goTo: ${idx} → ${newIdx}`);
       slides[idx].style.opacity = '0';
       slides[idx].style.transform = 'translateX(0)';
       dots.children[idx].classList.remove('active');
-      idx = i;
+      idx = newIdx;
       slides[idx].style.opacity = '1';
+      slides[idx].style.transform = 'translateX(0)';
       dots.children[idx].classList.add('active');
     }
-    function nextSlide(){ 
-      console.log('nextSlide called, current:', idx, 'next:', (idx+1) % slides.length);
-      goTo((idx+1) % slides.length); 
+    
+    function nextSlide() {
+      goTo((idx + 1) % slides.length);
     }
-    function prevSlide(){ goTo((idx-1+slides.length) % slides.length); }
+    
+    function prevSlide() {
+      goTo((idx - 1 + slides.length) % slides.length);
+    }
 
-    console.log('Starting slideshow timer');
     startTimer();
 
-    slideshow.addEventListener('mouseenter', ()=> stopTimer());
-    slideshow.addEventListener('mouseleave', ()=> startTimer());
+    slideshow.addEventListener('mouseenter', () => stopTimer());
+    slideshow.addEventListener('mouseleave', () => startTimer());
 
     // Touch / swipe support
     let startX = 0, curX = 0, isTouch = false;
