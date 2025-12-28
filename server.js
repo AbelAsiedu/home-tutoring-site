@@ -179,27 +179,44 @@ app.use(csrfProtection);
 // Expose cart count and items to server-rendered views
 app.use(async (req, res, next) => {
   try {
-    const cart = req.session.cart || {};
+    // Initialize cart if not exists or invalid
+    if (!req.session.cart || typeof req.session.cart !== 'object' || Array.isArray(req.session.cart)) {
+      req.session.cart = {};
+    }
+    
+    const cart = req.session.cart;
+    
     // Clean up cart - remove any non-numeric or zero quantities
     Object.keys(cart).forEach(key => {
       const qty = Number(cart[key]);
-      if (!qty || qty <= 0) {
+      if (!qty || qty <= 0 || isNaN(qty)) {
         delete cart[key];
+      } else {
+        cart[key] = qty; // Ensure it's stored as number
       }
     });
-    req.session.cart = cart;
     
-    const ids = Object.keys(cart);
+    const ids = Object.keys(cart).filter(id => id && cart[id] > 0);
     let items = [];
     let count = 0;
+    
     if (ids.length) {
-      const rows = await runQuery(`SELECT * FROM products WHERE id IN (${ids.map(()=>'?').join(',')})`, ids);
-      items = rows.map(r => ({ ...r, qty: cart[r.id] || 0 }));
-      count = Object.values(cart).reduce((s,n) => s + (Number(n) || 0), 0);
+      try {
+        const rows = await runQuery(`SELECT * FROM products WHERE id IN (${ids.map(()=>'?').join(',')})`, ids);
+        items = rows.map(r => ({ ...r, qty: cart[r.id] || 0 }));
+        count = items.reduce((s, item) => s + (Number(item.qty) || 0), 0);
+      } catch (dbErr) {
+        console.error('Cart query error:', dbErr);
+        // Clear invalid cart on error
+        req.session.cart = {};
+      }
     }
+    
     res.locals.cartCount = count;
     res.locals.cartItems = items;
   } catch (e) {
+    console.error('Cart middleware error:', e);
+    req.session.cart = {};
     res.locals.cartCount = 0;
     res.locals.cartItems = [];
   }
@@ -979,6 +996,11 @@ app.post('/cart/remove', (req, res) => {
 app.post('/cart/clear', (req, res) => {
   req.session.cart = {};
   res.redirect('back');
+});
+
+app.get('/cart/clear', (req, res) => {
+  req.session.cart = {};
+  res.redirect('/');
 });
 
 app.get('/cart', async (req, res) => {
