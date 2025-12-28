@@ -1406,8 +1406,13 @@ app.get('/admin/content', requireAdmin, async (req, res) => {
 
 app.post('/admin/content', requireAdmin, (req, res) => {
   const { key, value } = req.body;
+  const wantsJson = (req.headers.accept || '').includes('application/json') || req.xhr;
   db.run('INSERT OR REPLACE INTO site_content (key, value) VALUES (?, ?)', [key, value], (err)=>{
-    if (err) return res.redirect('/admin/content?error=' + encodeURIComponent('Failed to save content'));
+    if (err) {
+      if (wantsJson) return res.status(500).json({ success: false, error: 'db' });
+      return res.redirect('/admin/content?error=' + encodeURIComponent('Failed to save content'));
+    }
+    if (wantsJson) return res.json({ success: true });
     res.redirect('/admin/content?message=' + encodeURIComponent('Content saved'));
   });
 });

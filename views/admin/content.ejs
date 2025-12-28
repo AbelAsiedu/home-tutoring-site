@@ -17,6 +17,7 @@
     <% if (error) { %>
       <div class="notice" style="margin-bottom:12px;color:#b00020;background:#fdecef"> <%= error %> </div>
     <% } %>
+    <div id="saveStatus" class="notice" style="display:none;margin-bottom:12px"></div>
     <div class="notice" style="margin-bottom:12px">
       Choose a page, pick a field, edit the text/HTML, click Save, then refresh the public page.
     </div>
@@ -130,6 +131,8 @@
       const entryCount = document.getElementById('entryCount');
       const searchBox = document.getElementById('searchEntries');
       const tableBody = document.querySelector('#entriesTable tbody');
+      const saveStatus = document.getElementById('saveStatus');
+      const csrfInput = document.querySelector('input[name="_csrf"]');
 
       let editorReady = false;
       let pendingContent = '';
@@ -488,6 +491,14 @@
         }
       }
 
+      function showStatus(msg, isError=false) {
+        if (!saveStatus) return;
+        saveStatus.textContent = msg || '';
+        saveStatus.style.display = msg ? 'block' : 'none';
+        saveStatus.style.color = isError ? '#b00020' : '#0a6c3d';
+        saveStatus.style.background = isError ? '#fdecef' : '#e6f4ea';
+      }
+
       function keysForPage(page) {
         // combine static suggestions with heuristics from existing entries
         const heuristics = {
@@ -575,27 +586,71 @@
       const contentForm = document.getElementById('contentForm');
       if (contentForm) {
         contentForm.addEventListener('submit', async (e) => {
-          if (modePicker && modePicker.value === 'page') {
+          const modeIsPage = modePicker && modePicker.value === 'page';
+          const ed = (window.tinymce && tinymce.get('value')) || null;
+          const value = ed ? ed.getContent() : (document.getElementById('value').value || '');
+          const csrfToken = csrfInput ? csrfInput.value : '<%= csrfToken %>';
+
+          if (modeIsPage) {
             e.preventDefault();
-            const ed = (window.tinymce && tinymce.get('value')) || null;
-            const html = ed ? ed.getContent() : (document.getElementById('value').value || '');
-            const items = parsePageHtml(html);
-            const csrf = '<%= csrfToken %>';
+            const items = parsePageHtml(value);
+            if (!items.length) {
+              showStatus('Nothing to save for this page.', true);
+              return;
+            }
+            showStatus('Saving page content...');
             try {
               const resp = await fetch('/admin/content/bulk', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ _csrf: csrf, items })
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ _csrf: csrfToken, items })
               });
               let data = {};
               try { data = await resp.json(); } catch (parseErr) { data = {}; }
               if (!resp.ok || (data && data.error)) {
-                alert('Failed to save page content.');
+                showStatus('Failed to save page content.', true);
                 return;
               }
+              showStatus('Content saved');
               window.location.href = '/admin/content?message=' + encodeURIComponent('Content saved');
             } catch (err) {
-              alert('Failed to save page content.');
+              showStatus('Failed to save page content.', true);
+            }
+          } else {
+            // Fields mode: save a single key/value via JSON for immediate feedback
+            e.preventDefault();
+            const keyVal = (keyInput && keyInput.value) ? keyInput.value.trim() : '';
+            if (!keyVal) {
+              showStatus('Key is required.', true);
+              return;
+            }
+            showStatus('Saving...');
+            try {
+              const resp = await fetch('/admin/content', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ _csrf: csrfToken, key: keyVal, value })
+              });
+              let data = {};
+              try { data = await resp.json(); } catch (parseErr) { data = {}; }
+              if (!resp.ok || !data.success) {
+                showStatus('Failed to save content.', true);
+                return;
+              }
+              // update local entries table
+              entryMap[keyVal] = value;
+              const existingIdx = entries.findIndex(e => e.key === keyVal);
+              if (existingIdx >= 0) {
+                entries[existingIdx].value = value;
+              } else {
+                entries.push({ key: keyVal, value });
+              }
+              renderTable(entries);
+              showStatus('Content saved');
+            } catch (err) {
+              showStatus('Failed to save content.', true);
             }
           }
         });
