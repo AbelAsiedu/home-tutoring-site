@@ -168,7 +168,7 @@ const csrfProtection = (req, res, next) => {
     if (!verifyCsrfToken(req)) {
       console.warn(`[CSRF] Token mismatch for ${req.path}`);
       const view = req.path.includes('signup') ? 'signup' : (req.path.includes('admin') ? 'admin/login' : 'login');
-      return res.status(403).render(view, { error: 'Security check failed. Please refresh and try again.', csrfToken: generateCsrfToken(req), isAdmin: false });
+      return res.status(403).render(view, { error: 'Security check failed. Please refresh and try again.', csrfToken: generateCsrfToken(req), isAdmin: false, cartItems: [] });
     }
   }
   next();
@@ -205,7 +205,7 @@ app.use((err, req, res, next) => {
   try {
     console.error('[Error]', err && err.stack ? err.stack : err);
     const view = req.path && req.path.includes('signup') ? 'signup' : (req.path && req.path.includes('admin') ? 'admin/login' : 'login');
-    res.status(500).render(view, { error: 'An error occurred. Please refresh and try again.', csrfToken: generateCsrfToken(req), isAdmin: false }, (renderErr, html) => {
+    res.status(500).render(view, { error: 'An error occurred. Please refresh and try again.', csrfToken: generateCsrfToken(req), isAdmin: false, cartItems: [] }, (renderErr, html) => {
       if (renderErr) {
         console.error('[Render Error]', renderErr);
         return res.status(500).send('Server error');
@@ -1188,7 +1188,7 @@ function requireAdmin(req, res, next) {
   res.redirect('/admin/login');
 }
 
-app.get('/admin/login', (req, res) => res.render('admin/login'));
+app.get('/admin/login', (req, res) => res.render('admin/login', { cartItems: [] }));
 app.post('/admin/login', adminLimiter, async (req, res) => {
   try {
     const usernameRaw = (req.body.username || '').trim();
@@ -1230,10 +1230,10 @@ app.post('/admin/login', adminLimiter, async (req, res) => {
       }
     }
 
-    return res.render('admin/login', { error: 'Invalid admin credentials' });
+    return res.render('admin/login', { error: 'Invalid admin credentials', cartItems: [] });
   } catch (e) {
     console.error('Admin login error', e);
-    return res.render('admin/login', { error: 'Server error. Please try again.' });
+    return res.render('admin/login', { error: 'Server error. Please try again.', cartItems: [] });
   }
 });
 
