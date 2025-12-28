@@ -1,0 +1,294 @@
+<%- include('partials/header') %>
+
+<style>
+  .products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+    margin-bottom: 40px;
+  }
+  
+  .product-card {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  
+  .product-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+  
+  .product-image {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    background: #f0f0f0;
+  }
+  
+  .product-content {
+    padding: 16px;
+  }
+  
+  .product-title {
+    font-size: 18px;
+    font-weight: bold;
+    margin: 0 0 8px;
+    color: #333;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .product-type {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    margin-bottom: 8px;
+  }
+  
+  .product-type.book {
+    background: #d4edda;
+    color: #155724;
+  }
+  
+  .product-type.physical {
+    background: #d1ecf1;
+    color: #0c5460;
+  }
+  
+  .product-description {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    min-height: 36px;
+  }
+  
+  .product-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 12px;
+    border-top: 1px solid #eee;
+  }
+  
+  .product-price {
+    font-size: 20px;
+    font-weight: bold;
+    color: #28a745;
+  }
+  
+  .add-to-cart-btn {
+    padding: 8px 12px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.2s;
+  }
+  
+  .add-to-cart-btn:hover {
+    background: #0056b3;
+  }
+  
+  .add-to-cart-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+  }
+  
+  .filter-section {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  
+  .filter-btn {
+    padding: 8px 16px;
+    border: 2px solid #ddd;
+    background: white;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .filter-btn.active {
+    border-color: #007bff;
+    background: #007bff;
+    color: white;
+  }
+  
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #999;
+  }
+  
+  .empty-state-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+</style>
+
+<main class="container" style="padding:20px">
+  <section class="page glass" style="padding:20px">
+    <h1 style="margin-top:0">📚 E-Store</h1>
+    <p class="muted">Browse our collection of downloadable books and study materials</p>
+    
+    <!-- Filter Section -->
+    <div class="filter-section">
+      <button class="filter-btn active" onclick="filterProducts('all')" title="Show all products">All Items</button>
+      <button class="filter-btn" onclick="filterProducts('book')" title="Show only downloadable books">📚 Books Only</button>
+      <button class="filter-btn" onclick="filterProducts('product')" title="Show only physical products">📦 Products</button>
+    </div>
+
+    <!-- Products Grid -->
+    <div class="products-grid" id="productsGrid">
+      <div class="empty-state">
+        <div class="empty-state-icon">⏳</div>
+        <p>Loading products...</p>
+      </div>
+    </div>
+
+    <!-- Cart Button -->
+    <div style="position: fixed; bottom: 20px; right: 20px; z-index: 100">
+      <a href="/cart" class="btn" style="padding: 16px 24px; font-size: 16px; border-radius: 50px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); background: #007bff; color: white; text-decoration: none; display: flex; align-items: center; gap: 8px" title="View your shopping cart">
+        🛒 Cart (<span id="cartCount">0</span>)
+      </a>
+    </div>
+  </section>
+</main>
+
+<script>
+  let allProducts = [];
+  let currentFilter = 'all';
+
+  async function loadProducts() {
+    try {
+      const response = await fetch('/api/products');
+      allProducts = await response.json();
+      renderProducts();
+      updateCartCount();
+    } catch (err) {
+      console.error('Error loading products:', err);
+      document.getElementById('productsGrid').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">❌</div>
+          <p>Error loading products. Please try again later.</p>
+        </div>
+      `;
+    }
+  }
+
+  function filterProducts(type) {
+    currentFilter = type;
+    
+    // Update button styles
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    renderProducts();
+  }
+
+  function renderProducts() {
+    const grid = document.getElementById('productsGrid');
+    
+    let filtered = allProducts;
+    if (currentFilter === 'book') {
+      filtered = allProducts.filter(p => p.is_downloadable);
+    } else if (currentFilter === 'product') {
+      filtered = allProducts.filter(p => !p.is_downloadable);
+    }
+
+    if (filtered.length === 0) {
+      grid.innerHTML = `
+        <div class="empty-state" style="grid-column: 1/-1">
+          <div class="empty-state-icon">📭</div>
+          <p>No <%= currentFilter === 'all' ? 'products' : (currentFilter === 'book' ? 'books' : 'products') %> available yet.</p>
+        </div>
+      `;
+      return;
+    }
+
+    grid.innerHTML = filtered.map(product => `
+      <div class="product-card">
+        <% if (product.image_path) { %>
+          <img src="${product.image_path}" alt="${product.title}" class="product-image" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22280%22 height=%22200%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22280%22 height=%22200%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2224%22%3E📚%3C/text%3E%3C/svg%3E'">
+        <% } else { %>
+          <div class="product-image" style="display: flex; align-items: center; justify-content: center; font-size: 48px">
+            ${product.is_downloadable ? '📚' : '📦'}
+          </div>
+        <% } %>
+        <div class="product-content">
+          <h3 class="product-title">${product.title}</h3>
+          <span class="product-type ${product.is_downloadable ? 'book' : 'physical'}">
+            ${product.is_downloadable ? '📚 Book' : '📦 Product'}
+          </span>
+          <% if (product.description) { %>
+            <p class="product-description">${product.description}</p>
+          <% } %>
+          <div class="product-footer">
+            <div class="product-price">GHS ${parseFloat(product.price).toFixed(2)}</div>
+            <button class="add-to-cart-btn" onclick="addToCart('${product.id}')" title="Add ${product.title} to cart">
+              ${product.is_downloadable ? '📥' : '🛒'} Add
+            </button>
+          </div>
+          ${product.is_downloadable ? `
+            <div style="margin-top: 8px; padding: 8px; background: #f0f8ff; border-radius: 4px; font-size: 12px; color: #0056b3">
+              ✓ Instant download after purchase
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function addToCart(productId) {
+    try {
+      const response = await fetch('/api/cart/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: productId, qty: 1 })
+      });
+      
+      if (response.ok) {
+        updateCartCount();
+        alert('✓ Added to cart!');
+      }
+    } catch (err) {
+      console.error('Error adding to cart:', err);
+      alert('Error adding to cart');
+    }
+  }
+
+  async function updateCartCount() {
+    try {
+      const response = await fetch('/api/session');
+      const data = await response.json();
+      const cart = data.cart || {};
+      const count = Object.values(cart).reduce((a, b) => a + b, 0);
+      document.getElementById('cartCount').textContent = count;
+    } catch (err) {
+      console.error('Error updating cart count:', err);
+    }
+  }
+
+  // Load products on page load
+  loadProducts();
+  setInterval(updateCartCount, 5000); // Update cart count every 5 seconds
+</script>
+
+<%- include('partials/footer') %>

@@ -3,6 +3,24 @@
 <section class="page glass">
   <h1>Order Received</h1>
   <p>Thank you! Your order <strong><%= orderId %></strong> has been received. We will contact you with confirmation.</p>
+  
+  <% if (typeof downloadableItems !== 'undefined' && downloadableItems.length > 0) { %>
+    <div style="margin-top:24px;padding:16px;background:#d4edda;border-radius:8px;border-left:4px solid #28a745">
+      <h3 style="color:#155724;margin-top:0">Your Downloads Are Ready!</h3>
+      <p style="color:#155724">You can now download the following items:</p>
+      <ul style="color:#155724;margin:12px 0">
+        <% downloadableItems.forEach(function(item) { %>
+          <li style="margin:8px 0">
+            <strong><%= item.title %></strong>
+            <% if (item.download_link) { %>
+              <a href="<%= item.download_link %>" class="btn ghost" style="margin-left:12px;padding:4px 12px;font-size:0.9rem" title="Download <%= item.title %>">Download</a>
+            <% } %>
+          </li>
+        <% }) %>
+      </ul>
+      <p style="color:#155724;font-size:0.9rem;margin:12px 0">Downloads are available for 30 days from purchase. Visit your <a href="/downloads" style="color:#155724;text-decoration:underline;font-weight:bold">downloads page</a> anytime to access them.</p>
+    </div>
+  <% } %>
 </section>
 
 <%- include('partials/footer') %>

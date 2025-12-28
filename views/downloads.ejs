@@ -1,0 +1,45 @@
+<%- include('partials/header') %>
+
+<section class="page glass">
+  <h1>My Downloads</h1>
+  
+  <% if (!user) { %>
+    <div style="padding:16px;background:#fff3cd;border-radius:8px;border-left:4px solid #ffc107">
+      <p style="margin:0">You need to <a href="/login" style="color:#0066cc;font-weight:bold">log in</a> to access your downloads.</p>
+    </div>
+  <% } else if (downloads && downloads.length > 0) { %>
+    <div style="margin-top:12px">
+      <p class="muted">You have access to <%= downloads.length %> item(s) for download:</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-top:16px">
+        <% downloads.forEach(function(dl) { %>
+          <div class="card glass" style="padding:16px;display:flex;flex-direction:column">
+            <div style="flex:1">
+              <h4 style="margin:0 0 8px"><%= dl.title %></h4>
+              <p class="muted" style="font-size:0.9rem;margin:0">
+                Order: <%= dl.order_id.substring(0, 8) %>...
+                <br>
+                Available until: <%= new Date(dl.expires_at).toLocaleDateString() %>
+              </p>
+            </div>
+            <% if (dl.expired) { %>
+              <div style="padding:8px;background:#f8d7da;color:#721c24;border-radius:4px;margin-top:12px;font-size:0.9rem">
+                ⚠️ Download expired on <%= new Date(dl.expires_at).toLocaleDateString() %>
+              </div>
+            <% } else { %>
+              <a href="/download/<%= dl.id %>" class="btn" style="margin-top:12px;text-align:center" title="Download <%= dl.title %>">
+                ⬇️ Download Now
+              </a>
+              <p class="muted" style="font-size:0.8rem;margin:8px 0 0">Downloaded <%= dl.download_count %> time(s)</p>
+            <% } %>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  <% } else { %>
+    <div style="padding:16px;background:#e7f3ff;border-radius:8px;border-left:4px solid #007bff">
+      <p style="margin:0">You don't have any downloadable items yet. <a href="/estore" style="color:#0066cc;font-weight:bold">Browse our e-store</a> to purchase books and resources.</p>
+    </div>
+  <% } %>
+</section>
+
+<%- include('partials/footer') %>

@@ -520,6 +520,11 @@ app.get('/tutors', async (req, res) => {
   res.render('tutors', { slides });
 });
 
+app.get('/estore', async (req, res) => {
+  await loadContent(res);
+  res.render('estore');
+});
+
 app.get('/faq', async (req, res) => {
   await loadContent(res);
   res.render('faq');
@@ -903,16 +908,20 @@ app.get('/api/curriculum', (req, res) => {
 // inconsistent responses between server-rendered and Next.js frontends.
 
 // Products API
-app.post('/admin/products', requireAdmin, upload.single('image'), (req, res) => {
-  const { title, description, price } = req.body;
+app.post('/admin/products', requireAdmin, upload.fields([{ name: 'image', maxCount: 1 }, { name: 'file', maxCount: 1 }]), (req, res) => {
+  const { title, description, price, is_downloadable } = req.body;
   if (!title) return res.redirect('/admin/products?error=' + encodeURIComponent('Title is required'));
   const priceNum = isNaN(parseFloat(price)) ? 0 : parseFloat(price);
-  const image_path = req.file ? `/uploads/${path.basename(req.file.path)}` : null;
+  const image_path = req.files && req.files.image ? `/uploads/${path.basename(req.files.image[0].path)}` : null;
+  const file_path = req.files && req.files.file ? req.files.file[0].filename : null;
+  const isDownloadable = is_downloadable === 'on' || is_downloadable === 'true' ? 1 : 0;
   const id = uuidv4();
-  dbRun('INSERT INTO products (id, title, description, price, image_path) VALUES (?, ?, ?, ?, ?)', [id, title.trim(), description || '', priceNum, image_path], (err)=>{
-    if (err) return res.redirect('/admin/products?error=' + encodeURIComponent('Database error while creating product'));
-    res.redirect('/admin/products?message=' + encodeURIComponent('Product added'));
-  });
+  dbRun('INSERT INTO products (id, title, description, price, image_path, is_downloadable, file_path) VALUES (?, ?, ?, ?, ?, ?, ?)', 
+    [id, title.trim(), description || '', priceNum, image_path, isDownloadable, file_path], 
+    (err)=>{
+      if (err) return res.redirect('/admin/products?error=' + encodeURIComponent('Database error while creating product'));
+      res.redirect('/admin/products?message=' + encodeURIComponent('Product added'));
+    });
 });
 
 // Simple cart in session
@@ -961,34 +970,137 @@ app.post('/checkout', (req, res) => {
     if (err) return res.status(500).send('DB error');
     let total = 0;
     const items = rows.map(r => {
-      const qty = cart[r.id] || 0; total += r.price * qty; return { id: r.id, title: r.title, price: r.price, qty };
+      const qty = cart[r.id] || 0; total += r.price * qty; return { id: r.id, title: r.title, price: r.price, qty, is_downloadable: r.is_downloadable, file_path: r.file_path };
     });
     const id = uuidv4();
     const created = new Date().toISOString();
     const card_last4 = card_number ? card_number.slice(-4) : null;
-    // If payment_method is 'card' and stripe available, create a Stripe Checkout session
-    dbRun('INSERT INTO orders (id, user_id, items, total, payment_method, momo_number, card_last4, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [id, req.session.user ? req.session.user.id : null, JSON.stringify(items), total, payment_method, momo_number, card_last4, created]);
-    if (payment_method === 'card' && stripe) {
-      try {
-        const session = await stripe.checkout.sessions.create({
-          payment_method_types: ['card'],
-          line_items: items.map(it => ({ price_data: { currency: 'usd', product_data: { name: it.title }, unit_amount: Math.round(it.price * 100) }, quantity: it.qty })),
-          mode: 'payment',
-          success_url: `${req.protocol}://${req.get('host')}/checkout-success?order=${id}`,
-          cancel_url: `${req.protocol}://${req.get('host')}/cart`
-        });
-        req.session.cart = {};
-        return res.redirect(session.url);
-      } catch (e) {
-        console.error('Stripe error', e);
-        return res.status(500).send('Payment error');
-      }
-    }
+    // Insert order record
+    dbRun('INSERT INTO orders (id, user_id, items, total, payment_method, momo_number, card_last4, created_at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', 
+      [id, req.session.user ? req.session.user.id : null, JSON.stringify(items), total, payment_method, momo_number, card_last4, created, payment_method === 'card' ? 'completed' : 'pending'], 
+      async (err) => {
+        if (err) return res.status(500).send('DB error');
+        
+        // Create download links for downloadable items if payment is successful
+        if (payment_method === 'card') {
+          const downloadableItems = items.filter(it => it.is_downloadable);
+          for (const item of downloadableItems) {
+            const downloadId = uuidv4();
+            const expiryDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days
+            dbRun('INSERT INTO order_downloads (id, order_id, product_id, user_id, file_path, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)', 
+              [downloadId, id, item.id, req.session.user ? req.session.user.id : null, item.file_path, created, expiryDate]);
+          }
+        }
 
-    // For Momo or card without stripe, mark order as pending and show success page
-    req.session.cart = {};
-    res.render('checkout-success', { orderId: id });
+        // If payment_method is 'card' and stripe available, create a Stripe Checkout session
+        if (payment_method === 'card' && stripe) {
+          try {
+            const session = await stripe.checkout.sessions.create({
+              payment_method_types: ['card'],
+              line_items: items.map(it => ({ price_data: { currency: 'usd', product_data: { name: it.title }, unit_amount: Math.round(it.price * 100) }, quantity: it.qty })),
+              mode: 'payment',
+              success_url: `${req.protocol}://${req.get('host')}/checkout-success?order=${id}`,
+              cancel_url: `${req.protocol}://${req.get('host')}/cart`
+            });
+            req.session.cart = {};
+            return res.redirect(session.url);
+          } catch (e) {
+            console.error('Stripe error', e);
+            return res.status(500).send('Payment error');
+          }
+        }
+
+        // For Momo or card without stripe, mark order as pending and show success page
+        req.session.cart = {};
+        res.render('checkout-success', { orderId: id, downloadableItems: [] });
+      }
+    );
   });
+});
+
+// Get checkout success page with downloads
+app.get('/checkout-success', (req, res) => {
+  const orderId = req.query.order;
+  if (!orderId) return res.redirect('/cart');
+  
+  dbGet('SELECT * FROM orders WHERE id = ?', [orderId], async (err, order) => {
+    if (err || !order) return res.status(404).send('Order not found');
+    
+    // Get downloadable items for this order
+    dbAll('SELECT od.*, p.title FROM order_downloads od JOIN products p ON od.product_id = p.id WHERE od.order_id = ?', [orderId], (err, downloads) => {
+      if (err) downloads = [];
+      
+      const downloadableItems = downloads.map(dl => ({
+        title: dl.title,
+        download_link: `/download/${dl.id}`
+      }));
+      
+      res.render('checkout-success', { orderId: orderId, downloadableItems: downloadableItems });
+    });
+  });
+});
+
+// Download route - serve downloadable files
+app.get('/download/:downloadId', (req, res) => {
+  const downloadId = req.params.downloadId;
+  
+  dbGet('SELECT * FROM order_downloads WHERE id = ?', [downloadId], (err, download) => {
+    if (err || !download) return res.status(404).send('Download not found');
+    
+    // Check if user owns this download or is admin
+    const userId = req.session.user ? req.session.user.id : null;
+    const isAdmin = req.getUserRole && req.getUserRole() === 'admin';
+    
+    if (!isAdmin && download.user_id !== userId) {
+      return res.status(403).send('Access denied');
+    }
+    
+    // Check if download has expired
+    const expiryDate = new Date(download.expires_at);
+    if (expiryDate < new Date()) {
+      return res.status(403).send('Download has expired');
+    }
+    
+    // Update download count
+    dbRun('UPDATE order_downloads SET download_count = download_count + 1 WHERE id = ?', [downloadId]);
+    
+    // Serve the file
+    const filePath = download.file_path;
+    
+    // If it's a URL, redirect to it
+    if (filePath.startsWith('http')) {
+      return res.redirect(filePath);
+    }
+    
+    // Otherwise serve from uploads directory
+    const fs = require('fs');
+    const path = require('path');
+    const fullPath = path.join(__dirname, 'uploads', filePath);
+    
+    fs.stat(fullPath, (err) => {
+      if (err) return res.status(404).send('File not found');
+      res.download(fullPath);
+    });
+  });
+});
+
+// Downloads page - show all user downloads
+app.get('/downloads', (req, res) => {
+  if (!req.session.user) return res.redirect('/login');
+  
+  dbAll('SELECT od.*, p.title FROM order_downloads od JOIN products p ON od.product_id = p.id WHERE od.user_id = ? ORDER BY od.created_at DESC', 
+    [req.session.user.id], (err, downloads) => {
+      if (err) downloads = [];
+      
+      const processedDownloads = downloads.map(dl => ({
+        ...dl,
+        expired: new Date(dl.expires_at) < new Date(),
+        order_id: dl.order_id,
+        expires_at: dl.expires_at
+      }));
+      
+      res.render('downloads', { downloads: processedDownloads });
+    });
 });
 
 // Admin: list and manage orders
@@ -1353,21 +1465,27 @@ app.get('/admin/products', requireAdmin, async (req, res) => {
   const products = await runQuery('SELECT * FROM products');
   const message = req.query.message || '';
   const error = req.query.error || '';
-  res.render('admin/products', { products, message, error });
+  const { csrfToken } = doubleCsrf();
+  res.render('admin/products', { products, message, error, csrfToken });
 });
 
 // Admin: update product
-app.post('/admin/products/:id/update', requireAdmin, upload.single('image'), (req, res) => {
+app.post('/admin/products/:id/update', requireAdmin, upload.fields([{ name: 'image', maxCount: 1 }, { name: 'file', maxCount: 1 }]), (req, res) => {
   const { id } = req.params;
-  const { title, description, price, image_path } = req.body;
+  const { title, description, price, image_path, file_path, is_downloadable } = req.body;
   if (!title) return res.redirect('/admin/products?error=' + encodeURIComponent('Title is required'));
   const priceNum = isNaN(parseFloat(price)) ? 0 : parseFloat(price);
-  const uploadedPath = req.file ? `/uploads/${path.basename(req.file.path)}` : null;
-  const finalImage = uploadedPath || image_path || null;
-  dbRun('UPDATE products SET title = ?, description = ?, price = ?, image_path = ? WHERE id = ?', [title.trim(), description || '', priceNum, finalImage, id], (err)=>{
-    if (err) return res.redirect('/admin/products?error=' + encodeURIComponent('Database error while updating'));
-    res.redirect('/admin/products?message=' + encodeURIComponent('Product updated'));
-  });
+  const uploadedImagePath = req.files && req.files.image ? `/uploads/${path.basename(req.files.image[0].path)}` : null;
+  const uploadedFilePath = req.files && req.files.file ? req.files.file[0].filename : null;
+  const finalImagePath = uploadedImagePath || image_path || null;
+  const finalFilePath = uploadedFilePath || file_path || null;
+  const isDownloadable = is_downloadable === 'on' || is_downloadable === 'true' ? 1 : 0;
+  dbRun('UPDATE products SET title = ?, description = ?, price = ?, image_path = ?, is_downloadable = ?, file_path = ? WHERE id = ?', 
+    [title.trim(), description || '', priceNum, finalImagePath, isDownloadable, finalFilePath, id], 
+    (err)=>{
+      if (err) return res.redirect('/admin/products?error=' + encodeURIComponent('Database error while updating'));
+      res.redirect('/admin/products?message=' + encodeURIComponent('Product updated'));
+    });
 });
 
 // Admin: delete product

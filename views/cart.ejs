@@ -1,30 +1,159 @@
 <%- include('partials/header') %>
 
+<style>
+  .cart-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    border-left: 4px solid #007bff;
+  }
+  
+  .cart-item.book {
+    border-left-color: #28a745;
+    background: linear-gradient(90deg, rgba(40,167,69,0.05) 0%, white 100%);
+  }
+  
+  .cart-item-info {
+    flex: 1;
+  }
+  
+  .cart-item-title {
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+  
+  .cart-item-type {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    margin-right: 8px;
+  }
+  
+  .cart-item-type.book {
+    background: #d4edda;
+    color: #155724;
+  }
+  
+  .cart-item-type.physical {
+    background: #d1ecf1;
+    color: #0c5460;
+  }
+  
+  .cart-item-action {
+    margin-left: 12px;
+  }
+  
+  .checkout-info {
+    padding: 16px;
+    background: #f0f8ff;
+    border-radius: 8px;
+    border-left: 4px solid #0066cc;
+    margin: 20px 0;
+    font-size: 14px;
+    color: #0c3f7a;
+  }
+</style>
+
 <section class="page glass">
-  <h1>Your Cart</h1>
+  <h1>🛒 Your Cart</h1>
   <% if (!items.length) { %>
-    <p>Your cart is empty.</p>
+    <div style="text-align: center; padding: 40px">
+      <div style="font-size: 48px; margin-bottom: 16px">📭</div>
+      <p style="font-size: 18px; color: #666">Your cart is empty</p>
+      <a href="/estore" class="btn" style="margin-top: 16px">Continue Shopping</a>
+    </div>
   <% } else { %>
-    <form action="/cart/clear" method="post" style="margin-bottom:12px">
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <button class="btn ghost" type="submit" title="Remove all items from your cart">Clear cart</button>
-    </form>
-    <table class="cart-table curved">
-      <thead><tr><th>Title</th><th>Qty</th><th>Price</th></tr></thead>
-      <tbody>
-        <% items.forEach(function(it){ %>
-          <tr><td><%= it.title %></td><td><%= it.qty %></td><td>GHS <%= (it.qty * it.price).toFixed(2) %></td></tr>
-        <% }) %>
-      </tbody>
-    </table>
+    <div style="margin-bottom: 20px">
+      <form action="/cart/clear" method="post" style="display: inline">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button class="btn ghost" type="submit" title="Remove all items from your cart">Clear Cart</button>
+      </form>
+    </div>
+
+    <!-- Cart Items -->
+    <div style="margin-bottom: 24px">
+      <% 
+        let hasBooks = false;
+        items.forEach(function(it){ 
+          if (it.is_downloadable) hasBooks = true;
+      %>
+        <div class="cart-item <%= it.is_downloadable ? 'book' : '' %>">
+          <div class="cart-item-info">
+            <div class="cart-item-title"><%= it.title %></div>
+            <span class="cart-item-type <%= it.is_downloadable ? 'book' : 'physical' %>">
+              <%= it.is_downloadable ? '📚 Downloadable Book' : '📦 Physical Product' %>
+            </span>
+            <% if (it.is_downloadable) { %>
+              <span style="color: #28a745; font-size: 12px; margin-left: 8px">✓ Download after purchase</span>
+            <% } %>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px">
+            <div style="text-align: right">
+              <div style="font-size: 12px; color: #666">Qty: <%= it.qty %></div>
+              <div style="font-weight: bold; font-size: 16px">GHS <%= (it.qty * it.price).toFixed(2) %></div>
+            </div>
+            <form method="post" action="/cart/remove" style="display: inline" class="cart-item-action">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="id" value="<%= it.id %>">
+              <button class="btn" style="background: #dc3545; padding: 8px 12px; font-size: 14px" type="submit" title="Remove this item">Remove</button>
+            </form>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+
+    <!-- Order Summary -->
+    <div class="glass" style="padding: 20px; margin-bottom: 20px">
+      <h3 style="margin-top: 0">Order Summary</h3>
+      <div style="display: flex; justify-content: space-between; margin-bottom: 8px">
+        <span>Subtotal:</span>
+        <span>GHS <%= items.reduce((sum, it) => sum + (it.qty * it.price), 0).toFixed(2) %></span>
+      </div>
+      <% if (hasBooks) { %>
+        <div class="checkout-info" style="margin-top: 16px">
+          ℹ️ Books will be available for download for 30 days after purchase.
+        </div>
+      <% } %>
+    </div>
+
+    <!-- Checkout Form -->
     <form action="/checkout" method="post" class="checkout-form curved">
-      <h3>Checkout</h3>
+      <h3>Payment Method</h3>
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <label><input type="radio" name="payment_method" value="card" checked> Credit/Debit Card</label>
-      <input name="card_number" placeholder="Card number (simulated)">
-      <label><input type="radio" name="payment_method" value="momo"> Mobile Money (Momo)</label>
-      <input name="momo_number" placeholder="Momo number">
-      <button type="submit" title="Complete your purchase">Place Order</button>
+      
+      <div style="margin-bottom: 16px">
+        <label style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 2px solid #ccc; border-radius: 8px; cursor: pointer; margin-bottom: 12px">
+          <input type="radio" name="payment_method" value="card" checked style="cursor: pointer">
+          <div>
+            <div style="font-weight: bold">💳 Credit/Debit Card</div>
+            <div style="font-size: 12px; color: #666">Immediate payment and access</div>
+          </div>
+        </label>
+        <input name="card_number" placeholder="Card number (test: 4242 4242 4242 4242)" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-left: 32px; margin-bottom: 12px">
+      </div>
+
+      <div style="margin-bottom: 24px">
+        <label style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 2px solid #ccc; border-radius: 8px; cursor: pointer">
+          <input type="radio" name="payment_method" value="momo" style="cursor: pointer">
+          <div>
+            <div style="font-weight: bold">📱 Mobile Money (Momo)</div>
+            <div style="font-size: 12px; color: #666">Payment via mobile network</div>
+          </div>
+        </label>
+        <input name="momo_number" placeholder="Momo number (24 xxx xxxx)" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-left: 32px; margin-top: 12px">
+      </div>
+
+      <div style="text-align: right">
+        <button type="submit" style="padding: 12px 32px; font-size: 16px; font-weight: bold; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer" title="Complete your purchase">
+          Place Order - GHS <%= items.reduce((sum, it) => sum + (it.qty * it.price), 0).toFixed(2) %>
+        </button>
+      </div>
     </form>
   <% } %>
 </section>
