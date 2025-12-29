@@ -1170,19 +1170,26 @@ app.get('/downloads', (req, res) => {
 });
 
 // Admin: list and manage orders
-app.get('/admin/orders', requireAdmin, (req, res) => {
-  dbAll('SELECT * FROM orders ORDER BY created_at DESC', (err, rows) => {
-    if (err) return res.status(500).send('DB error');
+app.get('/admin/orders', requireAdmin, async (req, res) => {
+  try {
+    const rows = await runQuery('SELECT * FROM orders ORDER BY created_at DESC');
     res.render('admin/orders', { orders: rows });
-  });
+  } catch (err) {
+    console.error('Orders fetch error:', err);
+    res.status(500).send('DB error');
+  }
 });
 
-app.post('/admin/orders/:id/status', requireAdmin, (req, res) => {
-  const id = req.params.id; const { status } = req.body;
-  dbRun('UPDATE orders SET status = ? WHERE id = ?', [status, id], (err) => {
-    if (err) return res.status(500).send('DB error');
+app.post('/admin/orders/:id/status', requireAdmin, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { status } = req.body;
+    await runExec('UPDATE orders SET status = ? WHERE id = ?', [status, id]);
     res.redirect('/admin/orders');
-  });
+  } catch (err) {
+    console.error('Order status update error:', err);
+    res.status(500).send('DB error');
+  }
 });
 
 // Auth: signup & login
@@ -1531,7 +1538,7 @@ app.get('/admin/products', requireAdmin, async (req, res) => {
   const products = await runQuery('SELECT * FROM products');
   const message = req.query.message || '';
   const error = req.query.error || '';
-  const { csrfToken } = doubleCsrf();
+  const csrfToken = generateCsrfToken(req);
   res.render('admin/products', { products, message, error, csrfToken });
 });
 
