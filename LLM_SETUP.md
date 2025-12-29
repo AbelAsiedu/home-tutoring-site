@@ -4,7 +4,8 @@ This site now supports an optional LLM-backed chat assistant. By default it answ
 
 ## Providers
 
-- OpenRouter (recommended): aggregates multiple models. Free-tier available (requires API key).
+- Mistral (recommended): high-quality models, simple API, free-tier available (requires API key).
+- OpenRouter: aggregates many models behind one API, generous free tier (requires API key).
 - Hugging Face Inference API: free-tier with rate limits (requires API key).
 
 ## Configure locally
@@ -12,7 +13,12 @@ This site now supports an optional LLM-backed chat assistant. By default it answ
 Set environment variables before starting the server:
 
 ```powershell
-# OpenRouter (recommended)
+# Mistral (recommended)
+$env:MISTRAL_API_KEY = "your_key_here"
+# Optional: choose a model; default is mistral-small-latest
+$env:MISTRAL_MODEL = "mistral-small-latest"
+
+# OpenRouter
 $env:OPENROUTER_API_KEY = "your_key_here"
 # Optional: choose a model; default is openrouter/auto
 $env:OPENROUTER_MODEL = "mistralai/mistral-7b-instruct"
@@ -29,6 +35,8 @@ node server.js
 ## Configure on Heroku
 
 ```powershell
+heroku config:set MISTRAL_API_KEY=your_key_here
+heroku config:set MISTRAL_MODEL=mistral-small-latest
 heroku config:set OPENROUTER_API_KEY=your_key_here
 heroku config:set OPENROUTER_MODEL=mistralai/mistral-7b-instruct
 # or

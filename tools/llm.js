@@ -1,5 +1,5 @@
 // Lightweight LLM provider wrapper with safety guardrails
-// Providers supported: OpenRouter (preferred), Hugging Face Inference API
+// Providers supported: Mistral (preferred), OpenRouter, Hugging Face Inference API
 
 const SAFE_BLOCK_TEXT = 'Sorry, I can\'t assist with that.';
 
@@ -35,6 +35,33 @@ async function callOpenRouter(messages) {
   if (!res.ok) {
     const err = await res.text();
     throw new Error(`OpenRouter error: ${res.status} ${err}`);
+  }
+  const data = await res.json();
+  const content = data?.choices?.[0]?.message?.content;
+  return content || null;
+}
+
+async function callMistral(messages) {
+  const key = process.env.MISTRAL_API_KEY;
+  if (!key) return null;
+  const endpoint = 'https://api.mistral.ai/v1/chat/completions';
+  const model = process.env.MISTRAL_MODEL || 'mistral-small-latest';
+  const payload = {
+    model,
+    messages,
+    temperature: 0.3,
+  };
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${key}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Mistral error: ${res.status} ${err}`);
   }
   const data = await res.json();
   const content = data?.choices?.[0]?.message?.content;
@@ -80,7 +107,13 @@ async function queryLLM(userMessage) {
   };
   const user = { role: 'user', content: String(userMessage || '') };
 
-  // Prefer OpenRouter if configured
+  // Prefer Mistral if configured
+  if (process.env.MISTRAL_API_KEY) {
+    const ans = await callMistral([system, user]);
+    if (ans) return ans;
+  }
+
+  // Next preference: OpenRouter
   if (process.env.OPENROUTER_API_KEY) {
     const ans = await callOpenRouter([system, user]);
     if (ans) return ans;
@@ -101,4 +134,7 @@ module.exports = {
   queryLLM,
   isBlockedPrompt,
   SAFE_BLOCK_TEXT,
+  // export for tests or future use
+  callMistral,
+  callOpenRouter,
 };
