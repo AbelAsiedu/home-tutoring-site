@@ -530,6 +530,62 @@ app.get('/faq', async (req, res) => {
   res.render('faq');
 });
 
+// AI chat assistant (FAQ-powered)
+app.post('/api/chat', async (req, res) => {
+  const message = (req.body && req.body.message || '').toString().trim();
+  if (!message) return res.status(400).json({ error: 'Message is required' });
+
+  // Fetch FAQ-style content if present
+  let faqPairs = [];
+  try {
+    const rows = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'faq_%'");
+    const grouped = {};
+    rows.forEach(r => {
+      const match = r.key.match(/^faq_([qa])(\d+)/);
+      if (match) {
+        const type = match[1];
+        const idx = match[2];
+        grouped[idx] = grouped[idx] || { q: null, a: null };
+        if (type === 'q') grouped[idx].q = r.value;
+        if (type === 'a') grouped[idx].a = r.value;
+      }
+    });
+    faqPairs = Object.values(grouped).filter(x => x.q && x.a);
+  } catch (err) {
+    console.error('FAQ load error:', err);
+  }
+
+  // Fallback defaults
+  if (!faqPairs.length) {
+    faqPairs = [
+      { q: 'What ages do you teach?', a: 'We support learners from primary through secondary and also provide adult learning support.' },
+      { q: 'Do you offer online lessons?', a: 'Yes, we offer both in-home and online lessons via secure video call.' },
+      { q: 'How are tutors vetted?', a: 'Tutors provide references, interview with our team, and complete an observed session before joining.' },
+      { q: 'How do I purchase downloadable books?', a: 'Visit the E-Store, add a book to cart, complete checkout, then access your downloads from the Downloads page.' },
+      { q: 'How long do downloads last?', a: 'Downloads remain available for 30 days after purchase from your Downloads library.' }
+    ];
+  }
+
+  const normalized = message.toLowerCase();
+  let best = null;
+  faqPairs.forEach(pair => {
+    const q = (pair.q || '').toLowerCase();
+    const a = pair.a || '';
+    let score = 0;
+    // Simple keyword overlap scoring
+    normalized.split(/[^a-z0-9]+/).filter(w => w.length > 3).forEach(w => {
+      if (q.includes(w)) score += 2;
+      if (a.toLowerCase().includes(w)) score += 1;
+    });
+    if (!best || score > best.score) best = { score, a, q };
+  });
+
+  const defaultAnswer = 'I am here 24/7. Ask me about lessons, pricing, tutor vetting, downloads, or visit /faq. For urgent matters, email support@modernpedagogues.com.';
+  const answer = (best && best.score > 0) ? best.a : defaultAnswer;
+
+  res.json({ answer });
+});
+
 app.get('/privacy', (req, res) => {
   res.render('privacy');
 });
