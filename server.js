@@ -212,6 +212,7 @@ const csrfProtection = (req, res, next) => {
     '/signup','/login',
     '/api/cart/add','/api/cart/remove','/api/cart/clear','/api/cart','/api/session',
     '/api/products','/api/content','/api/curriculum',
+    '/api/chat',
     '/admin/media/upload','/admin/media/delete'
   ];
   if (csrfExempt.includes(req.path)) return next();
