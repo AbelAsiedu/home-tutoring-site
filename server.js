@@ -530,10 +530,12 @@ app.get('/faq', async (req, res) => {
   res.render('faq');
 });
 
-// AI chat assistant (FAQ-powered)
+// AI chat assistant (LLM + FAQ fallback)
+const { queryLLM, isBlockedPrompt, SAFE_BLOCK_TEXT } = require('./tools/llm');
 app.post('/api/chat', async (req, res) => {
   const message = (req.body && req.body.message || '').toString().trim();
   if (!message) return res.status(400).json({ error: 'Message is required' });
+  if (isBlockedPrompt(message)) return res.json({ answer: SAFE_BLOCK_TEXT });
 
   // Fetch FAQ-style content if present
   let faqPairs = [];
@@ -580,9 +582,16 @@ app.post('/api/chat', async (req, res) => {
     if (!best || score > best.score) best = { score, a, q };
   });
 
+  // Try provider-backed answer first
+  try {
+    const llmAnswer = await queryLLM(message);
+    if (llmAnswer) return res.json({ answer: llmAnswer });
+  } catch (err) {
+    console.error('LLM error:', err);
+  }
+
   const defaultAnswer = 'I am here 24/7. Ask me about lessons, pricing, tutor vetting, downloads, or visit /faq. For urgent matters, email support@modernpedagogues.com.';
   const answer = (best && best.score > 0) ? best.a : defaultAnswer;
-
   res.json({ answer });
 });
 
