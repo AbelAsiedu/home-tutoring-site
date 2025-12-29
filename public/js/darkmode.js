@@ -2,17 +2,11 @@
 document.addEventListener('DOMContentLoaded', function() {
   const THEME_KEY = 'theme-preference';
   
-  // Detect system preference
-  const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  
-  // Get saved preference or use system default
+  // Get saved preference or default to light (initial design)
   const getSavedTheme = () => {
     const saved = localStorage.getItem(THEME_KEY);
     if (saved) return saved;
-    if (prefersDark) return 'dark';
-    if (prefersLight) return 'light';
-    return 'light'; // fallback
+    return 'light';
   };
   
   // Apply theme
@@ -88,10 +82,4 @@ document.addEventListener('DOMContentLoaded', function() {
   const theme = getSavedTheme();
   applyTheme(theme);
   
-  // Listen for system theme changes
-  window.matchMedia('(prefers-color-scheme: dark)').addListener((e) => {
-    if (!localStorage.getItem(THEME_KEY)) {
-      applyTheme(e.matches ? 'dark' : 'light');
-    }
-  });
 });
