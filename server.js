@@ -100,7 +100,7 @@ const adminLimiter = rateLimit({
 
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // 100 requests per window
+  max: 500, // 500 requests per window (increased for normal browsing)
   standardHeaders: true,
   legacyHeaders: false,
 });
