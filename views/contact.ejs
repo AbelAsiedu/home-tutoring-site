@@ -1,6 +1,6 @@
 <%- include('partials/header') %>
 
-<section class="page glass">
+<section class="page glass contact-page">
   <h1>Contact Us</h1>
   <% if (typeof success !== 'undefined' && success) { %>
     <div class="notice success">Message sent. We'll get back to you shortly.</div>
@@ -17,7 +17,7 @@
       <input name="email" type="email" placeholder="Email" required>
       <input name="subject" placeholder="Subject">
       <textarea name="message" placeholder="Message" required></textarea>
-      <button type="submit" title="Send your message to our team">Send Message</button>
+      <button class="btn" type="submit" title="Send your message to our team">Send Message</button>
     </form>
   </div>
 </section>

@@ -188,6 +188,54 @@ footer.site-footer{margin-top:40px;padding:28px 20px;color:var(--muted)}
   /* Allow full width by default */
 }
 
+/* Contact page layout */
+.contact-page {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.contact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+  align-items: start;
+  margin-top: 16px;
+}
+
+.contact-info,
+.contact-form {
+  background: var(--card-bg);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: var(--shadow);
+}
+
+.contact-info h3 {
+  margin: 0 0 10px;
+}
+
+.contact-info p {
+  margin: 6px 0;
+  color: var(--text-secondary);
+}
+
+.contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.contact-form textarea {
+  min-height: 140px;
+  resize: vertical;
+}
+
+.contact-form .btn {
+  align-self: flex-start;
+}
+
 /* Narrow width for auth form pages only */
 section.page.glass.auth-page {
   max-width: 100%;
