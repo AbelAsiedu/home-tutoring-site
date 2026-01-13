@@ -1,0 +1,138 @@
+<%
+// Creator content upload form
+const categories = ['templates', 'graphics', 'icons', 'fonts', 'photos', 'vectors', 'videos', 'music', 'other'];
+const licenses = ['personal', 'commercial', 'editorial'];
+%>
+
+<main class="container">
+  <section class="page glass">
+    <h1>Upload Content</h1>
+    <p class="muted">Share your work with the community. Upload once, offer free and premium versions.</p>
+
+    <% if (typeof message !== 'undefined' && message) { %>
+      <div class="alert alert-success" style="padding: 12px; border-radius: 8px; background: #d1f2d9; color: #0f5f22; margin-bottom: 16px;">
+        <%= message %>
+      </div>
+    <% } %>
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="alert alert-danger" style="padding: 12px; border-radius: 8px; background: #fee; color: #911; margin-bottom: 16px;">
+        <%= error %>
+      </div>
+    <% } %>
+
+    <form method="post" enctype="multipart/form-data" action="/marketplace/upload" id="uploadForm" style="max-width: 600px; margin: 0 auto;">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+      <div style="margin-bottom: 16px;">
+        <label><strong>Title</strong> <span style="color: red;">*</span></label>
+        <input type="text" name="title" required placeholder="e.g., Modern UI Kit" maxlength="100" style="width: 100%; padding: 10px; border: 1px solid var(--border-light); border-radius: 8px; margin-top: 6px;">
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label><strong>Description</strong></label>
+        <textarea name="description" placeholder="Describe your content..." maxlength="500" style="width: 100%; padding: 10px; border: 1px solid var(--border-light); border-radius: 8px; margin-top: 6px; height: 80px; resize: none;"></textarea>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label><strong>Category</strong> <span style="color: red;">*</span></label>
+        <select name="category" required style="width: 100%; padding: 10px; border: 1px solid var(--border-light); border-radius: 8px; margin-top: 6px;">
+          <option value="">-- Select category --</option>
+          <% categories.forEach(cat => { %>
+            <option value="<%= cat %>"><%= cat.charAt(0).toUpperCase() + cat.slice(1) %></option>
+          <% }); %>
+        </select>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label><strong>Tags</strong> (comma-separated)</label>
+        <input type="text" name="tags" placeholder="e.g., minimal, modern, dark-mode" maxlength="200" style="width: 100%; padding: 10px; border: 1px solid var(--border-light); border-radius: 8px; margin-top: 6px;">
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label><strong>Main File</strong> <span style="color: red;">*</span></label>
+        <input type="file" name="file" required id="fileInput" accept=".zip,.rar,.7z,.psd,.ai,.sketch,.fig,.xd,.pdf,.png,.jpg,.svg,.mp4,.mov,.mp3,.wav" style="width: 100%; padding: 10px; border: 1px solid var(--border-light); border-radius: 8px; margin-top: 6px;">
+        <div class="muted" style="margin-top: 6px; font-size: 0.9rem;">Max 500 MB. Accepted: archives, design files, images, video, audio.</div>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label><strong>Thumbnail</strong></label>
+        <input type="file" name="thumbnail" id="thumbInput" accept="image/png,image/jpeg,image/webp" style="width: 100%; padding: 10px; border: 1px solid var(--border-light); border-radius: 8px; margin-top: 6px;">
+        <div class="muted" style="margin-top: 6px; font-size: 0.9rem;">PNG, JPG, or WebP. 1:1 aspect ratio recommended.</div>
+      </div>
+
+      <div style="margin-bottom: 16px; padding: 12px; background: var(--bg-2); border-radius: 8px;">
+        <h3 style="margin-top: 0;">Pricing Strategy</h3>
+        
+        <div style="margin-bottom: 12px;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" name="offerFree" id="offerFree" checked>
+            <strong>Offer Free Version</strong>
+          </label>
+          <div class="muted" style="margin-top: 4px;">Users can download for free. Build an audience.</div>
+        </div>
+
+        <div style="margin-bottom: 12px;" id="freeVersionDiv">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="radio" name="freeVersionType" value="watermarked" checked>
+            Watermarked preview
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-top: 6px;">
+            <input type="radio" name="freeVersionType" value="limited">
+            Limited (e.g., lower resolution)
+          </label>
+        </div>
+
+        <div style="margin-bottom: 12px; padding-top: 12px; border-top: 1px solid var(--border-light);">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" name="offerPaid" id="offerPaid">
+            <strong>Offer Premium Version</strong>
+          </label>
+          <div class="muted" style="margin-top: 4px;">Customers pay to unlock the full, unlimited file.</div>
+        </div>
+
+        <div style="margin-bottom: 12px; margin-top: 12px;" id="paidVersionDiv" style="display: none;">
+          <label><strong>Premium Price (USD)</strong></label>
+          <input type="number" name="paidPrice" id="paidPrice" min="0.99" max="99.99" step="0.01" placeholder="9.99" style="width: 100%; padding: 10px; border: 1px solid var(--border-light); border-radius: 8px; margin-top: 6px;">
+          <div class="muted" style="margin-top: 6px; font-size: 0.9rem;">
+            You earn ~50% after Stripe & platform fees. E.g., $9.99 = ~$3–4 to you.
+          </div>
+
+          <label style="display: block; margin-top: 12px;"><strong>License Type</strong></label>
+          <select name="licenseType" style="width: 100%; padding: 10px; border: 1px solid var(--border-light); border-radius: 8px; margin-top: 6px;">
+            <option value="personal">Personal Use Only</option>
+            <option value="commercial">Commercial Use Allowed</option>
+            <option value="editorial">Editorial Use</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 8px; margin-top: 24px;">
+        <button type="submit" class="btn" style="flex: 1;">Upload & Draft</button>
+        <a href="/marketplace" class="btn ghost" style="flex: 1; text-align: center; text-decoration: none;">Cancel</a>
+      </div>
+    </form>
+  </section>
+</main>
+
+<script>
+document.getElementById('offerFree').addEventListener('change', function(e) {
+  document.getElementById('freeVersionDiv').style.display = e.target.checked ? 'block' : 'none';
+});
+
+document.getElementById('offerPaid').addEventListener('change', function(e) {
+  document.getElementById('paidVersionDiv').style.display = e.target.checked ? 'block' : 'none';
+});
+
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+  if (!document.getElementById('offerFree').checked && !document.getElementById('offerPaid').checked) {
+    e.preventDefault();
+    alert('You must offer at least a free or premium version.');
+    return;
+  }
+  if (document.getElementById('offerPaid').checked && !document.getElementById('paidPrice').value) {
+    e.preventDefault();
+    alert('Please set a premium price.');
+    return;
+  }
+});
+</script>

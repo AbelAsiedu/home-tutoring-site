@@ -1,0 +1,201 @@
+<%
+const categories = ['templates', 'graphics', 'icons', 'fonts', 'photos', 'vectors', 'videos', 'music'];
+const currentCategory = typeof category !== 'undefined' ? category : '';
+const currentSearch = typeof search !== 'undefined' ? search : '';
+const currentMinPrice = typeof minPrice !== 'undefined' ? minPrice : 0;
+const currentMaxPrice = typeof maxPrice !== 'undefined' ? maxPrice : 99;
+const currentPage = typeof page !== 'undefined' ? page : 0;
+const contentList = typeof items !== 'undefined' ? items : [];
+const totalCount = typeof total !== 'undefined' ? total : 0;
+const pageSize = 20;
+const totalPages = Math.ceil(totalCount / pageSize);
+%>
+
+<main class="container">
+  <section class="page" style="background: transparent; padding: 0;">
+    <div style="display: grid; grid-template-columns: 250px 1fr; gap: 24px;">
+      <!-- Sidebar Filters -->
+      <aside style="background: var(--glass); padding: 16px; border-radius: 12px; height: fit-content;">
+        <h3 style="margin-top: 0; border-bottom: 1px solid var(--border-light); padding-bottom: 12px;">Filters</h3>
+        
+        <form method="get" action="/marketplace" id="filterForm" style="display: flex; flex-direction: column; gap: 16px;">
+          <!-- Search -->
+          <div>
+            <label style="display: block; font-weight: 600; margin-bottom: 6px;">Search</label>
+            <input type="text" name="search" placeholder="Find content..." value="<%= currentSearch %>" style="width: 100%; padding: 8px; border: 1px solid var(--border-light); border-radius: 6px;">
+          </div>
+
+          <!-- Category -->
+          <div>
+            <label style="display: block; font-weight: 600; margin-bottom: 6px;">Category</label>
+            <select name="category" style="width: 100%; padding: 8px; border: 1px solid var(--border-light); border-radius: 6px;">
+              <option value="">All Categories</option>
+              <% categories.forEach(cat => { %>
+                <option value="<%= cat %>" <%= currentCategory === cat ? 'selected' : '' %>>
+                  <%= cat.charAt(0).toUpperCase() + cat.slice(1) %>
+                </option>
+              <% }); %>
+            </select>
+          </div>
+
+          <!-- Price Range -->
+          <div>
+            <label style="display: block; font-weight: 600; margin-bottom: 6px;">Price Range</label>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <input type="number" name="minPrice" placeholder="0" min="0" max="99" value="<%= currentMinPrice %>" style="width: 50%; padding: 8px; border: 1px solid var(--border-light); border-radius: 6px; font-size: 0.9rem;">
+              <span>–</span>
+              <input type="number" name="maxPrice" placeholder="99" min="0" max="99" value="<%= currentMaxPrice %>" style="width: 50%; padding: 8px; border: 1px solid var(--border-light); border-radius: 6px; font-size: 0.9rem;">
+            </div>
+            <div style="display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap;">
+              <button type="button" class="btn ghost" style="padding: 6px 10px; font-size: 0.85rem;" onclick="setPrice(0, 0)">Free</button>
+              <button type="button" class="btn ghost" style="padding: 6px 10px; font-size: 0.85rem;" onclick="setPrice(0, 5)">$0–5</button>
+              <button type="button" class="btn ghost" style="padding: 6px 10px; font-size: 0.85rem;" onclick="setPrice(5, 10)">$5–10</button>
+              <button type="button" class="btn ghost" style="padding: 6px 10px; font-size: 0.85rem;" onclick="setPrice(10, 99)">$10+</button>
+            </div>
+          </div>
+
+          <!-- Sorting -->
+          <div>
+            <label style="display: block; font-weight: 600; margin-bottom: 6px;">Sort By</label>
+            <select name="sortBy" style="width: 100%; padding: 8px; border: 1px solid var(--border-light); border-radius: 6px;">
+              <option value="newest">Newest</option>
+              <option value="rating">Top Rated</option>
+              <option value="downloads">Most Downloaded</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn" style="width: 100%; margin-top: 8px;">Apply Filters</button>
+          <a href="/marketplace" class="btn ghost" style="width: 100%; text-align: center; text-decoration: none;">Clear All</a>
+        </form>
+      </aside>
+
+      <!-- Content Grid -->
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <div>
+            <h1 style="margin: 0; font-size: 1.8rem;">Marketplace</h1>
+            <p class="muted" style="margin: 4px 0 0;">
+              <%= totalCount %> items
+              <% if (currentCategory) { %> in <%= currentCategory %><% } %>
+            </p>
+          </div>
+          <a href="/marketplace/upload" class="btn">+ Upload</a>
+        </div>
+
+        <% if (contentList.length === 0) { %>
+          <div style="text-align: center; padding: 40px 20px;">
+            <div style="font-size: 3rem; margin-bottom: 12px;">📭</div>
+            <p class="muted">No content found. Try adjusting your filters.</p>
+            <a href="/marketplace/upload" class="btn" style="margin-top: 12px;">Be the first to upload!</a>
+          </div>
+        <% } else { %>
+          <!-- Content Cards Grid -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px;">
+            <% contentList.forEach(item => { %>
+              <a href="/marketplace/<%= item.id %>" style="text-decoration: none; color: inherit;">
+                <div class="content-card" style="border-radius: 12px; overflow: hidden; background: var(--glass); transition: transform 180ms, box-shadow 180ms; cursor: pointer;">
+                  <div style="position: relative; overflow: hidden; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); height: 180px; display: flex; align-items: center; justify-content: center;">
+                    <% if (item.thumbnail_path) { %>
+                      <img src="<%= item.thumbnail_path %>" alt="<%= item.title %>" style="width: 100%; height: 100%; object-fit: cover;">
+                    <% } else { %>
+                      <span style="color: white; font-size: 3rem; opacity: 0.5;">📦</span>
+                    <% } %>
+                    
+                    <!-- Badge -->
+                    <% if (item.versions && item.versions.length > 1) { %>
+                      <div style="position: absolute; top: 8px; right: 8px; background: var(--accent-2); color: white; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">PREMIUM</div>
+                    <% } %>
+                  </div>
+                  
+                  <div style="padding: 12px;">
+                    <h3 style="margin: 0 0 6px; font-size: 0.95rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                      <%= item.title %>
+                    </h3>
+                    
+                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px; font-size: 0.85rem;">
+                      <span style="color: var(--muted);">by <%= item.creator_name %></span>
+                    </div>
+
+                    <!-- Rating -->
+                    <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 8px;">
+                      <% 
+                        const rating = Math.round(item.rating || 0);
+                        for (let i = 0; i < 5; i++) { %>
+                          <span style="color: <%= i < rating ? '#fbbf24' : '#e5e7eb' %>;">★</span>
+                      <% } %>
+                      <span class="muted" style="font-size: 0.8rem;">(<%= item.rating_count || 0 %>)</span>
+                    </div>
+
+                    <!-- Download count & Category tag -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                      <span class="muted" style="font-size: 0.8rem;">📥 <%= item.download_count || 0 %></span>
+                      <span style="background: var(--accent-2); color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">
+                        <%= item.category.toUpperCase() %>
+                      </span>
+                    </div>
+
+                    <!-- Price -->
+                    <div style="padding-top: 10px; border-top: 1px solid var(--border-light);">
+                      <% 
+                        let priceText = 'Free';
+                        if (item.versions && item.versions.find(v => v.version_type === 'paid')) {
+                          const paidVersion = item.versions.find(v => v.version_type === 'paid');
+                          priceText = `$${paidVersion.price.toFixed(2)} / Free`;
+                        }
+                      %>
+                      <div style="font-weight: 600; color: var(--accent-2);">
+                        <%= priceText %>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </a>
+            <% }); %>
+          </div>
+
+          <!-- Pagination -->
+          <% if (totalPages > 1) { %>
+            <div style="display: flex; justify-content: center; gap: 8px; margin-top: 32px;">
+              <% if (currentPage > 0) { %>
+                <a href="?page=<%= currentPage - 1 %><%= currentCategory ? '&category=' + currentCategory : '' %><%= currentSearch ? '&search=' + currentSearch : '' %>" class="btn ghost">← Previous</a>
+              <% } %>
+              
+              <div style="display: flex; gap: 4px; align-items: center;">
+                <% for (let p = 0; p < Math.min(totalPages, 5); p++) { %>
+                  <% if (p === currentPage) { %>
+                    <span style="padding: 8px 10px; background: var(--accent-2); color: white; border-radius: 6px; font-weight: 600;">
+                      <%= p + 1 %>
+                    </span>
+                  <% } else { %>
+                    <a href="?page=<%= p %><%= currentCategory ? '&category=' + currentCategory : '' %><%= currentSearch ? '&search=' + currentSearch : '' %>" class="btn ghost" style="padding: 8px 10px;">
+                      <%= p + 1 %>
+                    </a>
+                  <% } %>
+                <% } %>
+              </div>
+
+              <% if (currentPage < totalPages - 1) { %>
+                <a href="?page=<%= currentPage + 1 %><%= currentCategory ? '&category=' + currentCategory : '' %><%= currentSearch ? '&search=' + currentSearch : '' %>" class="btn ghost">Next →</a>
+              <% } %>
+            </div>
+          <% } %>
+        <% } %>
+      </div>
+    </div>
+  </section>
+</main>
+
+<style>
+.content-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+}
+</style>
+
+<script>
+function setPrice(min, max) {
+  document.querySelector('input[name="minPrice"]').value = min;
+  document.querySelector('input[name="maxPrice"]').value = max;
+  document.getElementById('filterForm').submit();
+}
+</script>

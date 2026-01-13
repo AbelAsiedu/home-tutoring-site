@@ -82,6 +82,19 @@
 
   <script>
     (function(){
+      // Reliable mobile nav toggle (works even if main.js fails earlier)
+      const toggle = document.querySelector('.nav-toggle');
+      const header = document.querySelector('.site-header');
+      const nav = document.querySelector('.nav-links');
+      if (toggle && header && nav) {
+        toggle.addEventListener('click', function(e){
+          e.preventDefault();
+          const open = header.classList.toggle('nav-open');
+          toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+          nav.dataset.open = open ? 'true' : 'false';
+        });
+      }
+
       // Admin nav back/forward with safe fallback when no history
       const backBtn = document.querySelector('.nav-history .nav-back');
       const fwdBtn = document.querySelector('.nav-history .nav-forward');

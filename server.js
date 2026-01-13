@@ -1748,6 +1748,148 @@ app.post('/admin/media/delete', requireAdmin, (req, res) => {
   });
 });
 
+app.post('/admin/media/delete', requireAdmin, (req, res) => {
+  const rel = req.body.path || '';
+  const base = path.basename(rel.replace('/uploads/', ''));
+  const target = path.join(UPLOADS_DIR, base);
+  if (!target.startsWith(UPLOADS_DIR)) return res.status(400).send('Bad path');
+  fs.unlink(target, (err) => {
+    if (err) console.error('Delete media error', err);
+    return res.redirect('/admin/media');
+  });
+});
+
+// ============ ADMIN MARKETPLACE ROUTES ============
+
+// Admin: Marketplace overview
+app.get('/admin/marketplace', requireAdmin, async (req, res) => {
+  try {
+    const status = req.query.status || '';
+    let sql = 'SELECT c.*, u.name as creator_name FROM marketplace_content c JOIN users u ON c.creator_id = u.id';
+    const params = [];
+    
+    if (status) {
+      sql += ' WHERE c.status = ?';
+      params.push(status);
+    }
+    
+    sql += ' ORDER BY c.created_at DESC LIMIT 50';
+    const items = await runQuery(sql, params);
+    
+    // Get stats
+    const stats = await runQuery(
+      `SELECT 
+        (SELECT COUNT(*) FROM marketplace_content) as total,
+        (SELECT COUNT(*) FROM marketplace_content WHERE status = 'published') as published,
+        (SELECT COUNT(*) FROM marketplace_content WHERE status = 'draft') as pending,
+        (SELECT COUNT(*) FROM marketplace_content WHERE status = 'flagged') as reports`
+    );
+    
+    res.render('admin/marketplace', {
+      items,
+      statistics: stats[0] || { total: 0, published: 0, pending: 0, reports: 0 },
+      csrfToken: req.csrfToken?.() || ''
+    });
+  } catch (err) {
+    console.error('Admin marketplace error:', err);
+    res.status(500).send('Error loading marketplace');
+  }
+});
+
+// Admin: Review content detail
+app.get('/admin/marketplace/:contentId', requireAdmin, async (req, res) => {
+  try {
+    const content = await getContentById(req.params.contentId);
+    if (!content) return res.status(404).send('Not found');
+    
+    res.render('admin/marketplace-detail', {
+      item: content,
+      csrfToken: req.csrfToken?.() || ''
+    });
+  } catch (err) {
+    console.error('Admin marketplace detail error:', err);
+    res.status(500).send('Error loading content');
+  }
+});
+
+// Admin: Approve/reject/flag content
+app.post('/admin/marketplace/:contentId/moderate', requireAdmin, async (req, res) => {
+  try {
+    const { action, reason } = req.body;
+    const contentId = req.params.contentId;
+    
+    if (action === 'approve') {
+      await publishContent(contentId, 'published');
+      await sendEmail(
+        (await runQueryOne('SELECT creator_id FROM marketplace_content WHERE id = ?', [contentId])).creator_id,
+        'Your content has been approved!',
+        'Your submission to the marketplace has been reviewed and approved. It is now live and visible to buyers.'
+      );
+    } else if (action === 'reject') {
+      await runExec(
+        'UPDATE marketplace_content SET status = ?, updated_at = ? WHERE id = ?',
+        ['draft', new Date().toISOString(), contentId]
+      );
+      // Notify creator
+    } else if (action === 'flag') {
+      await runExec(
+        'UPDATE marketplace_content SET status = ? WHERE id = ?',
+        ['flagged', contentId]
+      );
+    }
+    
+    res.redirect(`/admin/marketplace?message=Content ${action}ed`);
+  } catch (err) {
+    console.error('Moderation error:', err);
+    res.status(500).send('Moderation failed');
+  }
+});
+
+// Admin: Manage creators
+app.get('/admin/marketplace/creators', requireAdmin, async (req, res) => {
+  try {
+    const creators = await runQuery(
+      `SELECT u.id, u.name, u.email, COUNT(c.id) as content_count, SUM(c.download_count) as total_downloads
+       FROM users u
+       LEFT JOIN marketplace_content c ON u.id = c.creator_id
+       WHERE u.role = 'creator'
+       GROUP BY u.id
+       ORDER BY total_downloads DESC`
+    );
+    
+    res.render('admin/marketplace-creators', {
+      creators,
+      csrfToken: req.csrfToken?.() || ''
+    });
+  } catch (err) {
+    console.error('Creator management error:', err);
+    res.status(500).send('Error loading creators');
+  }
+});
+
+// Admin: View transactions
+app.get('/admin/marketplace/transactions', requireAdmin, async (req, res) => {
+  try {
+    const transactions = await runQuery(
+      `SELECT t.*, b.name as buyer_name, s.name as seller_name, c.title as content_title
+       FROM marketplace_transactions t
+       JOIN users b ON t.buyer_id = b.id
+       LEFT JOIN users s ON t.seller_id = s.id
+       LEFT JOIN marketplace_content c ON t.content_id = c.id
+       ORDER BY t.created_at DESC
+       LIMIT 100`
+    );
+    
+    res.render('admin/marketplace-transactions', {
+      transactions,
+      csrfToken: req.csrfToken?.() || ''
+    });
+  } catch (err) {
+    console.error('Transactions error:', err);
+    res.status(500).send('Error loading transactions');
+  }
+});
+
 // Admin: data exports (CSV/JSON)
 app.get('/admin/export/:type', requireAdmin, async (req, res) => {
   try {
@@ -1778,6 +1920,311 @@ app.get('/admin/export/:type', requireAdmin, async (req, res) => {
   } catch (e) {
     console.error('export error', e);
     res.status(500).send('Export failed');
+  }
+});
+
+// ============ MARKETPLACE ROUTES ============
+
+const {
+  uploadContent, addContentVersion, createPack, getContentById, searchContent,
+  createTransaction, updateTransactionPayment, toggleFavorite, addReview,
+  getCreatorContent, publishContent, recordDownload
+} = require('./lib/marketplace');
+
+// Marketplace browse
+app.get('/marketplace', async (req, res) => {
+  try {
+    const filters = {
+      search: req.query.search || '',
+      category: req.query.category || '',
+      minPrice: parseFloat(req.query.minPrice || 0),
+      maxPrice: parseFloat(req.query.maxPrice || 99),
+      sortBy: req.query.sortBy || 'newest',
+      page: parseInt(req.query.page || 0),
+      limit: 20
+    };
+    
+    const items = await searchContent(filters);
+    const allCount = await searchContent({ ...filters, limit: 999999, page: 0 });
+    
+    res.render('marketplace/index', {
+      items,
+      total: allCount.length,
+      category: filters.category,
+      search: filters.search,
+      minPrice: filters.minPrice,
+      maxPrice: filters.maxPrice,
+      page: filters.page,
+      csrfToken: req.csrfToken?.() || ''
+    });
+  } catch (err) {
+    console.error('Marketplace browse error:', err);
+    res.status(500).send('Error loading marketplace');
+  }
+});
+
+// Marketplace detail
+app.get('/marketplace/:contentId', async (req, res) => {
+  try {
+    const content = await getContentById(req.params.contentId);
+    if (!content) {
+      return res.status(404).render('404', { message: 'Content not found' });
+    }
+    
+    let favorite = false, canDownload = false, isPurchased = false;
+    if (req.user) {
+      // Check if favorited
+      const fav = await runQueryOne(
+        'SELECT id FROM marketplace_favorites WHERE user_id = ? AND content_id = ?',
+        [req.user.id, content.id]
+      );
+      favorite = !!fav;
+      
+      // Check if purchased
+      const txn = await runQueryOne(
+        'SELECT id FROM marketplace_transactions WHERE buyer_id = ? AND content_id = ? AND payment_status = ?',
+        [req.user.id, content.id, 'completed']
+      );
+      isPurchased = !!txn;
+      
+      // Free content can be downloaded by anyone
+      if (content.versions && content.versions.find(v => v.version_type === 'free')) {
+        canDownload = true;
+      }
+    }
+    
+    res.render('marketplace/detail', {
+      item: content,
+      favorite,
+      canDownload,
+      isPurchased,
+      csrfToken: req.csrfToken?.() || ''
+    });
+  } catch (err) {
+    console.error('Marketplace detail error:', err);
+    res.status(500).send('Error loading content');
+  }
+});
+
+// Upload content form
+app.get('/marketplace/upload', requireLogin, (req, res) => {
+  res.render('marketplace/upload', { csrfToken: req.csrfToken?.() || '' });
+});
+
+// Handle upload
+app.post('/marketplace/upload', requireLogin, upload.fields([
+  { name: 'file', maxCount: 1 },
+  { name: 'thumbnail', maxCount: 1 }
+]), async (req, res) => {
+  try {
+    const { title, description, category, tags, offerFree, freeVersionType, offerPaid, paidPrice, licenseType } = req.body;
+    
+    if (!title || !category || !req.files?.file) {
+      return res.redirect('/marketplace/upload?error=Missing required fields');
+    }
+    
+    if (!offerFree && !offerPaid) {
+      return res.redirect('/marketplace/upload?error=Must offer free or paid version');
+    }
+    
+    // Upload main file
+    const mainFile = req.files.file[0];
+    const mainPath = `/uploads/${mainFile.filename}`;
+    
+    // Upload thumbnail if provided
+    let thumbPath = null;
+    if (req.files.thumbnail) {
+      const thumb = req.files.thumbnail[0];
+      thumbPath = `/uploads/${thumb.filename}`;
+    }
+    
+    // Create content record
+    const contentId = await uploadContent(
+      req.user.id,
+      title,
+      description || '',
+      category,
+      mainPath,
+      thumbPath,
+      tags || ''
+    );
+    
+    // Add free version
+    if (offerFree) {
+      await addContentVersion(contentId, 'free', mainPath, 0, freeVersionType || 'personal');
+    }
+    
+    // Add paid version
+    if (offerPaid && paidPrice) {
+      await addContentVersion(contentId, 'paid', mainPath, parseFloat(paidPrice), licenseType || 'personal');
+    }
+    
+    res.redirect(`/marketplace/${contentId}?message=Content uploaded! Share the link to get downloads.`);
+  } catch (err) {
+    console.error('Upload error:', err);
+    res.status(500).redirect('/marketplace/upload?error=Upload failed');
+  }
+});
+
+// Download content
+app.post('/marketplace/:contentId/download/:versionId', requireLogin, async (req, res) => {
+  try {
+    const { contentId, versionId } = req.params;
+    
+    const version = await runQueryOne(
+      'SELECT * FROM marketplace_versions WHERE id = ? AND content_id = ?',
+      [versionId, contentId]
+    );
+    
+    if (!version) {
+      return res.status(404).send('Version not found');
+    }
+    
+    // For paid versions, check purchase
+    if (version.version_type === 'paid') {
+      const purchased = await runQueryOne(
+        'SELECT id FROM marketplace_transactions WHERE buyer_id = ? AND content_id = ? AND payment_status = ?',
+        [req.user.id, contentId, 'completed']
+      );
+      if (!purchased) {
+        return res.status(403).send('You must purchase this content first');
+      }
+    }
+    
+    // Record download
+    await recordDownload(contentId, req.user.id);
+    
+    // Stream file
+    const filePath = path.join(__dirname, 'public', version.file_path);
+    res.download(filePath, `${contentId}.zip`);
+  } catch (err) {
+    console.error('Download error:', err);
+    res.status(500).send('Download failed');
+  }
+});
+
+// Purchase content (initiate Stripe payment)
+app.post('/marketplace/:contentId/purchase/:versionId', requireLogin, async (req, res) => {
+  try {
+    if (!stripe) return res.status(500).send('Payments not configured');
+    
+    const { contentId, versionId } = req.params;
+    
+    const version = await runQueryOne(
+      'SELECT * FROM marketplace_versions WHERE id = ? AND content_id = ?',
+      [versionId, contentId]
+    );
+    
+    const content = await getContentById(contentId);
+    if (!version || !content) return res.status(404).send('Not found');
+    
+    // Create transaction record
+    const txnId = await createTransaction(
+      req.user.id,
+      content.creator_id,
+      contentId,
+      null,
+      'content_purchase',
+      version.price
+    );
+    
+    // Create Stripe session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: { name: `${content.title} (Premium)` },
+          unit_amount: Math.round(version.price * 100)
+        },
+        quantity: 1
+      }],
+      mode: 'payment',
+      success_url: `${req.protocol}://${req.get('host')}/marketplace/${contentId}?message=Purchase successful!`,
+      cancel_url: `${req.protocol}://${req.get('host')}/marketplace/${contentId}?error=Payment cancelled`,
+      metadata: { transactionId: txnId, contentId }
+    });
+    
+    res.redirect(session.url);
+  } catch (err) {
+    console.error('Purchase error:', err);
+    res.status(500).send('Purchase failed');
+  }
+});
+
+// Stripe webhook for payments
+app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    if (!stripe) return res.status(400).send('Not configured');
+    
+    const sig = req.headers['stripe-signature'];
+    const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      const { transactionId } = session.metadata;
+      
+      if (transactionId) {
+        await updateTransactionPayment(transactionId, 'completed', session.payment_intent);
+      }
+    }
+    
+    res.json({ received: true });
+  } catch (err) {
+    console.error('Webhook error:', err);
+    res.status(400).send('Webhook error');
+  }
+});
+
+// Toggle favorite
+app.post('/marketplace/:contentId/favorite', requireLogin, async (req, res) => {
+  try {
+    const added = await toggleFavorite(req.user.id, req.params.contentId);
+    res.json({ favorited: added });
+  } catch (err) {
+    console.error('Favorite error:', err);
+    res.status(500).json({ error: 'Failed' });
+  }
+});
+
+// Add review
+app.post('/marketplace/:contentId/review', requireLogin, async (req, res) => {
+  try {
+    const { rating, comment } = req.body;
+    if (!rating) return res.status(400).send('Rating required');
+    
+    await addReview(req.params.contentId, req.user.id, parseInt(rating), comment || '');
+    res.redirect(`/marketplace/${req.params.contentId}?message=Review posted!`);
+  } catch (err) {
+    console.error('Review error:', err);
+    res.status(500).send('Review failed');
+  }
+});
+
+// Creator dashboard
+app.get('/marketplace/creator/dashboard', requireLogin, async (req, res) => {
+  try {
+    const content = await getCreatorContent(req.user.id);
+    res.render('marketplace/creator-dashboard', { content, csrfToken: req.csrfToken?.() || '' });
+  } catch (err) {
+    console.error('Creator dashboard error:', err);
+    res.status(500).send('Error loading dashboard');
+  }
+});
+
+// Publish content
+app.post('/marketplace/:contentId/publish', requireLogin, async (req, res) => {
+  try {
+    const content = await getContentById(req.params.contentId);
+    if (!content || content.creator_id !== req.user.id) {
+      return res.status(403).send('Unauthorized');
+    }
+    
+    await publishContent(req.params.contentId, 'published');
+    res.redirect(`/marketplace/${req.params.contentId}?message=Content published!`);
+  } catch (err) {
+    console.error('Publish error:', err);
+    res.status(500).send('Publish failed');
   }
 });
 

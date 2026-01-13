@@ -51,6 +51,7 @@ footer.site-footer{margin-top:40px;padding:28px 20px;color:var(--muted)}
 /* Responsive nav & layout adjustments */
 .nav-toggle{display:none;background:transparent;border:0;border-radius:8px;cursor:pointer;padding:10px;min-width:44px;min-height:44px;touch-action:manipulation}
 .nav-open .nav-links{display:flex}
+.nav-links[data-open="true"]{display:flex}
 
 @media(max-width:900px){
   .nav-links{display:none}

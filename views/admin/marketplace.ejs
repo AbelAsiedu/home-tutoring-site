@@ -1,0 +1,126 @@
+<%
+const contentList = typeof items !== 'undefined' ? items : [];
+const stats = typeof statistics !== 'undefined' ? statistics : { total: 0, published: 0, pending: 0, reports: 0 };
+%>
+
+<main class="container">
+  <section class="page glass">
+    <h1>Marketplace Admin</h1>
+    <p class="muted">Oversee content, creators, and transactions. Moderate and manage the platform.</p>
+
+    <!-- Admin Stats -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 32px;">
+      <div class="glass" style="padding: 16px; border-radius: 12px;">
+        <div class="muted" style="font-size: 0.85rem;">TOTAL CONTENT</div>
+        <div style="font-size: 1.8rem; font-weight: 700; color: var(--accent-2);">
+          <%= stats.total %>
+        </div>
+      </div>
+      <div class="glass" style="padding: 16px; border-radius: 12px;">
+        <div class="muted" style="font-size: 0.85rem;">PUBLISHED</div>
+        <div style="font-size: 1.8rem; font-weight: 700; color: #10b981;">
+          <%= stats.published %>
+        </div>
+      </div>
+      <div class="glass" style="padding: 16px; border-radius: 12px;">
+        <div class="muted" style="font-size: 0.85rem;">PENDING REVIEW</div>
+        <div style="font-size: 1.8rem; font-weight: 700; color: #f59e0b;">
+          <%= stats.pending %>
+        </div>
+      </div>
+      <div class="glass" style="padding: 16px; border-radius: 12px;">
+        <div class="muted" style="font-size: 0.85rem;">FLAGGED/REPORTS</div>
+        <div style="font-size: 1.8rem; font-weight: 700; color: #ef4444;">
+          <%= stats.reports %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div style="display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap;">
+      <a href="/admin/marketplace?status=draft" class="btn ghost">Review Pending</a>
+      <a href="/admin/marketplace?status=flagged" class="btn ghost">View Flagged</a>
+      <a href="/admin/marketplace/creators" class="btn ghost">Manage Creators</a>
+      <a href="/admin/marketplace/transactions" class="btn ghost">View Transactions</a>
+      <a href="/admin/marketplace/reports" class="btn ghost">Content Reports</a>
+    </div>
+
+    <!-- Content Moderation Table -->
+    <h2>Recent Content</h2>
+
+    <% if (contentList.length === 0) { %>
+      <div style="text-align: center; padding: 40px; background: var(--glass); border-radius: 12px;">
+        <p class="muted">No content to moderate.</p>
+      </div>
+    <% } else { %>
+      <div style="overflow-x: auto; margin-bottom: 32px;">
+        <table class="admin-list" style="width: 100%;">
+          <thead>
+            <tr style="border-bottom: 2px solid var(--border-light); background: var(--glass);">
+              <th style="padding: 12px; text-align: left; font-weight: 600;">Title / Creator</th>
+              <th style="padding: 12px; text-align: center; font-weight: 600;">Category</th>
+              <th style="padding: 12px; text-align: center; font-weight: 600;">Status</th>
+              <th style="padding: 12px; text-align: center; font-weight: 600;">Downloads</th>
+              <th style="padding: 12px; text-align: center; font-weight: 600;">Rating</th>
+              <th style="padding: 12px; text-align: center; font-weight: 600;">Uploaded</th>
+              <th style="padding: 12px; text-align: center; font-weight: 600;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% contentList.forEach(item => { %>
+              <tr style="border-bottom: 1px solid var(--border-light);">
+                <td style="padding: 12px;">
+                  <strong><%= item.title %></strong>
+                  <div class="muted" style="font-size: 0.85rem; margin-top: 4px;">by <%= item.creator_name %></div>
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                  <span style="background: var(--accent-2); color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">
+                    <%= item.category.toUpperCase() %>
+                  </span>
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                  <span style="padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; background: <%= item.status === 'published' ? '#d1f2d9' : '#fee' %>; color: <%= item.status === 'published' ? '#0f5f22' : '#911' %>;">
+                    <%= item.status.toUpperCase() %>
+                  </span>
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                  📥 <%= item.download_count %>
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                  <% 
+                    const r = Math.round(item.rating || 0);
+                    for (let i = 0; i < 5; i++) { %>
+                      <span style="color: <%= i < r ? '#fbbf24' : '#e5e7eb'; %>; font-size: 0.9rem;">★</span>
+                  <% } %>
+                </td>
+                <td style="padding: 12px; text-align: center; font-size: 0.85rem; color: var(--muted);">
+                  <%= new Date(item.created_at).toLocaleDateString() %>
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                  <a href="/admin/marketplace/<%= item.id %>" class="btn ghost" style="padding: 6px 10px; font-size: 0.8rem; text-decoration: none;">Review</a>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+
+    <!-- Help Text -->
+    <div style="padding: 16px; background: var(--bg-2); border-radius: 8px; margin-top: 24px;">
+      <strong>Moderation Guide:</strong>
+      <ul style="margin: 8px 0 0; padding-left: 20px; color: var(--muted);">
+        <li>Review flagged content and decide: approve, require edits, or remove.</li>
+        <li>Suspend creators who violate policies (plagiarism, copyrighted material, offensive content).</li>
+        <li>Resolve user reports promptly to maintain trust.</li>
+        <li>Monitor transaction disputes and refund requests.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+
+<style>
+tr:hover {
+  background: rgba(0,0,0,0.02);
+}
+</style>

@@ -1,0 +1,258 @@
+<%
+const content = typeof item !== 'undefined' ? item : {};
+const versions = content.versions || [];
+const reviews = content.reviews || [];
+const isFavorited = typeof favorite !== 'undefined' ? favorite : false;
+const canDownload = typeof canDownload !== 'undefined' ? canDownload : false;
+const isPurchased = typeof isPurchased !== 'undefined' ? isPurchased : false;
+%>
+
+<main class="container">
+  <section class="page">
+    <!-- Back link -->
+    <a href="/marketplace" style="color: var(--accent-2); text-decoration: none; margin-bottom: 16px; display: inline-block;">← Back to Marketplace</a>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 40px;">
+      <!-- Left: Preview -->
+      <div>
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; height: 400px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; overflow: hidden;">
+          <% if (content.thumbnail_path) { %>
+            <img src="<%= content.thumbnail_path %>" alt="<%= content.title %>" style="width: 100%; height: 100%; object-fit: cover;">
+          <% } else { %>
+            <span style="color: white; font-size: 80px; opacity: 0.5;">📦</span>
+          <% } %>
+        </div>
+
+        <!-- Tags -->
+        <% if (content.tags) { %>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
+            <% content.tags.split(',').forEach(tag => { %>
+              <a href="/marketplace?search=<%= tag.trim() %>" class="btn ghost" style="padding: 6px 12px; font-size: 0.85rem; text-decoration: none;">
+                <%= tag.trim() %>
+              </a>
+            <% }); %>
+          </div>
+        <% } %>
+      </div>
+
+      <!-- Right: Details & Purchase -->
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: start; gap: 12px; margin-bottom: 16px;">
+          <div>
+            <h1 style="margin: 0 0 8px; font-size: 2rem;"><%= content.title %></h1>
+            <div style="display: flex; align-items: center; gap: 8px; color: var(--muted);">
+              <span>by <strong><%= content.creator_name %></strong></span>
+              <% if (content.creator_email) { %>
+                <a href="mailto:<%= content.creator_email %>" class="btn ghost" style="padding: 4px 8px; font-size: 0.8rem; text-decoration: none;">Contact Creator</a>
+              <% } %>
+            </div>
+          </div>
+          
+          <!-- Favorite button -->
+          <form method="post" action="/marketplace/<%= content.id %>/favorite" style="display: inline;">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="btn ghost" style="padding: 10px 12px; font-size: 1.2rem; border: none; background: transparent;">
+              <%= isFavorited ? '❤️' : '🤍' %>
+            </button>
+          </form>
+        </div>
+
+        <!-- Rating -->
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding: 12px 0; border-top: 1px solid var(--border-light); border-bottom: 1px solid var(--border-light);">
+          <div>
+            <div style="display: flex; gap: 4px;">
+              <% 
+                const rating = Math.round(content.rating || 0);
+                for (let i = 0; i < 5; i++) { %>
+                  <span style="color: <%= i < rating ? '#fbbf24' : '#e5e7eb'; font-size: 1.2rem;">★</span>
+              <% } %>
+            </div>
+            <div class="muted" style="font-size: 0.85rem; margin-top: 4px;">
+              <%= content.rating ? content.rating.toFixed(1) : 'No' %> / 5 (<%= content.rating_count %> reviews)
+            </div>
+          </div>
+          <div style="border-left: 1px solid var(--border-light); padding-left: 12px;">
+            <div class="muted" style="font-size: 0.9rem;">
+              📥 <%= content.download_count %> downloads
+            </div>
+          </div>
+        </div>
+
+        <!-- Description -->
+        <div style="margin-bottom: 24px;">
+          <h3>About</h3>
+          <p style="color: var(--muted); line-height: 1.6;">
+            <%= content.description || 'No description provided.' %>
+          </p>
+        </div>
+
+        <!-- Category & License Info -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; padding: 12px; background: var(--bg-2); border-radius: 8px;">
+          <div>
+            <div class="muted" style="font-size: 0.85rem;">Category</div>
+            <strong><%= content.category.toUpperCase() %></strong>
+          </div>
+          <div>
+            <div class="muted" style="font-size: 0.85rem;">Status</div>
+            <strong><%= content.status === 'published' ? '✓ Published' : '⏸ Draft' %></strong>
+          </div>
+        </div>
+
+        <!-- Versions & Pricing -->
+        <div style="background: var(--glass); padding: 20px; border-radius: 12px; margin-bottom: 24px;">
+          <h3 style="margin-top: 0;">Available Versions</h3>
+          
+          <% versions.forEach(version => { %>
+            <div style="padding: 12px 0; border-bottom: 1px solid var(--border-light);">
+              <div style="display: flex; justify-content: space-between; align-items: start; gap: 12px;">
+                <div>
+                  <strong style="text-transform: capitalize; color: <%= version.version_type === 'free' ? 'var(--accent-2)' : 'var(--accent)' %>;">
+                    <%= version.version_type %><% if (version.version_type === 'paid') { %> (Premium)<% } %>
+                  </strong>
+                  <% if (version.license_type) { %>
+                    <div class="muted" style="font-size: 0.85rem; margin-top: 4px;">
+                      License: <%= version.license_type.charAt(0).toUpperCase() + version.license_type.slice(1) %>
+                    </div>
+                  <% } %>
+                  <div class="muted" style="font-size: 0.85rem; margin-top: 4px;">
+                    <%= version.file_size ? (version.file_size / 1024 / 1024).toFixed(2) + ' MB' : 'Size unknown' %>
+                  </div>
+                </div>
+                
+                <div style="text-align: right;">
+                  <div style="font-size: 1.5rem; font-weight: 700; color: var(--accent-2); margin-bottom: 8px;">
+                    <% if (version.price > 0) { %>
+                      $<%= version.price.toFixed(2) %>
+                    <% } else { %>
+                      Free
+                    <% } %>
+                  </div>
+                  
+                  <% if (version.version_type === 'free' || isPurchased || canDownload) { %>
+                    <form method="post" action="/marketplace/<%= content.id %>/download/<%= version.id %>" style="display: inline;">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <button type="submit" class="btn" style="padding: 8px 12px; font-size: 0.9rem;">
+                        ⬇️ Download
+                      </button>
+                    </form>
+                  <% } else { %>
+                    <form method="post" action="/marketplace/<%= content.id %>/purchase/<%= version.id %>" style="display: inline;">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <button type="submit" class="btn" style="padding: 8px 12px; font-size: 0.9rem;">
+                        💳 Buy
+                      </button>
+                    </form>
+                  <% } %>
+                </div>
+              </div>
+            </div>
+          <% }); %>
+        </div>
+
+        <!-- Info panel -->
+        <div style="padding: 12px; background: var(--bg-2); border-radius: 8px; margin-bottom: 24px;">
+          <div class="muted" style="font-size: 0.9rem;">
+            <strong>By downloading, you agree to the <%= content.license_type || 'standard' %> license terms.</strong> Check the license carefully before using commercially.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reviews Section -->
+    <div style="margin-top: 40px; padding-top: 40px; border-top: 1px solid var(--border-light);">
+      <h2>Reviews & Ratings</h2>
+
+      <% if (reviews && reviews.length > 0) { %>
+        <div style="display: grid; gap: 16px; margin-top: 20px;">
+          <% reviews.forEach(review => { %>
+            <div style="padding: 16px; background: var(--glass); border-radius: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: start; gap: 12px; margin-bottom: 8px;">
+                <div>
+                  <strong><%= review.reviewer_name %></strong>
+                  <div style="display: flex; gap: 2px; margin-top: 4px;">
+                    <% for (let i = 0; i < 5; i++) { %>
+                      <span style="color: <%= i < review.rating ? '#fbbf24' : '#e5e7eb'; %>;">★</span>
+                    <% } %>
+                  </div>
+                </div>
+                <div class="muted" style="font-size: 0.85rem;">
+                  <%= new Date(review.created_at).toLocaleDateString() %>
+                </div>
+              </div>
+              <p style="margin: 8px 0 0; color: var(--muted);">
+                <%= review.comment %>
+              </p>
+            </div>
+          <% }); %>
+        </div>
+      <% } else { %>
+        <p class="muted" style="margin-top: 20px;">No reviews yet. Be the first to review!</p>
+      <% } %>
+
+      <!-- Add Review -->
+      <% if (isPurchased || canDownload) { %>
+        <div style="margin-top: 32px; padding: 20px; background: var(--glass); border-radius: 12px;">
+          <h3 style="margin-top: 0;">Share Your Feedback</h3>
+          <form method="post" action="/marketplace/<%= content.id %>/review" style="max-width: 500px;">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+            <div style="margin-bottom: 12px;">
+              <label style="display: block; margin-bottom: 6px;"><strong>Rating</strong></label>
+              <div style="display: flex; gap: 8px; font-size: 1.5rem;">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label style="cursor: pointer;">
+                    <input type="radio" name="rating" value="<%= i %>" style="display: none;">
+                    <span class="star" data-value="<%= i %>" style="cursor: pointer;">★</span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+
+            <div style="margin-bottom: 12px;">
+              <label style="display: block; margin-bottom: 6px;"><strong>Comment</strong></label>
+              <textarea name="comment" placeholder="What did you think?" maxlength="500" style="width: 100%; padding: 10px; border: 1px solid var(--border-light); border-radius: 8px; resize: none; height: 100px;"></textarea>
+            </div>
+
+            <button type="submit" class="btn">Post Review</button>
+          </form>
+        </div>
+      <% } %>
+    </div>
+  </section>
+</main>
+
+<style>
+.star {
+  color: #e5e7eb;
+  transition: color 180ms;
+}
+
+input[type="radio"][name="rating"]:checked ~ .star,
+.star:hover,
+.star:hover ~ .star {
+  color: #fbbf24;
+}
+</style>
+
+<script>
+// Star rating interaction
+document.querySelectorAll('.star').forEach(star => {
+  star.addEventListener('click', function() {
+    const value = this.dataset.value;
+    document.querySelector(`input[value="${value}"]`).checked = true;
+  });
+  star.addEventListener('mouseover', function() {
+    const value = this.dataset.value;
+    document.querySelectorAll('.star').forEach(s => {
+      s.style.color = s.dataset.value <= value ? '#fbbf24' : '#e5e7eb';
+    });
+  });
+});
+
+document.querySelectorAll('.star').parentElement?.addEventListener('mouseout', function() {
+  const checked = document.querySelector('input[name="rating"]:checked');
+  document.querySelectorAll('.star').forEach(s => {
+    s.style.color = checked && s.dataset.value <= checked.value ? '#fbbf24' : '#e5e7eb';
+  });
+});
+</script>
