@@ -1,0 +1,167 @@
+<%
+const item = typeof item !== 'undefined' ? item : {};
+const creator = { name: item.creator_name, email: item.creator_email, id: item.creator_id };
+%>
+
+<main class="container">
+  <section class="page glass">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <a href="/admin/marketplace" style="color: var(--accent-2); text-decoration: none;">← Back</a>
+      <span style="background: <%= item.status === 'published' ? '#d1f2d9' : item.status === 'flagged' ? '#fee' : '#fef3c7' %>; color: <%= item.status === 'published' ? '#0f5f22' : item.status === 'flagged' ? '#911' : '#92400e' %>; padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 0.85rem;">
+        <%= item.status.toUpperCase() %>
+      </span>
+    </div>
+
+    <h1><%= item.title %></h1>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 32px;">
+      <!-- Content Preview & Meta -->
+      <div>
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; height: 300px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; overflow: hidden;">
+          <% if (item.thumbnail_path) { %>
+            <img src="<%= item.thumbnail_path %>" alt="<%= item.title %>" style="width: 100%; height: 100%; object-fit: cover;">
+          <% } else { %>
+            <span style="color: white; font-size: 60px; opacity: 0.5;">📦</span>
+          <% } %>
+        </div>
+
+        <div style="padding: 16px; background: var(--bg-2); border-radius: 8px;">
+          <div style="margin-bottom: 12px;">
+            <div class="muted" style="font-size: 0.85rem; margin-bottom: 4px;">CREATOR</div>
+            <strong><%= creator.name %></strong>
+            <div class="muted" style="font-size: 0.85rem;">
+              <%= creator.email %>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 12px; padding-top: 12px; border-top: 1px solid var(--border-light);">
+            <div class="muted" style="font-size: 0.85rem; margin-bottom: 4px;">CATEGORY</div>
+            <strong><%= item.category.toUpperCase() %></strong>
+          </div>
+
+          <div style="padding-top: 12px; border-top: 1px solid var(--border-light);">
+            <div class="muted" style="font-size: 0.85rem; margin-bottom: 4px;">STATS</div>
+            <div style="display: flex; justify-content: space-between; gap: 12px;">
+              <div>
+                <div class="muted" style="font-size: 0.75rem;">Downloads</div>
+                <strong style="font-size: 1.2rem;">📥 <%= item.download_count %></strong>
+              </div>
+              <div>
+                <div class="muted" style="font-size: 0.75rem;">Rating</div>
+                <strong style="font-size: 1.2rem;">⭐ <%= item.rating ? item.rating.toFixed(1) : 'N/A' %></strong>
+              </div>
+              <div>
+                <div class="muted" style="font-size: 0.75rem;">Reviews</div>
+                <strong style="font-size: 1.2rem;">💬 <%= item.rating_count %></strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Details & Moderation -->
+      <div>
+        <h3 style="margin-top: 0;">Description</h3>
+        <p style="color: var(--muted); line-height: 1.6; margin: 0 0 20px;">
+          <%= item.description || '(No description)' %>
+        </p>
+
+        <div style="padding: 16px; background: var(--glass); border-radius: 8px; margin-bottom: 20px;">
+          <h3 style="margin-top: 0; margin-bottom: 12px;">Versions</h3>
+          <% if (item.versions && item.versions.length > 0) { %>
+            <% item.versions.forEach((v, idx) => { %>
+              <div style="padding: 8px 0; border-bottom: 1px solid var(--border-light);">
+                <div style="font-weight: 600; text-transform: capitalize;">
+                  <%= v.version_type %> <%= v.price > 0 ? `($${v.price.toFixed(2)})` : '' %>
+                </div>
+                <div class="muted" style="font-size: 0.85rem;">
+                  <%= v.file_size ? (v.file_size / 1024 / 1024).toFixed(2) + ' MB' : 'Size unknown' %>
+                  • License: <%= v.license_type || 'N/A' %>
+                </div>
+              </div>
+            <% }); %>
+          <% } else { %>
+            <p class="muted" style="margin: 0;">No versions uploaded.</p>
+          <% } %>
+        </div>
+
+        <!-- Moderation Actions -->
+        <div style="padding: 16px; background: var(--accent-2); color: white; border-radius: 8px; margin-bottom: 20px;">
+          <h3 style="margin-top: 0; color: white;">Moderation</h3>
+          <p style="margin: 0 0 12px; opacity: 0.9;">Review and take action on this content.</p>
+
+          <form method="post" action="/admin/marketplace/<%= item.id %>/moderate" style="display: flex; flex-direction: column; gap: 8px;">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+            <% if (item.status === 'draft') { %>
+              <button type="submit" name="action" value="approve" class="btn" style="background: #10b981; border: none; color: white; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                ✓ Approve & Publish
+              </button>
+              <button type="submit" name="action" value="reject" class="btn ghost" style="border: 1px solid white; color: white; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                ✗ Reject (Return to Draft)
+              </button>
+            <% } %>
+
+            <button type="submit" name="action" value="flag" class="btn ghost" style="border: 1px solid #ef4444; color: #ef4444; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: 600; background: transparent;">
+              🚩 Flag for Review
+            </button>
+          </form>
+        </div>
+
+        <!-- Metadata -->
+        <div style="padding: 12px; background: var(--bg-2); border-radius: 8px; font-size: 0.85rem;">
+          <div style="margin-bottom: 8px;">
+            <span class="muted">Uploaded:</span> <%= new Date(item.created_at).toLocaleString() %>
+          </div>
+          <div>
+            <span class="muted">Last updated:</span> <%= new Date(item.updated_at).toLocaleString() %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tags -->
+    <% if (item.tags) { %>
+      <div style="margin-bottom: 20px;">
+        <h3>Tags</h3>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <% item.tags.split(',').forEach(tag => { %>
+            <span style="background: var(--bg-2); padding: 4px 10px; border-radius: 6px; font-size: 0.85rem;">
+              <%= tag.trim() %>
+            </span>
+          <% }); %>
+        </div>
+      </div>
+    <% } %>
+
+    <!-- Reviews -->
+    <div style="margin-top: 32px; padding-top: 32px; border-top: 1px solid var(--border-light);">
+      <h2>User Reviews (<%= (item.reviews || []).length %>)</h2>
+
+      <% if (item.reviews && item.reviews.length > 0) { %>
+        <div style="display: grid; gap: 12px;">
+          <% item.reviews.forEach(review => { %>
+            <div style="padding: 12px; background: var(--glass); border-radius: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                <strong><%= review.reviewer_name %></strong>
+                <div style="display: flex; gap: 2px;">
+                  <% for (let i = 0; i < 5; i++) { %>
+                    <span style="color: <%= i < review.rating ? '#fbbf24' : '#e5e7eb'; %>;">★</span>
+                  <% } %>
+                </div>
+              </div>
+              <p style="margin: 0; color: var(--muted); font-size: 0.9rem;">
+                <%= review.comment %>
+              </p>
+              <div class="muted" style="font-size: 0.8rem; margin-top: 6px;">
+                <%= new Date(review.created_at).toLocaleDateString() %>
+              </div>
+            </div>
+          <% }); %>
+        </div>
+      <% } else { %>
+        <p class="muted">No reviews yet.</p>
+      <% } %>
+    </div>
+  </section>
+</main>

@@ -1,0 +1,133 @@
+<%
+const transactions = typeof transactions !== 'undefined' ? transactions : [];
+%>
+
+<main class="container">
+  <section class="page glass">
+    <h1>Marketplace Transactions</h1>
+    <p class="muted">View all purchases, revenue, and payment status.</p>
+
+    <% 
+      const completed = transactions.filter(t => t.payment_status === 'completed').length;
+      const pending = transactions.filter(t => t.payment_status === 'pending').length;
+      const failed = transactions.filter(t => t.payment_status === 'failed').length;
+      const totalRevenue = transactions
+        .filter(t => t.payment_status === 'completed')
+        .reduce((sum, t) => sum + (t.amount || 0), 0);
+    %>
+
+    <!-- Stats -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 32px;">
+      <div class="glass" style="padding: 16px; border-radius: 12px;">
+        <div class="muted" style="font-size: 0.85rem;">COMPLETED</div>
+        <div style="font-size: 1.8rem; font-weight: 700; color: #10b981;">
+          <%= completed %>
+        </div>
+      </div>
+      <div class="glass" style="padding: 16px; border-radius: 12px;">
+        <div class="muted" style="font-size: 0.85rem;">PENDING</div>
+        <div style="font-size: 1.8rem; font-weight: 700; color: #f59e0b;">
+          <%= pending %>
+        </div>
+      </div>
+      <div class="glass" style="padding: 16px; border-radius: 12px;">
+        <div class="muted" style="font-size: 0.85rem;">FAILED</div>
+        <div style="font-size: 1.8rem; font-weight: 700; color: #ef4444;">
+          <%= failed %>
+        </div>
+      </div>
+      <div class="glass" style="padding: 16px; border-radius: 12px;">
+        <div class="muted" style="font-size: 0.85rem;">TOTAL REVENUE</div>
+        <div style="font-size: 1.8rem; font-weight: 700; color: var(--accent-2);">
+          $<%= totalRevenue.toFixed(2) %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transactions Table -->
+    <% if (transactions.length === 0) { %>
+      <div style="text-align: center; padding: 40px; background: var(--glass); border-radius: 12px;">
+        <p class="muted">No transactions yet.</p>
+      </div>
+    <% } else { %>
+      <div style="overflow-x: auto;">
+        <table class="admin-list" style="width: 100%;">
+          <thead>
+            <tr style="border-bottom: 2px solid var(--border-light); background: var(--glass);">
+              <th style="padding: 12px; text-align: left; font-weight: 600;">ID / Type</th>
+              <th style="padding: 12px; text-align: left; font-weight: 600;">Buyer</th>
+              <th style="padding: 12px; text-align: left; font-weight: 600;">Seller / Content</th>
+              <th style="padding: 12px; text-align: center; font-weight: 600;">Amount</th>
+              <th style="padding: 12px; text-align: center; font-weight: 600;">Status</th>
+              <th style="padding: 12px; text-align: center; font-weight: 600;">Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% transactions.forEach(txn => { %>
+              <tr style="border-bottom: 1px solid var(--border-light);">
+                <td style="padding: 12px;">
+                  <strong><%= txn.id.substring(0, 8) %>...</strong>
+                  <div class="muted" style="font-size: 0.85rem; margin-top: 2px;">
+                    <%= txn.transaction_type === 'content_purchase' ? '📦 Content' : '📚 Pack' %>
+                  </div>
+                </td>
+                <td style="padding: 12px;">
+                  <%= txn.buyer_name %>
+                </td>
+                <td style="padding: 12px;">
+                  <strong><%= txn.seller_name %></strong>
+                  <div class="muted" style="font-size: 0.85rem; margin-top: 2px;">
+                    <%= txn.content_title || '(N/A)' %>
+                  </div>
+                </td>
+                <td style="padding: 12px; text-align: center; font-weight: 600; color: var(--accent-2);">
+                  $<%= txn.amount.toFixed(2) %>
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                  <% 
+                    let statusBg = '#fef3c7', statusColor = '#92400e';
+                    if (txn.payment_status === 'completed') {
+                      statusBg = '#d1f2d9';
+                      statusColor = '#0f5f22';
+                    } else if (txn.payment_status === 'failed') {
+                      statusBg = '#fee';
+                      statusColor = '#911';
+                    }
+                  %>
+                  <span style="background: <%= statusBg %>; color: <%= statusColor %>; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 600;">
+                    <%= txn.payment_status.toUpperCase() %>
+                  </span>
+                </td>
+                <td style="padding: 12px; text-align: center; font-size: 0.85rem; color: var(--muted);">
+                  <%= new Date(txn.created_at).toLocaleDateString() %>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination / Load More -->
+      <div style="text-align: center; margin-top: 24px;">
+        <p class="muted">Showing <%= transactions.length %> most recent transactions</p>
+      </div>
+    <% } %>
+
+    <!-- Revenue Info -->
+    <div style="margin-top: 32px; padding: 16px; background: var(--bg-2); border-radius: 8px;">
+      <strong>Revenue Breakdown:</strong>
+      <ul style="margin: 8px 0 0; padding-left: 20px; color: var(--muted);">
+        <li><strong>Platform revenue:</strong> 30% of each sale (after Stripe fees) goes to the platform.</li>
+        <li><strong>Stripe fees:</strong> 2.9% + $0.30 per transaction.</li>
+        <li><strong>Creator payout:</strong> 50–70% depending on volume and agreements.</li>
+        <li><strong>Pending:</strong> Transactions awaiting payment confirmation from Stripe.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+
+<style>
+tr:hover {
+  background: rgba(0,0,0,0.02);
+}
+</style>

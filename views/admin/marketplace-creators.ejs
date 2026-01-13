@@ -1,0 +1,75 @@
+<%
+const creators = typeof creators !== 'undefined' ? creators : [];
+%>
+
+<main class="container">
+  <section class="page glass">
+    <h1>Creator Management</h1>
+    <p class="muted">Manage creators, verify accounts, and monitor earnings.</p>
+
+    <% if (creators.length === 0) { %>
+      <div style="text-align: center; padding: 40px; background: var(--glass); border-radius: 12px;">
+        <p class="muted">No creators yet.</p>
+      </div>
+    <% } else { %>
+      <div style="overflow-x: auto; margin-top: 20px;">
+        <table class="admin-list" style="width: 100%;">
+          <thead>
+            <tr style="border-bottom: 2px solid var(--border-light); background: var(--glass);">
+              <th style="padding: 12px; text-align: left; font-weight: 600;">Creator Name</th>
+              <th style="padding: 12px; text-align: center; font-weight: 600;">Email</th>
+              <th style="padding: 12px; text-align: center; font-weight: 600;">Content</th>
+              <th style="padding: 12px; text-align: center; font-weight: 600;">Total Downloads</th>
+              <th style="padding: 12px; text-align: center; font-weight: 600;">Status</th>
+              <th style="padding: 12px; text-align: center; font-weight: 600;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% creators.forEach(creator => { %>
+              <tr style="border-bottom: 1px solid var(--border-light);">
+                <td style="padding: 12px;">
+                  <strong><%= creator.name %></strong>
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                  <a href="mailto:<%= creator.email %>" style="color: var(--accent-2); text-decoration: none;">
+                    <%= creator.email %>
+                  </a>
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                  📦 <%= creator.content_count || 0 %>
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                  📥 <%= creator.total_downloads || 0 %>
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                  <span style="background: #d1f2d9; color: #0f5f22; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 600;">
+                    ACTIVE
+                  </span>
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                  <a href="/admin/users/<%= creator.id %>" class="btn ghost" style="padding: 6px 10px; font-size: 0.8rem; text-decoration: none;">View Profile</a>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+
+    <div style="margin-top: 32px; padding: 16px; background: var(--bg-2); border-radius: 8px;">
+      <strong>Creator Program:</strong>
+      <ul style="margin: 8px 0 0; padding-left: 20px; color: var(--muted);">
+        <li>Creators earn 50–70% of sales after platform (30%) and Stripe (2.9% + $0.30) fees.</li>
+        <li>Payouts processed monthly to verified bank accounts (Stripe Connect).</li>
+        <li>Content must be original; violations result in account suspension and content removal.</li>
+        <li>Reach out for featured placement, partnerships, or revenue-share opportunities.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+
+<style>
+tr:hover {
+  background: rgba(0,0,0,0.02);
+}
+</style>
