@@ -1,9 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Creator Dashboard - The Modern Pedagogues</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/darkmode.css">
+</head>
+<body>
+
 <%
 const contentList = typeof content !== 'undefined' ? content : [];
 const draftCount = contentList.filter(c => c.status === 'draft').length;
 const publishedCount = contentList.filter(c => c.status === 'published').length;
 const totalDownloads = contentList.reduce((sum, c) => sum + (c.download_count || 0), 0);
 %>
+
+<%- include('../partials/header') %>
 
 <main class="container">
   <section class="page glass">
@@ -132,3 +145,8 @@ tr:hover {
   background: rgba(0,0,0,0.02);
 }
 </style>
+
+<%- include('../partials/footer') %>
+
+</body>
+</html>

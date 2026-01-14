@@ -1,3 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Marketplace - The Modern Pedagogues</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/darkmode.css">
+</head>
+<body>
+
 <%
 const categories = ['templates', 'graphics', 'icons', 'fonts', 'photos', 'vectors', 'videos', 'music'];
 const currentCategory = typeof category !== 'undefined' ? category : '';
@@ -10,6 +21,8 @@ const totalCount = typeof total !== 'undefined' ? total : 0;
 const pageSize = 20;
 const totalPages = Math.ceil(totalCount / pageSize);
 %>
+
+<%- include('../partials/header') %>
 
 <main class="container">
   <section class="page" style="background: transparent; padding: 0;">
@@ -199,3 +212,8 @@ function setPrice(min, max) {
   document.getElementById('filterForm').submit();
 }
 </script>
+
+<%- include('../partials/footer') %>
+
+</body>
+</html>

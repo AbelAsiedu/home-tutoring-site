@@ -1,8 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Upload Content - The Modern Pedagogues</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/darkmode.css">
+</head>
+<body>
+
 <%
 // Creator content upload form
 const categories = ['templates', 'graphics', 'icons', 'fonts', 'photos', 'vectors', 'videos', 'music', 'other'];
 const licenses = ['personal', 'commercial', 'editorial'];
 %>
+
+<%- include('../partials/header') %>
 
 <main class="container">
   <section class="page glass">
@@ -136,3 +149,8 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
   }
 });
 </script>
+
+<%- include('../partials/footer') %>
+
+</body>
+</html>

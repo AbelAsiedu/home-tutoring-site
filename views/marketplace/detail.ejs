@@ -1,3 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Content Details - The Modern Pedagogues</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/darkmode.css">
+</head>
+<body>
+
 <%
 const content = typeof item !== 'undefined' ? item : {};
 const versions = content.versions || [];
@@ -6,6 +17,8 @@ const isFavorited = typeof favorite !== 'undefined' ? favorite : false;
 const canDownload = typeof canDownload !== 'undefined' ? canDownload : false;
 const isPurchased = typeof isPurchased !== 'undefined' ? isPurchased : false;
 %>
+
+<%- include('../partials/header') %>
 
 <main class="container">
   <section class="page">
@@ -256,3 +269,8 @@ document.querySelectorAll('.star').parentElement?.addEventListener('mouseout', f
   });
 });
 </script>
+
+<%- include('../partials/footer') %>
+
+</body>
+</html>
