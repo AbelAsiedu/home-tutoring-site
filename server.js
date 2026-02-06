@@ -423,6 +423,9 @@ function requireAuth(req, res, next) {
   return res.redirect('/login');
 }
 
+// Alias kept for legacy routes that still reference requireLogin.
+const requireLogin = requireAuth;
+
 function requireRole(role) {
   return (req, res, next) => {
     if (req.getUserRole() === role) return next();
