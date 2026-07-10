@@ -1,22 +1,55 @@
 <%- include('partials/header') %>
 
 <section class="page glass">
-  <h1>Your Account</h1>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:20px">
+    <div>
+      <h1 style="margin-bottom:6px">Your Account</h1>
+      <p class="muted" style="margin:0">Manage your details, security, and profile image.</p>
+    </div>
+    <% if (profile && profile.avatar_path) { %>
+      <img src="<%= profile.avatar_path %>" alt="Profile image" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid var(--accent-2);box-shadow:0 10px 24px rgba(0,0,0,0.12)">
+    <% } else { %>
+      <div style="width:96px;height:96px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--accent-2),var(--accent));color:white;font-size:2rem;font-weight:700;box-shadow:0 10px 24px rgba(0,0,0,0.12)">
+        <%= (user.name || 'U').slice(0,1).toUpperCase() %>
+      </div>
+    <% } %>
+  </div>
   
   <% if (typeof error !== 'undefined') { %><div class="notice error"><%= error %></div><% } %>
   <% if (typeof success !== 'undefined') { %><div class="notice success"><%= success %></div><% } %>
   <% if (typeof message !== 'undefined') { %><div class="notice"><%= message %></div><% } %>
+
+  <div class="account-box curved" style="margin-bottom: 20px;display:grid;grid-template-columns:96px 1fr;gap:16px;align-items:center;">
+    <div>
+      <% if (profile && profile.avatar_path) { %>
+        <img src="<%= profile.avatar_path %>" alt="Profile" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:2px solid #3b82f6;">
+      <% } else { %>
+        <div style="width:96px;height:96px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(59,130,246,0.12);color:#2563eb;font-size:2rem;font-weight:700;">
+          <%= (user.name || 'U').slice(0,1).toUpperCase() %>
+        </div>
+      <% } %>
+    </div>
+    <div>
+      <h2 style="margin-top: 0; margin-bottom: 8px;">Profile Information</h2>
+      <p><strong>Name:</strong> <%= user.name %></p>
+      <p><strong>Email:</strong> <%= user.email %></p>
+      <p><strong>Role:</strong> <%= user.role %></p>
+      <% if (profile && profile.bio) { %><p><strong>About:</strong> <%= profile.bio %></p><% } %>
+      <% if (profile && profile.location) { %><p><strong>Location:</strong> <%= profile.location %></p><% } %>
+      <% if (user.email_verified === 0 || user.email_verified === false) { %>
+        <p style="color: #ff6b6b;"><strong>Email Status:</strong> Not verified - Please check your email</p>
+      <% } else { %>
+        <p style="color: #51cf66;"><strong>Email Status:</strong> Verified ✓</p>
+      <% } %>
+    </div>
+  </div>
   
   <div class="account-box curved" style="margin-bottom: 20px;">
-    <h2 style="margin-top: 0;">Profile Information</h2>
-    <p><strong>Name:</strong> <%= user.name %></p>
-    <p><strong>Email:</strong> <%= user.email %></p>
-    <p><strong>Role:</strong> <%= user.role %></p>
-    <% if (user.email_verified === 0 || user.email_verified === false) { %>
-      <p style="color: #ff6b6b;"><strong>Email Status:</strong> Not verified - Please check your email</p>
-    <% } else { %>
-      <p style="color: #51cf66;"><strong>Email Status:</strong> Verified ✓</p>
-    <% } %>
+    <h2 style="margin-top: 0;">Security & Access</h2>
+    <p><strong>Account ID:</strong> <%= user.id %></p>
+    <p><strong>Profile Photo:</strong> <%= profile && profile.avatar_path ? 'Uploaded' : 'Not set yet' %></p>
+    <p><strong>Email Status:</strong> <%= user.email_verified === 0 || user.email_verified === false ? 'Not verified' : 'Verified' %></p>
+    <p class="muted" style="margin-bottom: 0;">Use the forms below to change your email or password, and <a href="/profile/edit">edit your profile</a> to update your photo and bio.</p>
   </div>
   
   <div class="account-box curved" style="margin-bottom: 20px;">

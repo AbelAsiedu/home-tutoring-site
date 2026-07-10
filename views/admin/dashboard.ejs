@@ -10,31 +10,54 @@
     <%- include('../partials/header') %>
     <main class="container">
       <section class="page glass">
-        <h1>Admin Dashboard</h1>
-        <div class="admin-stats curved">
-          <div class="stat glass">Users: <%= stats.users %></div>
-          <div class="stat glass">Products: <%= stats.products %></div>
-          <div class="stat glass">Orders: <%= stats.orders %></div>
-          <div class="stat glass">Messages: <%= stats.messages %></div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:18px">
+          <div>
+            <h1 style="margin-bottom:6px">Admin Dashboard</h1>
+            <p class="muted" style="margin:0;max-width:60ch">Platform overview, content operations, and moderation tools in one place.</p>
+          </div>
+          <a href="/admin/marketplace" class="btn ghost">Open Marketplace Moderation</a>
         </div>
-        <div class="admin-actions" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px">
+
+        <div class="admin-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;">
+          <div class="glass" style="padding:18px;border-radius:16px;background:linear-gradient(135deg,rgba(59,130,246,0.12),rgba(59,130,246,0.03));">
+            <div class="muted" style="font-size:0.85rem;letter-spacing:0.04em">USERS</div>
+            <div style="font-size:2rem;font-weight:800;color:var(--accent-2)"><%= stats.users %></div>
+          </div>
+          <div class="glass" style="padding:18px;border-radius:16px;background:linear-gradient(135deg,rgba(16,185,129,0.12),rgba(16,185,129,0.03));">
+            <div class="muted" style="font-size:0.85rem;letter-spacing:0.04em">PRODUCTS</div>
+            <div style="font-size:2rem;font-weight:800;color:#10b981"><%= stats.products %></div>
+          </div>
+          <div class="glass" style="padding:18px;border-radius:16px;background:linear-gradient(135deg,rgba(245,158,11,0.12),rgba(245,158,11,0.03));">
+            <div class="muted" style="font-size:0.85rem;letter-spacing:0.04em">ORDERS</div>
+            <div style="font-size:2rem;font-weight:800;color:#f59e0b"><%= stats.orders %></div>
+          </div>
+          <div class="glass" style="padding:18px;border-radius:16px;background:linear-gradient(135deg,rgba(239,68,68,0.12),rgba(239,68,68,0.03));">
+            <div class="muted" style="font-size:0.85rem;letter-spacing:0.04em">MESSAGES</div>
+            <div style="font-size:2rem;font-weight:800;color:#ef4444"><%= stats.messages %></div>
+          </div>
+        </div>
+
+        <div class="admin-actions" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:18px">
           <a href="/admin/users" class="btn">User Management</a>
           <a href="/admin/messages" class="btn">View Messages</a>
           <a href="/admin/applications" class="btn">View Applications</a>
+          <a href="/admin/seller-applications" class="btn">Seller Reviews</a>
           <a href="/admin/products" class="btn">Manage Products</a>
           <a href="/admin/orders" class="btn">Orders</a>
           <a href="/admin/content" class="btn">Edit Content</a>
           <a href="/admin/media" class="btn">Media Manager</a>
           <a href="/admin/export/orders" class="btn ghost">Export Orders CSV</a>
           <a href="/admin/export/messages" class="btn ghost">Export Messages CSV</a>
+          <a href="/admin/export/ai-chat" class="btn ghost">Export AI Chat CSV</a>
+          <a href="/admin/export/ai-chat-summary" class="btn ghost">Export AI Summary CSV</a>
         </div>
 
-        <div class="glass" style="margin-top:20px;padding:12px">
+        <div class="glass" style="margin-top:20px;padding:18px;border-radius:16px">
           <h2>Activity (last 14 days)</h2>
           <div id="charts" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:12px"></div>
         </div>
 
-        <div class="glass" style="margin-top:20px;padding:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">
+        <div class="glass" style="margin-top:20px;padding:18px;border-radius:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">
           <div>
             <h2>Inventory mix</h2>
             <div id="pie-inventory" style="display:flex;justify-content:center;align-items:center"></div>
@@ -42,6 +65,56 @@
           <div>
             <h2>Activity mix (14 days)</h2>
             <div id="pie-activity" style="display:flex;justify-content:center;align-items:center"></div>
+          </div>
+        </div>
+
+        <div class="glass" style="margin-top:20px;padding:18px;border-radius:16px">
+          <h2>AI Tutor Analytics</h2>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:10px 0 16px">
+            <div class="card small">Total chats: <strong><%= aiAnalytics.totalChats || 0 %></strong></div>
+            <div class="card small">Fallback rate: <strong><%= aiAnalytics.fallbackRate || 0 %>%</strong></div>
+            <div class="card small">Low-confidence rate: <strong><%= aiAnalytics.lowConfidenceRate || 0 %>%</strong></div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">
+            <div class="card" style="padding:10px">
+              <h3 style="margin:0 0 8px">Top Question Themes</h3>
+              <% if (aiAnalytics.topIntents && aiAnalytics.topIntents.length) { %>
+                <ul style="margin:0;padding-left:18px">
+                  <% aiAnalytics.topIntents.forEach(function(item){ %>
+                    <li><strong><%= item.intent.replace(/_/g, ' ') %></strong>: <%= item.count %></li>
+                  <% }) %>
+                </ul>
+              <% } else { %>
+                <p class="muted" style="margin:0">No AI chat data yet.</p>
+              <% } %>
+            </div>
+
+            <div class="card" style="padding:10px">
+              <h3 style="margin:0 0 8px">Potential Unanswered Intents</h3>
+              <% if (aiAnalytics.unansweredIntents && aiAnalytics.unansweredIntents.length) { %>
+                <ul style="margin:0;padding-left:18px">
+                  <% aiAnalytics.unansweredIntents.forEach(function(item){ %>
+                    <li><strong><%= item.intent.replace(/_/g, ' ') %></strong>: <%= item.count %></li>
+                  <% }) %>
+                </ul>
+              <% } else { %>
+                <p class="muted" style="margin:0">No significant unanswered intents in recent chats.</p>
+              <% } %>
+            </div>
+
+            <div class="card" style="padding:10px">
+              <h3 style="margin:0 0 8px">Most Matched Topics</h3>
+              <% if (aiAnalytics.topTopics && aiAnalytics.topTopics.length) { %>
+                <ul style="margin:0;padding-left:18px">
+                  <% aiAnalytics.topTopics.forEach(function(item){ %>
+                    <li><strong><%= item.topic.replace(/_/g, ' ') %></strong>: <%= item.count %></li>
+                  <% }) %>
+                </ul>
+              <% } else { %>
+                <p class="muted" style="margin:0">No topic matching data yet.</p>
+              <% } %>
+            </div>
           </div>
         </div>
       </section>

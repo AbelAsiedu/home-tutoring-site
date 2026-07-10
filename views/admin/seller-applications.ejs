@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Seller Applications - Admin</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('../partials/header') %>
+  <main class="container">
+    <section class="page glass">
+      <h1>Seller Applications</h1>
+      <p class="muted">Review and approve creators before they can upload or sell books.</p>
+
+      <% if (message) { %>
+        <div style="padding:12px;border-radius:8px;background:#d1f2d9;color:#0f5f22;margin:12px 0;"><%= message %></div>
+      <% } %>
+      <% if (error) { %>
+        <div style="padding:12px;border-radius:8px;background:#fee;color:#911;margin:12px 0;"><%= error %></div>
+      <% } %>
+
+      <% if (!rows || rows.length === 0) { %>
+        <div class="glass" style="padding:16px;border-radius:10px;">No seller applications yet.</div>
+      <% } else { %>
+        <div class="list curved">
+          <% rows.forEach(function(r){ %>
+            <article class="item glass" style="display:grid;gap:8px;">
+              <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+                <strong><%= r.display_name %></strong>
+                <span class="muted"><%= String(r.status || 'pending').toUpperCase() %></span>
+              </div>
+              <div>Email: <%= r.user_email || r.payout_email %></div>
+              <div class="muted">User role: <%= r.user_role || 'user' %></div>
+              <div><strong>Motivation:</strong> <%= r.motivation %></div>
+              <% if (r.sample_path) { %>
+                <div><a href="<%= r.sample_path %>" target="_blank">Open sample file</a></div>
+              <% } %>
+              <% if (r.review_notes) { %>
+                <div><strong>Current notes:</strong> <%= r.review_notes %></div>
+              <% } %>
+
+              <form method="post" action="/admin/seller-applications/<%= r.id %>/review" style="display:grid;gap:8px;max-width:520px;">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <textarea name="review_notes" maxlength="1000" placeholder="Optional review notes" style="width:100%;padding:10px;border:1px solid var(--border-light);border-radius:8px;min-height:70px;"></textarea>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <button class="btn" type="submit" name="action" value="approve">Approve</button>
+                  <button class="btn ghost" type="submit" name="action" value="reject">Reject</button>
+                </div>
+              </form>
+            </article>
+          <% }) %>
+        </div>
+      <% } %>
+    </section>
+  </main>
+  <%- include('../partials/footer') %>
+</body>
+</html>

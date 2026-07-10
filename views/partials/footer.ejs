@@ -15,6 +15,11 @@
     <div style="display:inline-flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center;justify-content:center">
       <% if (typeof user !== 'undefined' && user) { %>
         <a href="/account" class="btn ghost" title="View and edit your account settings">Hi <%= user.name %></a>
+        <% if (user.role === 'creator' || user.role === 'admin') { %>
+          <a href="/marketplace/creator/dashboard" class="btn ghost" title="Open your creator dashboard">Creator Dashboard</a>
+        <% } else { %>
+          <a href="/marketplace/seller/apply" class="btn ghost" title="Apply to become a verified marketplace seller">Become a Seller</a>
+        <% } %>
         <% if (typeof isAdmin !== 'undefined' && isAdmin) { %>
           <a href="/admin" class="btn ghost" title="Access admin control panel">Dashboard</a>
         <% } %>

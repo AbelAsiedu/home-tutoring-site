@@ -2,8 +2,16 @@
 
 <main class="container">
   <section class="page glass">
-    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-      <h1 style="margin: 0;">Welcome, <%= user.name %></h1>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <% if (profile && profile.avatar_path) { %>
+        <img src="<%= profile.avatar_path %>" alt="Profile image" style="width:96px;height:96px;border-radius:24px;object-fit:cover;border:3px solid var(--accent-2);box-shadow:0 12px 30px rgba(0,0,0,0.12)">
+      <% } else { %>
+        <div style="width:96px;height:96px;border-radius:24px;background:linear-gradient(135deg,var(--accent-2),var(--accent));display:flex;align-items:center;justify-content:center;color:white;font-size:2rem;font-weight:700;box-shadow:0 12px 30px rgba(0,0,0,0.12)"><%= (user.name || 'U').slice(0,1).toUpperCase() %></div>
+      <% } %>
+      <div>
+        <h1 style="margin: 0 0 6px;">Welcome, <%= user.name %></h1>
+        <p class="muted" style="margin:0">Your personal dashboard, activity, and quick actions in one place.</p>
+      </div>
     </div>
 
     <% if (typeof message !== 'undefined' && message) { %>
@@ -18,11 +26,17 @@
     <!-- Account info -->
     <section style="margin-top: 20px;">
       <h2>Account Information</h2>
-      <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px;">
-        <p><strong>Name:</strong> <%= user.name %></p>
-        <p><strong>Email:</strong> <%= user.email %></p>
-        <p><strong>Role:</strong> <%= user.role %></p>
-        <p><strong>Email Verified:</strong> <%= user.email_verified ? 'Yes' : 'No' %></p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;">
+        <div class="glass" style="padding:16px;border-radius:14px;">
+          <p style="margin:0 0 8px"><strong>Name:</strong> <%= user.name %></p>
+          <p style="margin:0 0 8px"><strong>Email:</strong> <%= user.email %></p>
+          <p style="margin:0"><strong>Role:</strong> <%= user.role %></p>
+        </div>
+        <div class="glass" style="padding:16px;border-radius:14px;">
+          <p style="margin:0 0 8px"><strong>Email Verified:</strong> <%= user.email_verified ? 'Yes' : 'No' %></p>
+          <p style="margin:0"><strong>Profile:</strong> <%= profile && profile.avatar_path ? 'Photo set' : 'Add a photo for a richer profile' %></p>
+          <% if (profile && profile.bio) { %><p style="margin:8px 0 0" class="muted"><%= profile.bio %></p><% } %>
+        </div>
       </div>
       <div style="margin-top: 15px;">
         <a href="/account" class="btn" title="Manage your account settings and security">Manage Account</a>
@@ -77,7 +91,7 @@
     <!-- Quick links -->
     <section style="margin-top: 20px;">
       <h2>Quick Links</h2>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">
         <a href="/cart" class="btn" title="Review items in your shopping cart">View Cart</a>
         <a href="/curriculum" class="btn" title="Browse our educational curriculum">Curriculum</a>
         <a href="/tutors" class="btn" title="Find and connect with qualified tutors">Find Tutors</a>

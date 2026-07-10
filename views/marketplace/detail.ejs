@@ -14,8 +14,9 @@ const content = typeof item !== 'undefined' ? item : {};
 const versions = content.versions || [];
 const reviews = content.reviews || [];
 const isFavorited = typeof favorite !== 'undefined' ? favorite : false;
-const canDownload = typeof canDownload !== 'undefined' ? canDownload : false;
-const isPurchased = typeof isPurchased !== 'undefined' ? isPurchased : false;
+const canDownloadValue = typeof canDownload !== 'undefined' ? canDownload : false;
+const isPurchasedValue = typeof isPurchased !== 'undefined' ? isPurchased : false;
+const isLoggedInValue = typeof isLoggedIn !== 'undefined' ? isLoggedIn : false;
 %>
 
 <%- include('../partials/header') %>
@@ -77,7 +78,7 @@ const isPurchased = typeof isPurchased !== 'undefined' ? isPurchased : false;
               <% 
                 const rating = Math.round(content.rating || 0);
                 for (let i = 0; i < 5; i++) { %>
-                  <span style="color: <%= i < rating ? '#fbbf24' : '#e5e7eb'; font-size: 1.2rem;">★</span>
+                  <span style="color: <%= i < rating ? '#fbbf24' : '#e5e7eb' %>; font-size: 1.2rem;">★</span>
               <% } %>
             </div>
             <div class="muted" style="font-size: 0.85rem; margin-top: 4px;">
@@ -141,7 +142,11 @@ const isPurchased = typeof isPurchased !== 'undefined' ? isPurchased : false;
                     <% } %>
                   </div>
                   
-                  <% if (version.version_type === 'free' || isPurchased || canDownload) { %>
+                  <% if (!isLoggedInValue) { %>
+                    <a href="/login" class="btn" style="padding: 8px 12px; font-size: 0.9rem; text-decoration: none; display: inline-block;">
+                      🔐 Login to download
+                    </a>
+                  <% } else if (version.version_type === 'free' || isPurchasedValue || canDownloadValue) { %>
                     <form method="post" action="/marketplace/<%= content.id %>/download/<%= version.id %>" style="display: inline;">
                       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                       <button type="submit" class="btn" style="padding: 8px 12px; font-size: 0.9rem;">
@@ -184,7 +189,7 @@ const isPurchased = typeof isPurchased !== 'undefined' ? isPurchased : false;
                   <strong><%= review.reviewer_name %></strong>
                   <div style="display: flex; gap: 2px; margin-top: 4px;">
                     <% for (let i = 0; i < 5; i++) { %>
-                      <span style="color: <%= i < review.rating ? '#fbbf24' : '#e5e7eb'; %>;">★</span>
+                      <span style="color: <%= i < review.rating ? '#fbbf24' : '#e5e7eb' %>;">★</span>
                     <% } %>
                   </div>
                 </div>
@@ -203,7 +208,7 @@ const isPurchased = typeof isPurchased !== 'undefined' ? isPurchased : false;
       <% } %>
 
       <!-- Add Review -->
-      <% if (isPurchased || canDownload) { %>
+      <% if (typeof canReview !== 'undefined' ? canReview : (isPurchasedValue || canDownloadValue)) { %>
         <div style="margin-top: 32px; padding: 20px; background: var(--glass); border-radius: 12px;">
           <h3 style="margin-top: 0;">Share Your Feedback</h3>
           <form method="post" action="/marketplace/<%= content.id %>/review" style="max-width: 500px;">

@@ -11,7 +11,7 @@
 
 <%
 // Creator content upload form
-const categories = ['templates', 'graphics', 'icons', 'fonts', 'photos', 'vectors', 'videos', 'music', 'other'];
+const categories = ['books', 'templates', 'graphics', 'icons', 'fonts', 'photos', 'vectors', 'videos', 'music', 'other'];
 const licenses = ['personal', 'commercial', 'editorial'];
 %>
 
@@ -107,7 +107,7 @@ const licenses = ['personal', 'commercial', 'editorial'];
           <label><strong>Premium Price (USD)</strong></label>
           <input type="number" name="paidPrice" id="paidPrice" min="0.99" max="99.99" step="0.01" placeholder="9.99" style="width: 100%; padding: 10px; border: 1px solid var(--border-light); border-radius: 8px; margin-top: 6px;">
           <div class="muted" style="margin-top: 6px; font-size: 0.9rem;">
-            You earn ~50% after Stripe & platform fees. E.g., $9.99 = ~$3–4 to you.
+            Platform commission is applied on each paid sale (default 30%) plus payment processor fees.
           </div>
 
           <label style="display: block; margin-top: 12px;"><strong>License Type</strong></label>

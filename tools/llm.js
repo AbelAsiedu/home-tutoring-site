@@ -24,14 +24,22 @@ async function callOpenRouter(messages) {
     messages,
     temperature: 0.3,
   };
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${key}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload)
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+  let res;
+  try {
+    res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
   if (!res.ok) {
     const err = await res.text();
     throw new Error(`OpenRouter error: ${res.status} ${err}`);
@@ -51,14 +59,22 @@ async function callMistral(messages) {
     messages,
     temperature: 0.3,
   };
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${key}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload)
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+  let res;
+  try {
+    res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
   if (!res.ok) {
     const err = await res.text();
     throw new Error(`Mistral error: ${res.status} ${err}`);
@@ -81,14 +97,22 @@ async function callHuggingFace(prompt) {
       return_full_text: false
     }
   };
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${key}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload)
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+  let res;
+  try {
+    res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
   if (!res.ok) {
     const err = await res.text();
     throw new Error(`HuggingFace error: ${res.status} ${err}`);
@@ -98,30 +122,61 @@ async function callHuggingFace(prompt) {
   return text || null;
 }
 
-async function queryLLM(userMessage) {
+async function queryLLM(userMessage, options = {}) {
   if (isBlockedPrompt(userMessage)) return SAFE_BLOCK_TEXT;
+
+  const knowledgeContext = String(options.knowledgeContext || '').trim();
+  const supportContact = String(options.supportContact || 'support@modernpedagogues.com').trim();
+  const intents = Array.isArray(options.intents) ? options.intents : [];
+  const history = Array.isArray(options.history) ? options.history : [];
+  const contextBlock = knowledgeContext
+    ? `Use this verified site context when answering client questions:\n${knowledgeContext}`
+    : 'No extra site context provided. Use best effort and avoid fabricating specifics.';
+  const historyBlock = history.length
+    ? history.map(item => `${item.role === 'assistant' ? 'Assistant' : 'User'}: ${String(item.content || '').trim()}`).join('\n')
+    : 'No prior messages.';
 
   const system = {
     role: 'system',
-    content: 'You are a friendly tutoring assistant for The Modern Pedagogues. Answer concisely, helpfully, and safely. If asked for anything harmful, hateful, racist, sexist, lewd, or violent, respond strictly with: "Sorry, I can\'t assist with that."'
+    content: `You are a friendly client support + tutoring assistant for The Modern Pedagogues.
+Answer helpfully, clearly, and safely.
+Prioritize answering client concerns about tutors, lessons, pricing, bookings, account access, downloads, curriculum, safety, and policies.
+Active intents for this user message: ${intents.join(', ') || 'general_support'}.
+Use up to 3 short bullet points, then 1 short next-step sentence.
+When details are uncertain, say what is known and direct the user to /contact or ${supportContact}.
+Never invent specific prices, policies, or promises not supported by provided context.
+If asked for anything harmful, hateful, racist, sexist, lewd, or violent, respond strictly with: "Sorry, I can't assist with that."
+
+${contextBlock}
+
+Recent conversation:
+${historyBlock}`
   };
   const user = { role: 'user', content: String(userMessage || '') };
+  const priorMessages = history
+    .map(item => ({
+      role: item.role === 'assistant' ? 'assistant' : 'user',
+      content: String(item.content || '').trim()
+    }))
+    .filter(item => item.content)
+    .slice(-6);
+  const messages = [system, ...priorMessages, user];
 
   // Prefer Mistral if configured
   if (process.env.MISTRAL_API_KEY) {
-    const ans = await callMistral([system, user]);
+    const ans = await callMistral(messages);
     if (ans) return ans;
   }
 
   // Next preference: OpenRouter
   if (process.env.OPENROUTER_API_KEY) {
-    const ans = await callOpenRouter([system, user]);
+    const ans = await callOpenRouter(messages);
     if (ans) return ans;
   }
 
   // Fallback to Hugging Face if available
   if (process.env.HUGGINGFACE_API_KEY) {
-    const prompt = `${system.content}\n\nUser: ${user.content}\nAssistant:`;
+    const prompt = `${system.content}\n\n${priorMessages.map(item => `${item.role === 'assistant' ? 'Assistant' : 'User'}: ${item.content}`).join('\n')}\nUser: ${user.content}\nAssistant:`;
     const ans = await callHuggingFace(prompt);
     if (ans) return ans;
   }

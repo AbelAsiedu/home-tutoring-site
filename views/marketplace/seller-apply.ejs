@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Become a Seller - The Modern Pedagogues</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/darkmode.css">
+</head>
+<body>
+
+<%- include('../partials/header') %>
+
+<main class="container">
+  <section class="page glass" style="max-width: 760px; margin: 20px auto;">
+    <h1>Become a Seller</h1>
+    <p class="muted">Apply once to publish free or paid books in the marketplace. Approval enables your creator dashboard and uploads.</p>
+
+    <% if (message) { %>
+      <div style="padding:12px;border-radius:8px;background:#d1f2d9;color:#0f5f22;margin:12px 0;"><%= message %></div>
+    <% } %>
+    <% if (error) { %>
+      <div style="padding:12px;border-radius:8px;background:#fee;color:#911;margin:12px 0;"><%= error %></div>
+    <% } %>
+
+    <% if (application) { %>
+      <div class="glass" style="padding:14px;border-radius:10px;margin-bottom:16px;">
+        <h3 style="margin-top:0;">Latest Application</h3>
+        <p style="margin:6px 0;"><strong>Status:</strong> <%= String(application.status || 'pending').toUpperCase() %></p>
+        <p style="margin:6px 0;"><strong>Display Name:</strong> <%= application.display_name %></p>
+        <p style="margin:6px 0;"><strong>Payout Email:</strong> <%= application.payout_email %></p>
+        <% if (application.review_notes) { %>
+          <p style="margin:6px 0;"><strong>Admin Notes:</strong> <%= application.review_notes %></p>
+        <% } %>
+      </div>
+    <% } %>
+
+    <form method="post" action="/marketplace/seller/apply" enctype="multipart/form-data" style="display:grid;gap:12px;">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+      <label>
+        <strong>Public Seller Name</strong>
+        <input type="text" name="display_name" maxlength="100" required style="width:100%;padding:10px;border:1px solid var(--border-light);border-radius:8px;margin-top:6px;" placeholder="Your brand or pen name">
+      </label>
+
+      <label>
+        <strong>Payout Email</strong>
+        <input type="email" name="payout_email" maxlength="120" required style="width:100%;padding:10px;border:1px solid var(--border-light);border-radius:8px;margin-top:6px;" placeholder="where to receive payout notices">
+      </label>
+
+      <label>
+        <strong>Why should we approve your seller account?</strong>
+        <textarea name="motivation" required maxlength="1000" style="width:100%;padding:10px;border:1px solid var(--border-light);border-radius:8px;margin-top:6px;min-height:110px;resize:vertical;" placeholder="Briefly describe your content quality, topics, and publishing plan"></textarea>
+      </label>
+
+      <label>
+        <strong>Sample File (optional)</strong>
+        <input type="file" name="sample_file" accept=".pdf,.zip,.doc,.docx,.txt,.png,.jpg,.jpeg" style="width:100%;padding:10px;border:1px solid var(--border-light);border-radius:8px;margin-top:6px;">
+      </label>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="submit" class="btn">Submit for Verification</button>
+        <a href="/marketplace" class="btn ghost">Back to Marketplace</a>
+      </div>
+    </form>
+  </section>
+</main>
+
+<%- include('../partials/footer') %>
+</body>
+</html>

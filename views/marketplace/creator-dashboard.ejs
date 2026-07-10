@@ -11,6 +11,7 @@
 
 <%
 const contentList = typeof content !== 'undefined' ? content : [];
+const earnings = typeof earnings !== 'undefined' ? earnings : { totalSales: 0, grossSales: 0, platformCommission: 0, estimatedCreatorGross: 0, commissionRatePercent: 30 };
 const draftCount = contentList.filter(c => c.status === 'draft').length;
 const publishedCount = contentList.filter(c => c.status === 'published').length;
 const totalDownloads = contentList.reduce((sum, c) => sum + (c.download_count || 0), 0);
@@ -20,6 +21,13 @@ const totalDownloads = contentList.reduce((sum, c) => sum + (c.download_count ||
 
 <main class="container">
   <section class="page glass">
+    <% if (typeof message !== 'undefined' && message) { %>
+      <div style="padding:12px;border-radius:8px;background:#d1f2d9;color:#0f5f22;margin-bottom:16px;"><%= message %></div>
+    <% } %>
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div style="padding:12px;border-radius:8px;background:#fee;color:#911;margin-bottom:16px;"><%= error %></div>
+    <% } %>
+
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
       <div>
         <h1 style="margin: 0 0 8px;">Creator Dashboard</h1>
@@ -128,12 +136,31 @@ const totalDownloads = contentList.reduce((sum, c) => sum + (c.download_count ||
       </div>
     <% } %>
 
-    <!-- Earnings Section (Placeholder) -->
+    <!-- Earnings Section -->
     <div style="margin-top: 40px; padding-top: 40px; border-top: 1px solid var(--border-light);">
       <h2>Earnings</h2>
-      <div style="padding: 20px; background: var(--bg-2); border-radius: 12px;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+        <div class="glass" style="padding: 16px; border-radius: 12px;">
+          <div class="muted" style="font-size: 0.85rem; margin-bottom: 6px;">TOTAL SALES</div>
+          <div style="font-size: 1.8rem; font-weight: 700; color: var(--accent-2);"><%= earnings.totalSales %></div>
+        </div>
+        <div class="glass" style="padding: 16px; border-radius: 12px;">
+          <div class="muted" style="font-size: 0.85rem; margin-bottom: 6px;">GROSS REVENUE</div>
+          <div style="font-size: 1.8rem; font-weight: 700; color: #10b981;">$<%= Number(earnings.grossSales || 0).toFixed(2) %></div>
+        </div>
+        <div class="glass" style="padding: 16px; border-radius: 12px;">
+          <div class="muted" style="font-size: 0.85rem; margin-bottom: 6px;">PLATFORM COMMISSION (<%= earnings.commissionRatePercent %>%)</div>
+          <div style="font-size: 1.8rem; font-weight: 700; color: #f59e0b;">$<%= Number(earnings.platformCommission || 0).toFixed(2) %></div>
+        </div>
+        <div class="glass" style="padding: 16px; border-radius: 12px;">
+          <div class="muted" style="font-size: 0.85rem; margin-bottom: 6px;">ESTIMATED CREATOR GROSS</div>
+          <div style="font-size: 1.8rem; font-weight: 700; color: #6366f1;">$<%= Number(earnings.estimatedCreatorGross || 0).toFixed(2) %></div>
+        </div>
+      </div>
+
+      <div style="padding: 16px; background: var(--bg-2); border-radius: 12px; margin-top: 12px;">
         <p class="muted" style="margin: 0;">
-          Earnings data and payouts coming soon. You'll earn 50–70% of each sale after platform and payment fees.
+          Commission model: platform keeps <%= earnings.commissionRatePercent %>% of paid sales, and the remainder goes to creator gross before processor fees/payout processing.
         </p>
       </div>
     </div>

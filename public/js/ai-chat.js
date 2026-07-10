@@ -12,7 +12,7 @@
     .mp-chat-header .title { font-weight: 700; font-size: 0.95rem; }
     .mp-chat-header button { background: transparent; border: none; color: #fff; cursor: pointer; font-size: 18px; padding: 4px; }
     .mp-chat-body { padding: 12px; height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: var(--bg-1); }
-    .mp-chat-msg { padding: 10px 12px; border-radius: 12px; max-width: 85%; box-shadow: 0 6px 18px rgba(0,0,0,0.06); }
+    .mp-chat-msg { padding: 10px 12px; border-radius: 12px; max-width: 85%; box-shadow: 0 6px 18px rgba(0,0,0,0.06); white-space: pre-line; line-height: 1.45; }
     .mp-chat-msg.user { align-self: flex-end; background: var(--accent-2); color: #fff; }
     .mp-chat-msg.bot { align-self: flex-start; background: var(--card-bg); border: 1px solid var(--border-light); }
     .mp-chat-footer { padding: 10px; border-top: 1px solid var(--border-light); background: var(--card-bg); display: flex; gap: 8px; }
@@ -53,6 +53,7 @@
   const body = win.querySelector('.mp-chat-body');
   const form = win.querySelector('.mp-chat-footer');
   const input = form.querySelector('input');
+  const history = [];
 
   const appendMsg = (role, text) => {
     const el = document.createElement('div');
@@ -60,6 +61,10 @@
     el.textContent = text;
     body.appendChild(el);
     body.scrollTop = body.scrollHeight;
+
+    const roleForApi = role === 'bot' ? 'assistant' : 'user';
+    history.push({ role: roleForApi, content: String(text || '') });
+    if (history.length > 10) history.splice(0, history.length - 10);
   };
 
   const setOpen = (val) => {
@@ -74,7 +79,7 @@
   btn.addEventListener('click', ()=> setOpen(!win.classList.contains('open')));
   closeBtn.addEventListener('click', ()=> setOpen(false));
 
-  appendMsg('bot', 'Hi! I am your AI tutor buddy. Ask me anything about lessons, pricing, downloads, or how to get started.');
+  appendMsg('bot', 'Hi! I am your AI tutor. Ask me anything about lessons, pricing, bookings, downloads, account help, or tutor quality.');
 
   form.addEventListener('submit', async (e)=>{
     e.preventDefault();
@@ -94,7 +99,10 @@
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message })
+        body: JSON.stringify({
+          message,
+          history: history.slice(-8)
+        })
       });
       const data = await res.json();
       typing.remove();
