@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Application Review - Admin</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('../partials/header') %>
+  <main class="container">
+    <section class="page glass" style="margin-top:2rem;max-width:1050px;margin-left:auto;margin-right:auto">
+      <a href="/admin/applications">← Back to applications</a>
+      <div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap;margin-top:1rem">
+        <div><span class="muted">Tutor application</span><h1><%= application.name %></h1><p class="muted"><%= application.email %> · <%= application.phone %> · <%= application.location %></p></div>
+        <span class="badge"><%= (application.status || 'pending').replace('_',' ') %></span>
+      </div>
+
+      <div class="glass curved" style="padding:1.2rem;margin:1rem 0">
+        <h2>Professional profile</h2>
+        <p><strong>Subjects:</strong> <%= application.subjects || '—' %></p>
+        <p><strong>Years of experience:</strong> <%= application.years_experience ?? '—' %></p>
+        <p><strong>Preferred levels:</strong> <%= application.preferred_levels || '—' %></p>
+        <p><strong>Teaching mode:</strong> <%= application.teaching_mode || '—' %></p>
+        <p><strong>Availability:</strong> <%= application.availability || '—' %></p>
+        <h3>Teaching experience</h3><p style="white-space:pre-wrap"><%= application.teaching_experience || '—' %></p>
+        <h3>Qualifications</h3><p style="white-space:pre-wrap"><%= application.qualifications || '—' %></p>
+        <h3>Education</h3><p style="white-space:pre-wrap"><%= application.education || '—' %></p>
+        <h3>Additional information / teaching philosophy</h3><p style="white-space:pre-wrap"><%= application.message || '—' %></p>
+        <% if (application.cv_path) { %><a class="btn" href="/admin/applications/<%= application.id %>/cv">Download private CV</a><% } %>
+      </div>
+
+      <form method="post" action="/admin/applications/<%= application.id %>/status" class="glass curved" style="padding:1.2rem">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <h2>Review decision</h2>
+        <label>Status
+          <select name="status" required>
+            <% ['pending','under_review','approved','rejected'].forEach(function(s){ %><option value="<%= s %>" <%= application.status === s ? 'selected' : '' %>><%= s.replace('_',' ') %></option><% }) %>
+          </select>
+        </label>
+        <label>Internal review notes<textarea name="review_notes" rows="5" maxlength="5000" placeholder="Add notes for the admin team"><%= application.review_notes || '' %></textarea></label>
+        <button type="submit">Save Review</button>
+        <p class="muted">Approving an application creates or updates the corresponding tutor record.</p>
+      </form>
+    </section>
+  </main>
+  <%- include('../partials/footer') %>
+</body>
+</html>
