@@ -1,35 +1,50 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Applications - Admin</title>
-    <link rel="stylesheet" href="/css/style.css" />
-  </head>
-  <body>
-    <%- include('../partials/header') %>
-    <main class="container">
-  <section class="page glass">
-    <h1>Teacher Applications</h1>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0">
-      <span class="muted">Submissions with CVs</span>
-      <div style="display:flex;gap:8px">
-        <a class="btn ghost" href="/admin/export/applications">Export CSV</a>
-        <a class="btn ghost" href="/admin/export/applications?fmt=json">Export JSON</a>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tutor Applications - Admin</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('../partials/header') %>
+  <main class="container">
+    <section class="page glass" style="margin-top:2rem">
+      <div style="display:flex;justify-content:space-between;gap:1rem;align-items:center;flex-wrap:wrap">
+        <div><span class="muted">Administration</span><h1>Tutor Applications</h1><p class="muted">Review complete applications before adding tutors to the network.</p></div>
+        <div><a class="btn ghost" href="/admin/export/applications">Export CSV</a> <a class="btn ghost" href="/admin/export/applications?fmt=json">Export JSON</a></div>
       </div>
-    </div>
-    <div class="list curved">
-      <% apps.forEach(function(a){ %>
-        <div class="item glass">
-          <strong><%= a.name %></strong> (<%= a.email %>) - <%= a.phone %>
-          <p><%= a.message %></p>
-          <% if (a.cv_path) { %><p><a href="<%= a.cv_path %>" target="_blank">Download CV</a></p><% } %>
-        </div>
-      <% }) %>
-    </div>
-  </section>
-    </main>
-    <%- include('../partials/footer') %>
-    <script src="/js/main.js"></script>
-  </body>
+
+      <form method="get" class="glass curved" style="padding:1rem;margin:1rem 0;display:flex;gap:.7rem;flex-wrap:wrap">
+        <input name="search" value="<%= filters && filters.search ? filters.search : '' %>" placeholder="Search name, email, subject or location" style="flex:1;min-width:220px">
+        <select name="status">
+          <option value="">All statuses</option>
+          <% ['pending','under_review','approved','rejected'].forEach(function(s){ %>
+            <option value="<%= s %>" <%= filters && filters.status === s ? 'selected' : '' %>><%= s.replace('_',' ') %></option>
+          <% }) %>
+        </select>
+        <button type="submit">Filter</button>
+      </form>
+
+      <div style="display:grid;gap:1rem">
+        <% if (!apps || !apps.length) { %><div class="glass curved" style="padding:1.5rem">No applications match your filters.</div><% } %>
+        <% apps.forEach(function(a){ %>
+          <article class="glass curved" style="padding:1.25rem">
+            <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+              <div><h2 style="margin:.1rem 0"><%= a.name %></h2><div class="muted"><%= a.email %> · <%= a.phone %> · <%= a.location %></div></div>
+              <span class="badge"><%= (a.status || 'pending').replace('_',' ') %></span>
+            </div>
+            <p><strong>Subjects:</strong> <%= a.subjects || '—' %></p>
+            <p><strong>Experience:</strong> <%= a.years_experience ?? '—' %> years</p>
+            <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+              <a class="btn" href="/admin/applications/<%= a.id %>">Open full application</a>
+              <% if (a.cv_path) { %><a class="btn ghost" href="/admin/applications/<%= a.id %>/cv">Download CV</a><% } %>
+            </div>
+          </article>
+        <% }) %>
+      </div>
+    </section>
+  </main>
+  <%- include('../partials/footer') %>
+</body>
 </html>
