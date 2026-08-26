@@ -1,24 +1,58 @@
 <%- include('partials/header') %>
-  <!-- Hero slideshow (full width) -->
-  <section class="hero-slideshow">
-    <div class="hero-slideshow-inner">
-      <% 
-        // Use slides from DB only if they exist AND have non-empty values
-        const hasValidSlides = slides && slides.length && slides.some(s => s && s.value && s.value.trim());
-      %>
-      <% if (hasValidSlides) { %>
-        <% slides.forEach(function(s,i){ %>
-          <% if (s && s.value && s.value.trim()) { %>
-            <div class="slide"><img src="<%= s.value %>" alt="slide-<%= i %>"></div>
-          <% } %>
+<%
+  let heroBanners = [];
+  try {
+    const parsedBanners = JSON.parse(content('hero_banners_json', '[]'));
+    if (Array.isArray(parsedBanners)) heroBanners = parsedBanners.filter(b => b && b.image && b.active !== false);
+  } catch (e) {
+    heroBanners = [];
+  }
+%>
+
+  <!-- Admin-managed hero banners; existing slideshow remains the safe fallback -->
+  <% if (heroBanners.length) { %>
+    <section class="hero-slideshow managed-hero-banners" aria-label="Featured banners">
+      <div class="hero-slideshow-inner">
+        <% heroBanners.forEach(function(banner, i){ %>
+          <div class="slide managed-hero-slide">
+            <img src="<%= banner.image %>" alt="<%= banner.title || ('Featured banner ' + (i + 1)) %>">
+            <% if (banner.title || banner.subtitle || banner.buttonText) { %>
+              <div style="position:absolute;inset:0;display:flex;align-items:center;padding:clamp(18px,5vw,56px);background:linear-gradient(90deg,rgba(0,0,0,.68),rgba(0,0,0,.15) 65%,transparent);">
+                <div style="max-width:680px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.35);">
+                  <% if (banner.title) { %><h2 style="font-size:clamp(1.6rem,4vw,3rem);margin:0 0 8px;"><%= banner.title %></h2><% } %>
+                  <% if (banner.subtitle) { %><p style="font-size:clamp(.95rem,2vw,1.2rem);margin:0 0 16px;color:rgba(255,255,255,.92);"><%= banner.subtitle %></p><% } %>
+                  <% if (banner.buttonText && banner.buttonUrl) { %>
+                    <a href="<%= banner.buttonUrl %>" class="btn" style="display:inline-block;background:#fff;color:#111;border:0;"><%= banner.buttonText %></a>
+                  <% } %>
+                </div>
+              </div>
+            <% } %>
+          </div>
         <% }) %>
-      <% } else { %>
-        <div class="slide"><img src="/images/slide2.svg" alt="slide-default"></div>
-        <div class="slide"><img src="/images/slide2.svg" alt="slide-default-2"></div>
-        <div class="slide"><img src="/images/slide2.svg" alt="slide-default-3"></div>
-      <% } %>
-    </div>
-  </section>
+      </div>
+    </section>
+  <% } else { %>
+    <!-- Hero slideshow (full width) -->
+    <section class="hero-slideshow">
+      <div class="hero-slideshow-inner">
+        <% 
+          // Use slides from DB only if they exist AND have non-empty values
+          const hasValidSlides = slides && slides.length && slides.some(s => s && s.value && s.value.trim());
+        %>
+        <% if (hasValidSlides) { %>
+          <% slides.forEach(function(s,i){ %>
+            <% if (s && s.value && s.value.trim()) { %>
+              <div class="slide"><img src="<%= s.value %>" alt="slide-<%= i %>"></div>
+            <% } %>
+          <% }) %>
+        <% } else { %>
+          <div class="slide"><img src="/images/slide2.svg" alt="slide-default"></div>
+          <div class="slide"><img src="/images/slide2.svg" alt="slide-default-2"></div>
+          <div class="slide"><img src="/images/slide2.svg" alt="slide-default-3"></div>
+        <% } %>
+      </div>
+    </section>
+  <% } %>
 
 <main class="container">
   <section class="hero">
