@@ -4,8 +4,8 @@
   "description": "Website for The Modern Pedagogues - home tutoring company",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
+    "start": "node -r ./lib/security-hardening.js server.js",
+    "dev": "nodemon -r ./lib/security-hardening.js server.js",
     "heroku-postbuild": "cd frontend && npm install && npm run build"
   },
   "dependencies": {
