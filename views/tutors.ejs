@@ -1,59 +1,77 @@
 <%- include('partials/header') %>
+<%
+  let managedBanners = [];
+  let managedTutors = [];
+  try {
+    const parsedBanners = JSON.parse(content('tutors_hero_banners_json', '[]'));
+    if (Array.isArray(parsedBanners)) managedBanners = parsedBanners.filter(b => b && b.image && b.active !== false);
+  } catch (e) { managedBanners = []; }
+  try {
+    const parsedTutors = JSON.parse(content('tutors_json', '[]'));
+    if (Array.isArray(parsedTutors)) managedTutors = parsedTutors.filter(t => t && t.active !== false && t.name);
+  } catch (e) { managedTutors = []; }
+%>
 <main class="container">
-  <!-- Server-side slideshow (auto-initialised by public/js/slideshow.js) -->
-  <section class="hero-slideshow" style="height:240px;">
-    <div class="hero-slideshow-inner">
-      <% 
-        const hasValidSlides = slides && slides.length && slides.some(s => s && s.value && s.value.trim());
-      %>
-      <% if (hasValidSlides) { %>
-        <% slides.forEach(function(s,i){ %>
-          <% if (s && s.value && s.value.trim()) { %>
-            <div class="slide"><img src="<%= s.value %>" alt="slide-<%= i %>"></div>
-          <% } %>
+  <% if (managedBanners.length) { %>
+    <section class="hero-slideshow managed-hero-banners" aria-label="Tutor page banners">
+      <div class="hero-slideshow-inner">
+        <% managedBanners.forEach(function(banner, i){ %>
+          <div class="slide" style="position:relative;">
+            <img src="<%= banner.image %>" alt="<%= banner.title || ('Tutor banner ' + (i + 1)) %>">
+            <% if (banner.title || banner.subtitle || banner.buttonText) { %>
+              <div style="position:absolute;inset:0;display:flex;align-items:center;padding:clamp(18px,5vw,56px);background:linear-gradient(90deg,rgba(0,0,0,.68),rgba(0,0,0,.12) 65%,transparent);">
+                <div style="max-width:680px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.35);">
+                  <% if (banner.title) { %><h2 style="font-size:clamp(1.6rem,4vw,3rem);margin:0 0 8px;"><%= banner.title %></h2><% } %>
+                  <% if (banner.subtitle) { %><p style="font-size:clamp(.95rem,2vw,1.2rem);margin:0 0 16px;color:rgba(255,255,255,.92);"><%= banner.subtitle %></p><% } %>
+                  <% if (banner.buttonText && banner.buttonUrl) { %><a href="<%= banner.buttonUrl %>" class="btn" style="display:inline-block;background:#fff;color:#111;border:0;"><%= banner.buttonText %></a><% } %>
+                </div>
+              </div>
+            <% } %>
+          </div>
         <% }) %>
-      <% } else { %>
-        <div class="slide"><img loading="lazy" src="/images/slide2.svg" alt="slide-1"></div>
-        <div class="slide"><img loading="lazy" src="/images/hero-illustration.svg" alt="slide-2"></div>
-        <div class="slide"><img loading="lazy" src="/images/slide2.svg" alt="slide-3"></div>
-      <% } %>
-    </div>
-  </section>
+      </div>
+    </section>
+  <% } else { %>
+    <section class="hero-slideshow" style="height:240px;">
+      <div class="hero-slideshow-inner">
+        <% const hasValidSlides = slides && slides.length && slides.some(s => s && s.value && s.value.trim()); %>
+        <% if (hasValidSlides) { %>
+          <% slides.forEach(function(s,i){ if (s && s.value && s.value.trim()) { %>
+            <div class="slide"><img src="<%= s.value %>" alt="slide-<%= i %>"></div>
+          <% } }) %>
+        <% } else { %>
+          <div class="slide"><img loading="lazy" src="/images/slide2.svg" alt="slide-1"></div>
+          <div class="slide"><img loading="lazy" src="/images/hero-illustration.svg" alt="slide-2"></div>
+          <div class="slide"><img loading="lazy" src="/images/slide2.svg" alt="slide-3"></div>
+        <% } %>
+      </div>
+    </section>
+  <% } %>
+
   <section class="glass" style="padding:18px;">
     <h1><%= content('tutors_title', 'Our Tutors') %></h1>
     <p class="muted"><%= content('tutors_intro', 'All our tutors are vetted, experienced, and trained to deliver curriculum-aligned lessons.') %></p>
-    <div class="product-grid" style="margin-top:12px;">
-      <div class="card glass" style="text-align:center;padding:14px;">
-        <img src="<%= content('tutor_1_img', '/images/tutor-placeholder.svg') %>" alt="Tutor" style="width:120px;height:120px;object-fit:cover;border-radius:50%;margin:0 auto;"/>
-        <h3><%= content('tutor_1_name', 'Abel Asiedu') %></h3>
-        <div class="muted"><%= content('tutor_1_role', 'Senior Tutor • Mathematics') %></div>
+
+    <% if (managedTutors.length) { %>
+      <div class="product-grid" style="margin-top:12px;">
+        <% managedTutors.forEach(function(tutor){ %>
+          <article class="card glass" style="padding:14px;display:flex;flex-direction:column;gap:10px;text-align:center;">
+            <img src="<%= tutor.image || '/images/tutor-placeholder.svg' %>" alt="<%= tutor.name %>" style="width:140px;height:140px;object-fit:cover;border-radius:50%;margin:0 auto;">
+            <h3 style="margin:0;"><%= tutor.name %></h3>
+            <% if (tutor.role) { %><div class="muted"><%= tutor.role %></div><% } %>
+            <% if (tutor.subjects) { %><div><strong>Subjects:</strong> <%= tutor.subjects %></div><% } %>
+            <% if (tutor.qualifications) { %><div class="muted"><strong>Qualifications:</strong> <%= tutor.qualifications %></div><% } %>
+            <% if (tutor.experience) { %><div class="muted"><strong>Experience:</strong> <%= tutor.experience %></div><% } %>
+            <% if (tutor.levels) { %><div class="muted"><strong>Levels:</strong> <%= tutor.levels %></div><% } %>
+            <% if (tutor.location) { %><div class="muted"><strong>Location:</strong> <%= tutor.location %></div><% } %>
+            <% if (tutor.bio) { %><p class="muted" style="margin:0;"><%= tutor.bio %></p><% } %>
+            <% if (tutor.profileUrl) { %><a class="btn" href="<%= tutor.profileUrl %>">View Profile</a><% } %>
+          </article>
+        <% }) %>
       </div>
-      <div class="card glass" style="text-align:center;padding:14px;">
-        <img src="<%= content('tutor_2_img', '/images/tutor-placeholder.svg') %>" alt="Tutor" style="width:120px;height:120px;object-fit:cover;border-radius:50%;margin:0 auto;"/>
-        <h3><%= content('tutor_2_name', 'Christian Braun') %></h3>
-        <div class="muted"><%= content('tutor_2_role', 'Senior Tutor • Physics') %></div>
-      </div>
-      <div class="card glass" style="text-align:center;padding:14px;">
-        <img src="<%= content('tutor_3_img', '/images/tutor-placeholder.svg') %>" alt="Tutor" style="width:120px;height:120px;object-fit:cover;border-radius:50%;margin:0 auto;"/>
-        <h3><%= content('tutor_3_name', 'Theophilus Banful') %></h3>
-        <div class="muted"><%= content('tutor_3_role', 'Senior Tutor • Chemistry') %></div>
-      </div>
-      <div class="card glass" style="text-align:center;padding:14px;">
-        <img src="<%= content('tutor_4_img', '/images/tutor-placeholder.svg') %>" alt="Tutor" style="width:120px;height:120px;object-fit:cover;border-radius:50%;margin:0 auto;"/>
-        <h3><%= content('tutor_4_name', 'Stephen Okwa') %></h3>
-        <div class="muted"><%= content('tutor_4_role', 'Senior Tutor • English') %></div>
-      </div>
-      <div class="card glass" style="text-align:center;padding:14px;">
-        <img src="<%= content('tutor_5_img', '/images/tutor-placeholder.svg') %>" alt="Tutor" style="width:120px;height:120px;object-fit:cover;border-radius:50%;margin:0 auto;"/>
-        <h3><%= content('tutor_5_name', 'Aaron Neesmith') %></h3>
-        <div class="muted"><%= content('tutor_5_role', 'Senior Tutor • Biology') %></div>
-      </div>
-      <div class="card glass" style="text-align:center;padding:14px;">
-        <img src="<%= content('tutor_6_img', '/images/tutor-placeholder.svg') %>" alt="Tutor" style="width:120px;height:120px;object-fit:cover;border-radius:50%;margin:0 auto;"/>
-        <h3><%= content('tutor_6_name', 'Malvin Canva') %></h3>
-        <div class="muted"><%= content('tutor_6_role', 'Senior Tutor • Computer Science') %></div>
-      </div>
-    </div>
+    <% } else { %>
+      <div class="notice" style="margin-top:16px;">Tutor profiles are being updated. Please check back shortly.</div>
+    <% } %>
   </section>
 </main>
 <%- include('partials/footer') %>
