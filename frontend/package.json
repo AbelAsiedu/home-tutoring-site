@@ -8,6 +8,7 @@
     "start": "next start -p 3001"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.862.0",
     "next": "14.0.0",
     "react": "18.2.0",
     "react-dom": "18.2.0",
