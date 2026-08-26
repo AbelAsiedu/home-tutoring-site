@@ -9,6 +9,7 @@
     "heroku-postbuild": "cd frontend && npm install && npm run build"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.862.0",
     "bcrypt": "^5.1.0",
     "body-parser": "^1.20.2",
     "chocolatey": "^0.0.1",
