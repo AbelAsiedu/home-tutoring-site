@@ -22,11 +22,11 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install backend dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Build frontend
         working-directory: frontend
@@ -36,6 +36,7 @@ jobs:
         run: |
           node --check server.js
           node --check lib/db.js
+          node --check lib/r2-storage.js
           node --check lib/security-hardening.js
           node --check scripts/production-gate.js
 
