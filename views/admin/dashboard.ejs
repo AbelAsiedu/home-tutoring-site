@@ -18,9 +18,10 @@
     .admin-section{margin-top:22px;padding:22px;border:1px solid var(--admin-line);border-radius:22px;background:rgba(255,255,255,.86);box-shadow:0 14px 40px rgba(15,23,42,.06)}
     .admin-section h2{margin:0 0 5px}.section-copy{color:var(--admin-muted);margin:0 0 16px}
     .quick-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:11px}.quick{display:flex;align-items:center;gap:12px;text-decoration:none!important;padding:15px;border:1px solid var(--admin-line);border-radius:16px;background:#fff;color:var(--admin-ink);transition:.18s}.quick:hover{transform:translateY(-2px);box-shadow:0 10px 25px rgba(15,23,42,.08);border-color:#bfdbfe}.quick-icon{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:#eff6ff;font-size:19px}.quick strong{display:block;font-size:14px}.quick small{color:var(--admin-muted)}
+    .ai-guide{display:grid;grid-template-columns:1.1fr 1fr;gap:18px;align-items:stretch}.ai-guide-card{padding:18px;border-radius:18px;background:linear-gradient(135deg,#f8fafc,#eef2ff);border:1px solid #dbeafe}.ai-guide-card h3{margin:0 0 7px}.ai-guide-card p{margin:0;color:var(--admin-muted);line-height:1.55}.ai-key{display:inline-block;margin-top:10px;padding:7px 10px;border-radius:9px;background:#fff;border:1px solid #dbeafe;font:600 12px ui-monospace,SFMono-Regular,Menlo,monospace;color:#1e3a8a}
     .analytics-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.analytics-card{padding:17px;border-radius:17px;background:#f8fafc;border:1px solid var(--admin-line)}
     .bar-grid{display:grid;grid-template-columns:repeat(14,1fr);align-items:end;gap:5px;height:130px;margin-top:15px}.bar{min-height:3px;border-radius:7px 7px 2px 2px;background:linear-gradient(180deg,var(--admin-blue),#93c5fd)}
-    @media(max-width:900px){.admin-grid{grid-template-columns:repeat(2,1fr)}.analytics-grid{grid-template-columns:1fr}}
+    @media(max-width:900px){.admin-grid{grid-template-columns:repeat(2,1fr)}.analytics-grid,.ai-guide{grid-template-columns:1fr}}
     @media(max-width:560px){.admin-shell{padding:16px 12px 50px}.admin-grid{grid-template-columns:1fr 1fr}.admin-hero{padding:24px 20px;border-radius:22px}}
   </style>
 </head>
@@ -30,7 +31,7 @@
     <section class="admin-hero">
       <div class="eyebrow">Modern Pedagogues • Operations</div>
       <h1>Admin Control Center</h1>
-      <p style="max-width:720px;opacity:.82;margin:0">Manage learners, tutors, learning content, marketplace activity and the new LMS from one clean workspace.</p>
+      <p style="max-width:720px;opacity:.82;margin:0">Manage learners, tutors, learning content, marketplace activity and the LMS from one clean workspace.</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;position:relative;z-index:2">
         <a href="/admin/lms" class="btn" style="background:#fff;color:#172554">Open LMS Control Center</a>
         <a href="/admin/marketplace" class="btn ghost" style="border-color:rgba(255,255,255,.35);color:#fff">Marketplace Moderation</a>
@@ -42,6 +43,26 @@
       <div class="admin-stat"><div class="label">Products</div><div class="value"><%= stats.products %></div><span class="muted">Store resources</span></div>
       <div class="admin-stat"><div class="label">Orders</div><div class="value"><%= stats.orders %></div><span class="muted">Commerce activity</span></div>
       <div class="admin-stat"><div class="label">Messages</div><div class="value"><%= stats.messages %></div><span class="muted">Parent/client enquiries</span></div>
+    </section>
+
+    <section class="admin-section">
+      <h2>Meet Kaitlyn</h2>
+      <p class="section-copy">Kaitlyn is now the platform's AI learning and client-support assistant. Give her verified company information through the existing Content Editor and she will use it as authoritative context in conversations.</p>
+      <div class="ai-guide">
+        <div class="ai-guide-card">
+          <h3>Feed Kaitlyn company knowledge</h3>
+          <p>Create or update site-content entries using the <strong>ai_company_</strong> prefix. Keep each entry factual and specific — for example company overview, services, policies, pricing, contacts, locations, tutor information and programme details.</p>
+          <span class="ai-key">ai_company_about</span>
+          <span class="ai-key">ai_company_services</span>
+          <span class="ai-key">ai_company_policies</span>
+          <span class="ai-key">ai_company_contacts</span>
+        </div>
+        <div class="ai-guide-card">
+          <h3>How Kaitlyn uses it</h3>
+          <p>Company entries are loaded directly from the database for each AI request. Kaitlyn prioritises administrator-provided facts, answers naturally rather than copying a knowledge-base article, and avoids inventing missing company details.</p>
+          <div style="margin-top:14px"><a class="btn" href="/admin/content">Open AI Knowledge Editor</a></div>
+        </div>
+      </div>
     </section>
 
     <section class="admin-section">
@@ -61,7 +82,7 @@
       <div class="quick-grid">
         <a class="quick" href="/admin/products"><span class="quick-icon">📚</span><span><strong>Manage Products</strong><small>Books and resources</small></span></a>
         <a class="quick" href="/admin/orders"><span class="quick-icon">🧾</span><span><strong>Orders</strong><small>Review transactions</small></span></a>
-        <a class="quick" href="/admin/content"><span class="quick-icon">✏️</span><span><strong>Edit Content</strong><small>Site copy and settings</small></span></a>
+        <a class="quick" href="/admin/content"><span class="quick-icon">✏️</span><span><strong>Edit Content</strong><small>Site copy and Kaitlyn knowledge</small></span></a>
         <a class="quick" href="/admin/messages"><span class="quick-icon">💬</span><span><strong>Messages</strong><small>Client enquiries</small></span></a>
         <a class="quick" href="/admin/seller-applications"><span class="quick-icon">🛡️</span><span><strong>Seller Reviews</strong><small>Marketplace approvals</small></span></a>
         <a class="quick" href="/admin/export/orders"><span class="quick-icon">⬇️</span><span><strong>Exports</strong><small>Download operational data</small></span></a>
