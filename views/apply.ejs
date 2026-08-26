@@ -1,20 +1,92 @@
 <%- include('partials/header') %>
 
-<section class="page glass">
-  <h1>Apply as a Teacher</h1>
+<section class="page glass" style="max-width:980px;margin:2rem auto">
+  <div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap">
+    <div>
+      <span class="muted">Join The Modern Pedagogues</span>
+      <h1>Teacher / Tutor Application</h1>
+      <p class="muted">Tell us about your teaching background, expertise and availability. Approved applicants can be added to our public tutor network.</p>
+    </div>
+    <div class="glass curved" style="padding:1rem;min-width:220px">
+      <strong>Application process</strong>
+      <div class="muted" style="margin-top:.45rem">Submit → Review → Interview/verification → Approval</div>
+    </div>
+  </div>
+
   <% if (typeof success !== 'undefined' && success) { %>
-    <div class="notice success">Application received. We'll contact you shortly.</div>
+    <div class="notice success" style="margin-top:1rem">Application received successfully. Our team will review your information and contact you.</div>
   <% } %>
-  <form method="post" enctype="multipart/form-data" class="apply-form curved">
+  <% if (typeof error !== 'undefined' && error) { %>
+    <div class="notice error" style="margin-top:1rem"><%= error %></div>
+  <% } %>
+
+  <form method="post" action="/apply" enctype="multipart/form-data" class="apply-form curved" style="margin-top:1.5rem">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-    <input name="name" placeholder="Full name" required>
-    <input name="email" type="email" placeholder="Email" required>
-    <input name="phone" placeholder="Phone number">
-    <textarea name="message" placeholder="Tell us about your experience"></textarea>
-    <label class="file">Upload CV (PDF/DOC)</label>
-    <input name="cv" type="file" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
-    <button type="submit" title="Submit your tutor application">Submit Application</button>
+
+    <fieldset>
+      <legend>1. Personal information</legend>
+      <div class="form-grid">
+        <label>Full name<input name="name" required maxlength="150" placeholder="Your full name"></label>
+        <label>Email<input name="email" type="email" required maxlength="200" placeholder="you@example.com"></label>
+        <label>Phone number<input name="phone" required maxlength="50" placeholder="024... / +233..." ></label>
+        <label>Location<input name="location" required maxlength="200" placeholder="City / area where you are based"></label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>2. Teaching expertise</legend>
+      <div class="form-grid">
+        <label>Subjects / specializations<textarea name="subjects" required maxlength="1000" placeholder="e.g. Mathematics, English, Physics, ICT"></textarea></label>
+        <label>Qualifications<textarea name="qualifications" required maxlength="2000" placeholder="Degrees, diplomas, teaching certifications, professional qualifications"></textarea></label>
+        <label>Educational background<textarea name="education" required maxlength="2000" placeholder="Institutions attended and relevant programmes"></textarea></label>
+        <label>Years of teaching experience<input name="years_experience" type="number" min="0" max="60" required placeholder="e.g. 5"></label>
+      </div>
+      <label>Teaching experience<textarea name="teaching_experience" required maxlength="5000" placeholder="Describe your teaching experience, previous schools/families, subjects taught and notable experience"></textarea></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>3. Teaching preferences</legend>
+      <div class="form-grid">
+        <label>Preferred student levels<textarea name="preferred_levels" required maxlength="500" placeholder="e.g. Primary, JHS, SHS, Cambridge, WASSCE"></textarea></label>
+        <label>Availability<textarea name="availability" required maxlength="1000" placeholder="Days, times and general availability"></textarea></label>
+      </div>
+      <label>Preferred teaching mode
+        <select name="teaching_mode" required>
+          <option value="">Select one</option>
+          <option value="in_person">In-person / home tutoring</option>
+          <option value="online">Online tutoring</option>
+          <option value="both">Both online and in-person</option>
+        </select>
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>4. About you</legend>
+      <label>Additional information / teaching philosophy
+        <textarea name="message" maxlength="5000" rows="7" placeholder="Why would you be a great tutor for our learners? Tell us anything else we should know."></textarea>
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>5. Supporting document</legend>
+      <label class="file">CV / Resume <span class="muted">(PDF, DOC or DOCX · maximum 10 MB)</span>
+        <input name="cv" type="file" required accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+      </label>
+      <p class="muted" style="font-size:.9rem">Your CV is stored privately and is accessible to authorized administrators during application review.</p>
+    </fieldset>
+
+    <button type="submit" title="Submit your complete tutor application">Submit Tutor Application</button>
   </form>
 </section>
+
+<style>
+  .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
+  .apply-form fieldset{border:1px solid rgba(127,127,127,.2);border-radius:18px;padding:1.1rem;margin:1rem 0}
+  .apply-form legend{font-weight:700;padding:0 .5rem}
+  .apply-form label{display:flex;flex-direction:column;gap:.4rem;font-weight:600;margin:.65rem 0}
+  .apply-form input,.apply-form textarea,.apply-form select{width:100%;box-sizing:border-box;padding:.8rem;border-radius:12px;border:1px solid rgba(127,127,127,.25);background:inherit;color:inherit}
+  .apply-form textarea{min-height:100px;resize:vertical}
+  @media(max-width:700px){.form-grid{grid-template-columns:1fr}}
+</style>
 
 <%- include('partials/footer') %>
