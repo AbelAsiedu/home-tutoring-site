@@ -1,64 +1,71 @@
-# AI Chat Assistant Setup
+# Kaitlyn AI Assistant Setup
 
-This site now supports an optional LLM-backed chat assistant. By default it answers using your FAQ content, but if you provide a free-tier API key, it will call a real model.
+Kaitlyn is the site's real AI learning and client-support assistant. The provider gateway is free-first and automatically injects current website data into every request.
 
-## Providers
+## Recommended free setup: Google Gemini
 
-- Mistral (recommended): high-quality models, simple API, free-tier available (requires API key).
-- OpenRouter: aggregates many models behind one API, generous free tier (requires API key).
-- Hugging Face Inference API: free-tier with rate limits (requires API key).
+Google currently provides a free tier for selected Gemini API models. The application defaults to `gemini-2.5-flash-lite`, which is designed for fast, high-volume use. Check Google's current limits before production launch.
 
-## Configure locally
-
-Set environment variables before starting the server:
+Set:
 
 ```powershell
-# Mistral (recommended)
+$env:GEMINI_API_KEY = "your_google_ai_studio_key"
+$env:GEMINI_MODEL = "gemini-2.5-flash-lite"
+```
+
+Official pricing/free-tier information: https://ai.google.dev/gemini-api/docs/pricing
+
+## Optional free fallback: OpenRouter
+
+OpenRouter provides free model variants and a free-model router. Kaitlyn uses `openrouter/free` by default when an OpenRouter key is configured.
+
+```powershell
+$env:OPENROUTER_API_KEY = "your_key_here"
+$env:OPENROUTER_MODEL = "openrouter/free"
+```
+
+## Optional additional providers
+
+```powershell
 $env:MISTRAL_API_KEY = "your_key_here"
-# Optional: choose a model; default is mistral-small-latest
 $env:MISTRAL_MODEL = "mistral-small-latest"
 
-# OpenRouter
-$env:OPENROUTER_API_KEY = "your_key_here"
-# Optional: choose a model; default is openrouter/auto
-$env:OPENROUTER_MODEL = "mistralai/mistral-7b-instruct"
-
-# OR Hugging Face
 $env:HUGGINGFACE_API_KEY = "your_key_here"
-# Optional: choose a model; default is meta-llama/Llama-3.2-3B-Instruct
-$env:HUGGINGFACE_MODEL = "google/gemma-2-9b-it"
-
-# Start the server
-node server.js
+$env:HUGGINGFACE_MODEL = "meta-llama/Llama-3.2-3B-Instruct"
 ```
 
-## Configure on Heroku
+## Automatic website knowledge updates
 
-```powershell
-heroku config:set MISTRAL_API_KEY=your_key_here
-heroku config:set MISTRAL_MODEL=mistral-small-latest
-heroku config:set OPENROUTER_API_KEY=your_key_here
-heroku config:set OPENROUTER_MODEL=mistralai/mistral-7b-instruct
-# or
-heroku config:set HUGGINGFACE_API_KEY=your_key_here
-heroku config:set HUGGINGFACE_MODEL=meta-llama/Llama-3.2-3B-Instruct
-```
+Kaitlyn does **not** use a one-time hard-coded knowledge dump.
 
-Deploy and the chat widget will automatically use the configured provider.
+On every chat request, the backend reloads:
 
-## Safety guardrails
+1. Administrator-managed `site_content` entries, including company information and procedures.
+2. Current published downloadable resources/products.
+3. Current tutor directory information when the tutor table is available.
+4. The current conversation history.
+5. Any request-specific context supplied by the application.
 
-- Harmful, hateful, racist, sexist, lewd, or violent prompts are blocked, returning: `Sorry, I can't assist with that.`
-- Model temperature is kept low for concise, helpful responses.
+Therefore, when an administrator changes supported site content, publishes/unpublishes a resource, or changes tutor information in the database, Kaitlyn sees the new state on the next conversation without retraining or manually rebuilding a vector index.
 
-## Troubleshooting
+Sensitive-looking site-content keys containing passwords, secrets, tokens or API keys are excluded from the AI context.
 
-- If the chat shows a generic fallback answer, the provider may be missing or rate-limited.
-- Check server logs for `LLM error:` messages.
-- Verify your API key is valid and set in environment.
+## Important distinction
 
-## Where is the code?
+Changes made only to source-code text that are not represented in the database are not automatically learned by Kaitlyn. Navigation/procedure information that should be changeable by administrators should therefore be maintained through the site's administrator-managed content/knowledge controls. This keeps operational answers editable without redeploying the model.
+
+## Safety and reliability
+
+- Kaitlyn never receives API keys or secret-looking content values.
+- Existing prompt safety guardrails remain active.
+- Provider failures are caught and the next configured provider is attempted.
+- Gemini is attempted first, followed by OpenRouter, Mistral and Hugging Face.
+- No AI API key is exposed to the browser; calls are server-side only.
+- The assistant is instructed not to invent unsupported company facts or navigation steps.
+
+## Backend/frontend locations
 
 - Frontend widget: `public/js/ai-chat.js`
 - Backend route: `/api/chat` in `server.js`
-- Provider wrapper: `tools/llm.js`
+- Provider gateway and live knowledge loader: `tools/llm.js`
+- Admin/company knowledge: database-backed `site_content` entries
