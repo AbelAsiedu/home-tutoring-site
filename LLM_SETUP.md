@@ -4,34 +4,36 @@ Kaitlyn is the site's real AI learning and client-support assistant. The provide
 
 ## Recommended free setup: Google Gemini
 
-Google currently provides a free tier for selected Gemini API models. The application defaults to `gemini-2.5-flash-lite`, which is designed for fast, high-volume use. Check Google's current limits before production launch.
+Kaitlyn now uses the current **Gemini Interactions API first**, which is the recommended Gemini interface and supports Google's newer authorization (`AQ.*`) keys. The legacy `generateContent` endpoint remains as a fallback.
 
-Set:
+Set the key in the Codespace/server environment — never commit it to Git:
 
-```powershell
-$env:GEMINI_API_KEY = "your_google_ai_studio_key"
-$env:GEMINI_MODEL = "gemini-2.5-flash-lite"
+```bash
+export GEMINI_API_KEY="your_gemini_key"
+export GEMINI_INTERACTIONS_MODEL="gemini-3.6-flash"
 ```
 
-Official pricing/free-tier information: https://ai.google.dev/gemini-api/docs/pricing
+`GOOGLE_API_KEY` is also accepted if that is the variable used by your deployment.
+
+Google's current API-key documentation says new AI Studio keys are authorization keys bound to a service account, and recommends the Interactions API for current Gemini applications. See the official documentation for current models, quotas and pricing.
 
 ## Optional free fallback: OpenRouter
 
-OpenRouter provides free model variants and a free-model router. Kaitlyn uses `openrouter/free` by default when an OpenRouter key is configured.
+OpenRouter can route free models when an OpenRouter key is configured:
 
-```powershell
-$env:OPENROUTER_API_KEY = "your_key_here"
-$env:OPENROUTER_MODEL = "openrouter/free"
+```bash
+export OPENROUTER_API_KEY="your_key_here"
+export OPENROUTER_MODEL="openrouter/free"
 ```
 
 ## Optional additional providers
 
-```powershell
-$env:MISTRAL_API_KEY = "your_key_here"
-$env:MISTRAL_MODEL = "mistral-small-latest"
+```bash
+export MISTRAL_API_KEY="your_key_here"
+export MISTRAL_MODEL="mistral-small-latest"
 
-$env:HUGGINGFACE_API_KEY = "your_key_here"
-$env:HUGGINGFACE_MODEL = "meta-llama/Llama-3.2-3B-Instruct"
+export HUGGINGFACE_API_KEY="your_key_here"
+export HUGGINGFACE_MODEL="meta-llama/Llama-3.2-3B-Instruct"
 ```
 
 ## Automatic website knowledge updates
@@ -42,26 +44,28 @@ On every chat request, the backend reloads:
 
 1. Administrator-managed `site_content` entries, including company information and procedures.
 2. Current published downloadable resources/products.
-3. Current tutor directory information when the tutor table is available.
-4. The current conversation history.
-5. Any request-specific context supplied by the application.
+3. Current tutor directory information.
+4. Current LMS course/assignment/announcement information when those tables exist.
+5. The current conversation history.
+6. Any request-specific context supplied by the application.
 
-Therefore, when an administrator changes supported site content, publishes/unpublishes a resource, or changes tutor information in the database, Kaitlyn sees the new state on the next conversation without retraining or manually rebuilding a vector index.
+Therefore, when an administrator changes supported site content, publishes/unpublishes a resource, changes tutor information, or updates supported LMS information, Kaitlyn sees the new state on the next conversation without retraining or manually rebuilding a vector index.
 
 Sensitive-looking site-content keys containing passwords, secrets, tokens or API keys are excluded from the AI context.
 
 ## Important distinction
 
-Changes made only to source-code text that are not represented in the database are not automatically learned by Kaitlyn. Navigation/procedure information that should be changeable by administrators should therefore be maintained through the site's administrator-managed content/knowledge controls. This keeps operational answers editable without redeploying the model.
+Changes made only to source-code text that are not represented in the database are not automatically learned by Kaitlyn. Navigation/procedure information that should be changeable by administrators should therefore be maintained through the site's administrator-managed content/knowledge controls.
 
 ## Safety and reliability
 
 - Kaitlyn never receives API keys or secret-looking content values.
-- Existing prompt safety guardrails remain active.
+- API calls are server-side only; the browser never receives the Gemini key.
+- Gemini Interactions is attempted first, followed by legacy Gemini, OpenRouter, Mistral and Hugging Face.
 - Provider failures are caught and the next configured provider is attempted.
-- Gemini is attempted first, followed by OpenRouter, Mistral and Hugging Face.
-- No AI API key is exposed to the browser; calls are server-side only.
-- The assistant is instructed not to invent unsupported company facts or navigation steps.
+- Site-specific answers are grounded in administrator-entered and live database information.
+- Kaitlyn is instructed not to invent unsupported company facts or navigation steps.
+- `store: false` is used for Gemini interactions so the provider does not need to retain the conversation as server-side interaction state.
 
 ## Backend/frontend locations
 
