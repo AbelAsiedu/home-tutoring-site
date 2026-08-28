@@ -1,6 +1,6 @@
 const path = require('path');
 const fs = require('fs');
-require('dotenv').config();
+require('dotenv').config(); // Load environment variables first
 const express = require('express');
 const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
@@ -25,127 +25,2927 @@ const os = require('os');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Security / HTTPS helpers
 const USE_HTTPS = !!(process.env.SSL_KEY && process.env.SSL_CERT);
 const FORCE_HTTPS = process.env.FORCE_HTTPS === 'true';
 const TRUST_PROXY = process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true';
 const COOKIE_SAMESITE = process.env.COOKIE_SAMESITE || (process.env.NODE_ENV === 'production' ? 'none' : 'lax');
-const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || undefined;
-if (TRUST_PROXY) app.set('trust proxy', 1); else if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
+const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || undefined; // allow sharing across subdomains
+// In many hosting environments (Heroku, etc.) the app runs behind a proxy
+// which terminates TLS. Ensure Express trusts the proxy so `req.protocol`
+// and secure cookies are handled correctly. Allow explicit override via
+// TRUST_PROXY env var; otherwise enable in production by default.
+if (TRUST_PROXY) app.set('trust proxy', 1);
+else if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
 
+// Ensure folders
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
-const storage = multer.diskStorage({destination:(req,file,cb)=>cb(null,UPLOADS_DIR),filename:(req,file,cb)=>cb(null,`${Date.now()}-${file.originalname}`)});
-const upload = multer({storage});
-app.set('view engine','ejs');
-app.set('views',path.join(__dirname,'views'));
-app.use(express.static(path.join(__dirname,'public')));
-app.use('/uploads',express.static(UPLOADS_DIR));
-app.use(helmet({contentSecurityPolicy:{directives:{defaultSrc:["'self'"],scriptSrc:["'self'","'unsafe-inline'","'unsafe-eval'","cdn.tiny.cloud","cdn.jsdelivr.net","https://js.stripe.com"],scriptSrcAttr:["'unsafe-inline'"],styleSrc:["'self'","'unsafe-inline'","cdn.tiny.cloud","cdn.jsdelivr.net","fonts.googleapis.com"],imgSrc:["'self'","data:","blob:","https:"],fontSrc:["'self'","fonts.gstatic.com","data:"],connectSrc:["'self'","https://api.stripe.com"],frameSrc:["'self'","https://js.stripe.com","https://hooks.stripe.com"]}},hsts:{maxAge:63072000,includeSubDomains:true,preload:true}}));
-const authLimiter=rateLimit({windowMs:15*60*1000,max:5,message:'Too many login attempts, please try again later.',standardHeaders:true,legacyHeaders:false,skipSuccessfulRequests:true});
-const adminLimiter=rateLimit({windowMs:15*60*1000,max:20,message:'Too many admin login attempts, please try again later.',standardHeaders:true,legacyHeaders:false,skipSuccessfulRequests:true});
-const generalLimiter=rateLimit({windowMs:15*60*1000,max:500,standardHeaders:true,legacyHeaders:false});
-app.use(generalLimiter);
-app.use(bodyParser.urlencoded({extended:false}));
-app.use(bodyParser.json());
-app.use(cors({origin:true,credentials:true}));
-if(FORCE_HTTPS||process.env.NODE_ENV==='production')app.use((req,res,next)=>{const forwarded=req.headers['x-forwarded-proto'];const isSecure=(req.connection&&req.connection.encrypted)||forwarded==='https'||req.protocol==='https';if(!isSecure)return res.redirect(301,`https://${req.get('host')}${req.originalUrl}`);next();});
-app.use(session({store:new SQLiteStore({db:'sessions.sqlite'}),secret:process.env.SESSION_SECRET||'very-secret-key',resave:false,saveUninitialized:false,proxy:true,cookie:{maxAge:1000*60*60*24,secure:!!(USE_HTTPS||process.env.NODE_ENV==='production'),sameSite:COOKIE_SAMESITE==='none'?'none':'lax',domain:COOKIE_DOMAIN||undefined}}));
-app.use((req,res,next)=>{const tabId=req.headers['x-tab-id']||'default-tab';if(!req.session.tabs)req.session.tabs={};if(!req.session.tabs[tabId])req.session.tabs[tabId]={createdAt:new Date(),user:null,role:null,lastActive:new Date()};req.session.tabs[tabId].lastActive=new Date();req.currentTabUser=req.session.tabs[tabId].user;req.currentTabRole=req.session.tabs[tabId].role;req.tabId=tabId;req.getUser=()=>req.currentTabUser||req.session.user||null;req.getUserRole=()=>req.currentTabRole||(req.session.user&&req.session.user.role)||null;res.locals.user=req.getUser();res.locals.isAdmin=req.getUserRole()==='admin';next();});
-app.use(cookieParser());
-const crypto=require('crypto');
-function generateCsrfToken(req){if(!req.session.csrfSecret)req.session.csrfSecret=crypto.randomBytes(32).toString('hex');return crypto.createHmac('sha256',req.session.csrfSecret).update(req.sessionID).digest('hex');}
-function verifyCsrfToken(req){const token=(req.body&&req.body._csrf)||req.headers['x-csrf-token'];if(!token||!req.session.csrfSecret)return false;const expected=crypto.createHmac('sha256',req.session.csrfSecret).update(req.sessionID).digest('hex');return token===expected;}
-const csrfProtection=(req,res,next)=>{const type=String(req.headers['content-type']||'').toLowerCase();if(type.includes('multipart/form-data'))return next();const exempt=['/signup','/login','/api/cart/add','/api/cart/remove','/api/cart/clear','/api/cart','/api/session','/api/products','/api/content','/api/curriculum','/api/chat','/admin/media/upload','/admin/media/delete','/admin/products','/marketplace/upload','/marketplace/seller/apply'];if(exempt.includes(req.path)||req.path.startsWith('/admin/products/'))return next();if(['POST','PUT','DELETE','PATCH'].includes(req.method)&&!verifyCsrfToken(req)){const view=req.path.includes('signup')?'signup':(req.path.includes('admin')?'admin/login':'login');return res.status(403).render(view,{error:'Security check failed. Please refresh and try again.',csrfToken:generateCsrfToken(req),isAdmin:false,cartItems:[]});}next();};
-app.use(csrfProtection);
-const requireCompleteProfile=async(req,res,next)=>{const user=req.session.tabs?.[req.tabId]?.user||req.session.user;const needs=req.path.includes('/marketplace/upload')||req.path.includes('/download/')||req.path.includes('/marketplace/creator')||req.path==='/downloads';if(needs&&user){try{const row=await runQueryOne('SELECT profile_complete FROM users WHERE id = ?',[user.id]);if(!row||!row.profile_complete)return res.redirect('/profile/create?message='+encodeURIComponent('Please complete your profile before uploading or downloading content.'));}catch(e){console.error('Profile check error:',e);}}next();};
-app.use(requireCompleteProfile);
-app.use(async(req,res,next)=>{try{if(!req.session.cart||typeof req.session.cart!=='object'||Array.isArray(req.session.cart))req.session.cart={};Object.keys(req.session.cart).forEach(k=>{const q=Number(req.session.cart[k]);if(!q||q<=0||isNaN(q))delete req.session.cart[k];else req.session.cart[k]=q;});const ids=Object.keys(req.session.cart);let items=[],count=0;if(ids.length){const rows=await runQuery(`SELECT * FROM products WHERE id IN (${ids.map(()=>'?').join(',')})`,ids);items=rows.map(r=>({...r,qty:req.session.cart[r.id]||0}));count=items.reduce((s,i)=>s+(Number(i.qty)||0),0);}res.locals.cartCount=count;res.locals.cartItems=items;}catch(e){console.error('Cart middleware error:',e);req.session.cart={};res.locals.cartCount=0;res.locals.cartItems=[];}res.locals.csrfToken=generateCsrfToken(req);next();});
 
-app.use((err,req,res,next)=>{try{console.error('[Error]',err&&err.stack?err.stack:err);const view=req.path&&req.path.includes('signup')?'signup':(req.path&&req.path.includes('admin')?'admin/login':'login');res.status(500).render(view,{error:'An error occurred. Please refresh and try again.',csrfToken:generateCsrfToken(req),isAdmin:false,cartItems:[]});}catch(e){res.status(500).send('Server error');}});
+// Multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOADS_DIR),
+  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
+});
+const upload = multer({ storage });
+
+// View engine
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(UPLOADS_DIR));
+
+// Security: Helmet middleware for security headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "cdn.tiny.cloud", "cdn.jsdelivr.net", "https://js.stripe.com"],
+      scriptSrcAttr: ["'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "cdn.tiny.cloud", "cdn.jsdelivr.net", "fonts.googleapis.com"],
+      imgSrc: ["'self'", "data:", "blob:", "https:"],
+      fontSrc: ["'self'", "fonts.gstatic.com", "data:"],
+      connectSrc: ["'self'", "https://api.stripe.com"],
+      frameSrc: ["'self'", "https://js.stripe.com", "https://hooks.stripe.com"],
+    },
+  },
+  hsts: {
+    maxAge: 63072000,
+    includeSubDomains: true,
+    preload: true
+  },
+}));
+
+// Security: Rate limiting to prevent brute force attacks
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 requests per window
+  message: 'Too many login attempts, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+});
+
+// Looser limiter for admin login to reduce lockouts
+const adminLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: 'Too many admin login attempts, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+});
+
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 500, // 500 requests per window (increased for normal browsing)
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use(generalLimiter); // Apply to all other routes
+
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+app.use(cors({ origin: true, credentials: true }));
+
+// Force HTTPS when behind proxy to keep secure cookies and sessions working
+if (FORCE_HTTPS || process.env.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    const forwarded = req.headers['x-forwarded-proto'];
+    const isSecure = (req.connection && req.connection.encrypted) || forwarded === 'https' || req.protocol === 'https';
+    if (!isSecure) {
+      return res.redirect(301, `https://${req.get('host')}${req.originalUrl}`);
+    }
+    next();
+  });
+}
+ 
+
+// Session middleware: set secure cookie when running over HTTPS or in production
+app.use(session({
+  store: new SQLiteStore({ db: 'sessions.sqlite' }),
+  secret: process.env.SESSION_SECRET || 'very-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  proxy: true, // trust x-forwarded-proto for secure cookies
+  cookie: {
+    maxAge: 1000 * 60 * 60 * 24,
+    secure: !!(USE_HTTPS || process.env.NODE_ENV === 'production'),
+    sameSite: COOKIE_SAMESITE === 'none' ? 'none' : 'lax',
+    domain: COOKIE_DOMAIN || undefined
+  }
+}));
+
+// NOTE: Google OAuth with Passport requires: npm install passport passport-google-oauth20
+// Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_CALLBACK_URL in .env
+// For now, profile completion is required before users can upload/download
+
+// Tab-aware session middleware: capture tab ID and store per-tab user context
+app.use((req, res, next) => {
+  const tabId = req.headers['x-tab-id'] || 'default-tab';
+  
+  // Store tab ID in session for tracking
+  if (!req.session.tabs) {
+    req.session.tabs = {};
+  }
+  
+  // Initialize tab context if not exists
+  if (!req.session.tabs[tabId]) {
+    req.session.tabs[tabId] = {
+      createdAt: new Date(),
+      user: null,
+      role: null,
+      lastActive: new Date()
+    };
+  }
+  
+  // Update last active time for this tab
+  req.session.tabs[tabId].lastActive = new Date();
+  
+  // Attach current tab's user context to request
+  req.currentTabUser = req.session.tabs[tabId].user;
+  req.currentTabRole = req.session.tabs[tabId].role;
+  req.tabId = tabId;
+  
+  // Helper function to get current user (tab-aware)
+  req.getUser = function() {
+    return req.currentTabUser || req.session.user || null;
+  };
+  
+  // Helper function to get current user role (tab-aware)
+  req.getUserRole = function() {
+    return req.currentTabRole || (req.session.user && req.session.user.role) || null;
+  };
+  
+  // Override res.locals to use tab-specific user
+  res.locals.user = req.getUser();
+  res.locals.isAdmin = req.getUserRole() === 'admin';
+  
+  next();
+});
+
+
+// Register cookie parser AFTER session (per csrf-csrf guidance)
+app.use(cookieParser());
+
+// Simple session-based CSRF protection
+const crypto = require('crypto');
+
+// Generate CSRF token for a session
+function generateCsrfToken(req) {
+  if (!req.session.csrfSecret) {
+    req.session.csrfSecret = crypto.randomBytes(32).toString('hex');
+  }
+  return crypto.createHmac('sha256', req.session.csrfSecret).update(req.sessionID).digest('hex');
+}
+
+// Verify CSRF token
+function verifyCsrfToken(req) {
+  const token = (req.body && req.body._csrf) || req.headers['x-csrf-token'];
+  if (!token || !req.session.csrfSecret) return false;
+  const expected = crypto.createHmac('sha256', req.session.csrfSecret).update(req.sessionID).digest('hex');
+  return token === expected;
+}
+
+// CSRF protection middleware
+const csrfProtection = (req, res, next) => {
+  const contentType = String(req.headers['content-type'] || '').toLowerCase();
+  if (contentType.includes('multipart/form-data')) return next();
+  const csrfExempt = [
+    '/signup','/login',
+    '/api/cart/add','/api/cart/remove','/api/cart/clear','/api/cart','/api/session',
+    '/api/products','/api/content','/api/curriculum',
+    '/api/chat',
+    '/admin/media/upload','/admin/media/delete',
+    '/admin/products',
+    '/marketplace/upload','/marketplace/seller/apply'
+  ];
+  const csrfExemptPrefixes = [
+    '/admin/products/'
+  ];
+  if (csrfExempt.includes(req.path) || csrfExemptPrefixes.some(prefix => req.path.startsWith(prefix))) return next();
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+    if (!verifyCsrfToken(req)) {
+      console.warn(`[CSRF] Token mismatch for ${req.path}. Body:`, req.body ? Object.keys(req.body) : 'no body');
+      const view = req.path.includes('signup') ? 'signup' : (req.path.includes('admin') ? 'admin/login' : 'login');
+      return res.status(403).render(view, { error: 'Security check failed. Please refresh and try again.', csrfToken: generateCsrfToken(req), isAdmin: false, cartItems: [] });
+    }
+  }
+  next();
+};
+
+app.use(csrfProtection);
+
+// Middleware to require complete user profile for certain actions
+const requireCompleteProfile = async (req, res, next) => {
+  const user = req.session.tabs?.[req.tabId]?.user || req.session.user;
+  
+  // Check if user is trying to upload or download
+  const needsProfile = req.path.includes('/marketplace/upload') || 
+                       req.path.includes('/download/') ||
+                       req.path.includes('/marketplace/creator') ||
+                       req.path === '/downloads';
+  
+  if (needsProfile && user) {
+    try {
+      const userData = await runQueryOne(`SELECT profile_complete FROM users WHERE id = ?`, [user.id]);
+      if (!userData || !userData.profile_complete) {
+        return res.redirect('/profile/create?message=' + encodeURIComponent('Please complete your profile before uploading or downloading content.'));
+      }
+    } catch (err) {
+      console.error('Profile check error:', err);
+    }
+  }
+  
+  next();
+};
+
+app.use(requireCompleteProfile);
+
+// Expose cart count and items to server-rendered views
+app.use(async (req, res, next) => {
+  try {
+    // Initialize cart if not exists or invalid
+    if (!req.session.cart || typeof req.session.cart !== 'object' || Array.isArray(req.session.cart)) {
+      req.session.cart = {};
+    }
+    
+    const cart = req.session.cart;
+    
+    // Clean up cart - remove any non-numeric or zero quantities
+    Object.keys(cart).forEach(key => {
+      const qty = Number(cart[key]);
+      if (!qty || qty <= 0 || isNaN(qty)) {
+        delete cart[key];
+      } else {
+        cart[key] = qty; // Ensure it's stored as number
+      }
+    });
+    
+    const ids = Object.keys(cart).filter(id => id && cart[id] > 0);
+    let items = [];
+    let count = 0;
+    
+    if (ids.length) {
+      try {
+        const rows = await runQuery(`SELECT * FROM products WHERE id IN (${ids.map(()=>'?').join(',')})`, ids);
+        items = rows.map(r => ({ ...r, qty: cart[r.id] || 0 }));
+        count = items.reduce((s, item) => s + (Number(item.qty) || 0), 0);
+      } catch (dbErr) {
+        console.error('Cart query error:', dbErr);
+        // Clear invalid cart on error
+        req.session.cart = {};
+      }
+    }
+    
+    res.locals.cartCount = count;
+    res.locals.cartItems = items;
+  } catch (e) {
+    console.error('Cart middleware error:', e);
+    req.session.cart = {};
+    res.locals.cartCount = 0;
+    res.locals.cartItems = [];
+  }
+  // isAdmin already set by tab-aware middleware above
+  // Generate CSRF token for all views
+  res.locals.csrfToken = generateCsrfToken(req);
+  
+  // Content helper function for templates
+  res.locals.content = function(key, defaultValue = '') {
+    if (!res.locals._contentCache) {
+      res.locals._contentCache = {};
+    }
+    if (res.locals._contentCache[key] !== undefined) {
+      return res.locals._contentCache[key];
+    }
+    // Return default for now - will be populated by route handlers
+    return defaultValue;
+  };
+  
+  next();
+});
+
+// Friendly CSRF error handler
+app.use((err, req, res, next) => {
+  try {
+    console.error('[Error]', err && err.stack ? err.stack : err);
+    const view = req.path && req.path.includes('signup') ? 'signup' : (req.path && req.path.includes('admin') ? 'admin/login' : 'login');
+    res.status(500).render(view, { error: 'An error occurred. Please refresh and try again.', csrfToken: generateCsrfToken(req), isAdmin: false, cartItems: [] }, (renderErr, html) => {
+      if (renderErr) {
+        console.error('[Render Error]', renderErr);
+        return res.status(500).send('Server error');
+      }
+      res.send(html);
+    });
+  } catch (e) {
+    console.error('[Handler Error]', e);
+    res.status(500).send('Server error');
+  }
+});
+
+// Initialize database (Postgres via DATABASE_URL or fallback to SQLite)
+// All schema initialization is now in lib/db.js
 initDatabase();
 
-async function seedAdminUser(){const adminId='admin-1',adminEmail=process.env.ADMIN_EMAIL||'admin@modernpedagogues.com',adminPassword=process.env.ADMIN_PASSWORD||'passwod',adminUsername=process.env.ADMIN_USERNAME||'admin',hashedTarget=bcrypt.hashSync(adminPassword,10);try{const existing=await runQueryOne('SELECT * FROM users WHERE id = ?',[adminId]);if(!existing)await runExec('INSERT INTO users (id,name,email,password,plain_password,role) VALUES (?,?,?,?,?,?)',[adminId,'Admin',adminEmail,hashedTarget,adminPassword,'admin']);else await runExec('UPDATE users SET password=?,plain_password=? WHERE id=?',[hashedTarget,adminPassword,adminId]);}catch(err){console.error('Error seeding admin user:',err);}}
-async function seedSiteContent(){try{for(const page of ['home','tutors','curriculum','about'])for(const n of [1,2,3]){const key=`${page}_slide_${n}`;if(!(await runQueryOne('SELECT * FROM site_content WHERE key=?',[key])))await runExec('INSERT INTO site_content (key,value) VALUES (?,?)',[key,'']);}}catch(err){console.error('Error seeding site content:',err);}}
-seedAdminUser();seedSiteContent();
-async function seedSampleData(){try{const lessons=await runQuery('SELECT count(*) as c FROM lessons');if(lessons&&lessons[0]&&lessons[0].c<5){const studentId='student-1',tutorId='tutor-1',hashed=bcrypt.hashSync('password',10);await runExec('INSERT INTO users (id,name,email,password,role) VALUES (?,?,?,?,?) ON CONFLICT(id) DO NOTHING',[studentId,'Test Student','student@example.com',hashed,'user']);await runExec('INSERT INTO users (id,name,email,password,role) VALUES (?,?,?,?,?) ON CONFLICT(id) DO NOTHING',[tutorId,'Test Tutor','tutor@example.com',hashed,'tutor']);await runExec('INSERT INTO teachers (id,name,email,bio,subjects) VALUES (?,?,?,?,?) ON CONFLICT(id) DO NOTHING',[tutorId,'Test Tutor','tutor@example.com','Experienced tutor','Math,Science']);}}catch(err){console.error('Seed sample data error:',err);}}
+// Seed admin user
+async function seedAdminUser() {
+  const adminId = 'admin-1';
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@modernpedagogues.com';
+  const adminPassword = process.env.ADMIN_PASSWORD || 'passwod';
+  const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+  const hashedTarget = bcrypt.hashSync(adminPassword, 10);
+  
+  try {
+    const existing = await runQueryOne('SELECT * FROM users WHERE id = ?', [adminId]);
+    if (!existing) {
+      await runExec('INSERT INTO users (id, name, email, password, plain_password, role) VALUES (?, ?, ?, ?, ?, ?)', 
+        [adminId, 'Admin', adminEmail, hashedTarget, adminPassword, 'admin']);
+      console.log(`Admin user created: username=${adminUsername}`);
+    } else {
+      // Update admin password
+      await runExec('UPDATE users SET password = ?, plain_password = ? WHERE id = ?', 
+        [hashedTarget, adminPassword, adminId]);
+    }
+  } catch (err) {
+    console.error('Error seeding admin user:', err);
+  }
+}
+
+// Seed default site content keys
+async function seedSiteContent() {
+  try {
+    // Ensure slide keys exist for each page
+    const pages = ['home', 'tutors', 'curriculum', 'about'];
+    const slideKeys = [];
+    for (const page of pages) {
+      slideKeys.push(`${page}_slide_1`);
+      slideKeys.push(`${page}_slide_2`);
+      slideKeys.push(`${page}_slide_3`);
+    }
+    
+    for (const key of slideKeys) {
+      const exists = await runQueryOne('SELECT * FROM site_content WHERE key = ?', [key]);
+      if (!exists) {
+        await runExec('INSERT INTO site_content (key, value) VALUES (?, ?)', [key, '']);
+        console.log(`Created site_content key: ${key}`);
+      }
+    }
+  } catch (err) {
+    console.error('Error seeding site content:', err);
+  }
+}
+
+seedAdminUser();
+seedSiteContent();
+
+// Seed sample data for manual testing (only if no lessons exist)
+async function seedSampleData() {
+  try {
+    const lessons = await runQuery('SELECT count(*) as c FROM lessons');
+    if (lessons && lessons[0] && lessons[0].c < 5) {
+      console.log('Seeding sample users, lesson and report for manual testing...');
+      const studentId = 'student-1';
+      const tutorId = 'tutor-1';
+      const hashed = bcrypt.hashSync('password', 10);
+      await runExec('INSERT INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING', [studentId, 'Test Student', 'student@example.com', hashed, 'user']);
+      await runExec('INSERT INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING', [tutorId, 'Test Tutor', 'tutor@example.com', hashed, 'tutor']);
+      await runExec('INSERT INTO teachers (id, name, email, bio, subjects) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING', [tutorId, 'Test Tutor', 'tutor@example.com', 'Experienced tutor', 'Math,Science']);
+      const lessonId = uuidv4();
+      const scheduled = new Date(Date.now() + 24*3600*1000).toISOString();
+      await runExec('INSERT INTO lessons (id, tutor_id, student_id, scheduled_at, duration_minutes, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [lessonId, tutorId, studentId, scheduled, 30, 'scheduled', new Date().toISOString()]);
+      const reportId = uuidv4();
+      await runExec('INSERT INTO lesson_reports (id, lesson_id, tutor_id, student_id, summary, homework, progress_score, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [reportId, lessonId, tutorId, studentId, 'Good progress on algebra', 'Complete worksheet 3', 7, new Date().toISOString()]);
+      const recId = uuidv4();
+      await runExec('INSERT INTO recordings (id, lesson_id, url, uploaded_at, notes) VALUES (?, ?, ?, ?, ?)', [recId, lessonId, null, new Date().toISOString(), 'Sample recording placeholder']);
+    }
+  } catch (err) {
+    console.error('Seed sample data error:', err);
+  }
+}
+
+// Seed demo products if none exist
+async function seedDemoProducts() {
+  try {
+    const products = await runQuery('SELECT count(*) as c FROM products');
+    if (products && products[0] && products[0].c < 5) {
+      console.log('Seeding demo products for shop...');
+      const demo = [
+        { title: 'Primary Mathematics Workbook', description: 'Practice exercises aligned to the curriculum for Primary learners.', price: 30, image: '/images/book-primary.svg' },
+        { title: 'JHS English Comprehension Pack', description: 'Reading passages and comprehension questions for JHS students.', price: 45, image: '/images/book-jhs-english.svg' },
+        { title: 'SHS Science Revision Guide', description: 'Concise revision notes and past questions for SHS science subjects.', price: 60, image: '/images/book-shs-science.svg' },
+        { title: 'IGCSE Maths Problem Solving', description: 'Targeted problem sets and mark schemes for IGCSE Maths.', price: 85, image: '/images/book-igcse-maths.svg' },
+        { title: 'Tutor Resource Pack (Digital)', description: 'Editable worksheets, lesson plans and assessments (PDF bundle).', price: 20, image: '/images/book-tutor-pack.svg' }
+      ];
+      for (const p of demo) {
+        const id = uuidv4();
+        await runExec('INSERT INTO products (id, title, description, price, image_path) VALUES (?, ?, ?, ?, ?)', [id, p.title, p.description, p.price, p.image]);
+      }
+    }
+  } catch (err) {
+    console.error('Seed demo products error:', err);
+  }
+}
+
 seedSampleData();
-async function seedDemoProducts(){try{const products=await runQuery('SELECT count(*) as c FROM products');if(products&&products[0]&&products[0].c<5){const demo=[['Primary Mathematics Workbook','Practice exercises aligned to the curriculum for Primary learners.',30,'/images/book-primary.svg'],['JHS English Comprehension Pack','Reading passages and comprehension questions for JHS learners.',45,'/images/book-jhs-english.svg'],['SHS Science Revision Guide','Concise revision notes and past questions for SHS science students.',60,'/images/book-shs-science.svg'],['IGCSE Maths Problem Solving','Targeted problem sets and mark schemes for IGCSE Maths.',85,'/images/book-igcse-maths.svg'],['Tutor Resource Pack (Digital)','Editable worksheets, lesson plans and assessments.',20,'/images/book-tutor-pack.svg']];for(const p of demo)await runExec('INSERT INTO products (id,title,description,price,image_path) VALUES (?,?,?,?,?)',[uuidv4(),...p]);}}catch(err){console.error('Seed demo products error:',err);}}
 seedDemoProducts();
 
-function requireAuth(req,res,next){if(req.getUser())return next();if(req.path.startsWith('/api/'))return res.status(401).json({error:'unauth'});return res.redirect('/login');}
-const requireLogin=requireAuth;
-function requireRole(role){return(req,res,next)=>{if(req.getUserRole()===role)return next();if(req.path.startsWith('/api/'))return res.status(403).json({error:'forbidden'});res.status(403).send('Forbidden');};}
-function requireAnyRole(roles){return(req,res,next)=>{if(roles.includes(req.getUserRole()))return next();if(req.path.startsWith('/api/'))return res.status(403).json({error:'forbidden'});res.status(403).send('Forbidden');};}
-function requireCreatorAccess(req,res,next){const user=req.getUser();if(!user)return res.redirect('/login');const role=req.getUserRole();if(role==='creator'||role==='admin')return next();return res.redirect('/marketplace/seller/apply?error='+encodeURIComponent('Creator verification required before uploading.'));}
-async function loadContent(res){const rows=await runQuery('SELECT key,value FROM site_content');const map={};rows.forEach(r=>map[r.key]=r.value);res.locals.content=(key,def='')=>map[key]!==undefined&&map[key]!==''?map[key]:def;}
-function toCSV(rows){if(!rows||!rows.length)return '';const headers=Object.keys(rows[0]);const esc=v=>{if(v==null)return '';return '"'+String(v).replace(/"/g,'""')+'"';};return [headers.join(','),...rows.map(r=>headers.map(h=>esc(r[h])).join(','))].join(os.EOL);}
+// Auth middlewares
+function requireAuth(req, res, next) {
+  if (req.getUser()) return next();
+  // if API, return 401 JSON, else redirect to login
+  if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'unauth' });
+  return res.redirect('/login');
+}
 
-app.get('/',async(req,res)=>{await loadContent(res);const slides=await runQuery("SELECT key,value FROM site_content WHERE key LIKE 'home_slide_%' ORDER BY key"),products=await runQuery('SELECT * FROM products LIMIT 6');res.render('home',{slides,products});});
-app.get('/about',async(req,res)=>{await loadContent(res);const slides=await runQuery("SELECT key,value FROM site_content WHERE key LIKE 'about_slide_%' ORDER BY key"),about=await runQuery('SELECT value FROM site_content WHERE key=?',['about_text']);res.render('about',{slides,about:about[0]?about[0].value:null});});
-app.get('/contact',(req,res)=>res.render('contact'));
-app.post('/contact',(req,res)=>{const {name,email,subject,message}=req.body;dbRun('INSERT INTO messages (id,name,email,subject,message,created_at) VALUES (?,?,?,?,?,?)',[uuidv4(),name,email,subject,message,new Date().toISOString()]);res.render('contact',{success:true});});
-app.get('/apply',(req,res)=>res.render('apply'));
-app.post('/apply',upload.single('cv'),(req,res)=>{const {name,email,phone,message}=req.body;dbRun('INSERT INTO applications (id,name,email,phone,message,cv_path,created_at) VALUES (?,?,?,?,?,?,?)',[uuidv4(),name,email,phone,message,req.file?`/uploads/${path.basename(req.file.path)}`:null,new Date().toISOString()]);res.render('apply',{success:true});});
-app.get('/curriculum',async(req,res)=>{const curr=await runQuery("SELECT key,value FROM site_content WHERE key LIKE 'curriculum_%' AND key NOT LIKE 'curriculum_slide_%'"),slides=await runQuery("SELECT key,value FROM site_content WHERE key LIKE 'curriculum_slide_%' ORDER BY key"),products=await runQuery('SELECT * FROM products');res.render('curriculum',{curr,products,slides});});
+// Alias kept for legacy routes that still reference requireLogin.
+const requireLogin = requireAuth;
 
-app.get('/tutors',async(req,res)=>{try{await loadContent(res);const slides=await runQuery("SELECT key,value FROM site_content WHERE key LIKE 'tutors_slide_%' ORDER BY key");const tutorRows=await runQuery(`SELECT u.id,u.name,u.email,up.bio,up.avatar_path,up.location,up.occupation,t.bio AS teacher_bio,t.subjects FROM users u LEFT JOIN user_profiles up ON up.user_id=u.id LEFT JOIN teachers t ON t.id=u.id WHERE u.role='tutor' ORDER BY u.name`);const managedTutors=tutorRows.map(t=>({id:t.id,name:t.name,image:t.avatar_path||'/images/tutor-placeholder.svg',role:t.occupation||'Professional Tutor',subjects:t.subjects||'',bio:t.teacher_bio||t.bio||'',location:t.location||'',profileUrl:null}));res.render('tutors',{slides,managedTutors});}catch(err){console.error('Tutor directory error:',err);res.status(500).render('tutors',{slides:[],managedTutors:[]});}});
-app.get('/estore',(req,res)=>res.redirect('/marketplace?category=books'));
-app.get('/faq',async(req,res)=>{await loadContent(res);res.render('faq');});
+function requireRole(role) {
+  return (req, res, next) => {
+    if (req.getUserRole() === role) return next();
+    if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'forbidden' });
+    res.status(403).send('Forbidden');
+  };
+}
 
-// AI assistant
-const {queryLLM,isBlockedPrompt,SAFE_BLOCK_TEXT}=require('./tools/llm');
-function tokenizeForMatch(text){const stop=new Set(['the','and','for','with','from','that','this','have','your','you','are','how','what','when','where','which','about','help','please','need','can','do','does','did','our','their','them','then','than','into','also','just','more']);return String(text||'').toLowerCase().split(/[^a-z0-9]+/).filter(t=>t.length>2&&!stop.has(t));}
-function scoreTextMatch(query,candidate){const q=tokenizeForMatch(query),c=String(candidate||'').toLowerCase();if(!q.length||!c)return 0;let s=0;q.forEach(t=>{if(c.includes(t))s+=t.length>5?3:2});if(/price|pricing|cost|fee|pay|payment/.test(query.toLowerCase())&&/ghs|price|pricing|plan/.test(c))s+=4;if(/download|book|resource|purchase|checkout/.test(query.toLowerCase())&&/download|estore|cart|checkout/.test(c))s+=4;if(/tutor|teacher|vett|background|safeguard/.test(query.toLowerCase())&&/tutor|vetted|background|safeguard/.test(c))s+=4;if(/lesson|online|in-home|trial|schedule/.test(query.toLowerCase())&&/lesson|trial|online|in-home|schedule/.test(c))s+=4;return s;}
-function detectClientIntents(text){const m=String(text||'').toLowerCase(),map={pricing:/price|pricing|cost|fee|payment|pay|invoice|billing|premium|starter|regular|plan|package/,booking:/book|booking|schedule|reschedule|trial|lesson time|availability|start|get started|sign up/,tutor_quality:/tutor|teacher|vett|background|qualified|safeguard|safety/,downloads:/download|downloads|resource|file|expired|purchase|checkout|estore/,account:/login|sign in|signup|account|password|reset|dashboard/,curriculum:/curriculum|ges|cambridge|ib|igcse|a-level|sat|program/,technical:/error|bug|broken|not working|cannot|can't|failed|issue/,support:/help|support|urgent|complaint|refund|contact/};return Object.entries(map).filter(([,p])=>p.test(m)).map(([i])=>i);}
-function normalizeChatHistory(history){if(!Array.isArray(history))return [];return history.filter(x=>x&&typeof x==='object').map(x=>({role:x.role==='bot'||x.role==='assistant'?'assistant':'user',content:String(x.content||'').trim()})).filter(x=>x.content).slice(-8);}
-function detectIntentsFromConversation(message,history){return Array.from(new Set([...detectClientIntents(message),...detectClientIntents((history||[]).filter(x=>x.role==='user').slice(-3).map(x=>x.content).join(' '))]));}
-function buildHighQualityFallback(topKnowledge,intents){return `${topKnowledge.slice(0,3).map(x=>`• ${x.text}`).join('\n')}\n\n${intents.length?`Detected topics: ${intents.join(', ').replace(/_/g,' ')}.`:'Detected topics: general support.'} If you want, I can guide you step-by-step or connect you to support@modernpedagogues.com.`;}
-async function logAiChatInteraction({message,answer,intents,matchedTopics,matchScore,fallbackUsed}){try{await runExec('INSERT INTO ai_chat_logs (id,message,answer,intents,matched_topics,match_score,fallback_used,created_at) VALUES (?,?,?,?,?,?,?,?)',[uuidv4(),String(message||'').slice(0,2000),String(answer||'').slice(0,6000),intents.join(','),matchedTopics.join(','),Number(matchScore||0),fallbackUsed?1:0,new Date().toISOString()]);}catch(e){console.error('AI chat log write error:',e);}}
-async function buildAiAnalyticsSummary(){try{const rows=await runQuery('SELECT intents,matched_topics,match_score,fallback_used,created_at FROM ai_chat_logs ORDER BY created_at DESC LIMIT 800');const totalChats=rows.length,fallbackCount=rows.filter(r=>Number(r.fallback_used)===1).length,lowConfidenceCount=rows.filter(r=>Number(r.match_score||0)<5).length;return{totalChats,fallbackRate:totalChats?Math.round(fallbackCount/totalChats*100):0,lowConfidenceRate:totalChats?Math.round(lowConfidenceCount/totalChats*100):0,topIntents:[],unansweredIntents:[],topTopics:[]};}catch(e){return{totalChats:0,fallbackRate:0,lowConfidenceRate:0,topIntents:[],unansweredIntents:[],topTopics:[]};}}
-app.post('/api/chat',async(req,res)=>{const message=String(req.body?.message||'').trim().slice(0,1000);const history=normalizeChatHistory(req.body?.history);if(!message)return res.status(400).json({error:'Message is required'});if(isBlockedPrompt(message))return res.json({answer:SAFE_BLOCK_TEXT});const intents=detectIntentsFromConversation(message,history);let faqPairs=[];try{const rows=await runQuery("SELECT key,value FROM site_content WHERE key LIKE 'faq_%'");const grouped={};rows.forEach(r=>{const m=r.key.match(/^faq_([qa])(\d+)/);if(m){grouped[m[2]]=grouped[m[2]]||{};grouped[m[2]][m[1]]=r.value;}});faqPairs=Object.values(grouped).filter(x=>x.q&&x.a);}catch(e){}if(!faqPairs.length)faqPairs=[{q:'What ages do you teach?',a:'We support learners from primary through secondary and also provide adult learning support.'},{q:'Do you offer online lessons?',a:'Yes, we offer both in-home and online lessons via secure video call.'},{q:'How are tutors vetted?',a:'Tutors provide references, interview with our team, and complete an observed session before joining.'}];let siteKnowledge=[];try{const rows=await runQuery('SELECT key,value FROM site_content WHERE value IS NOT NULL AND TRIM(value) <> ""');siteKnowledge=rows.filter(r=>r&&r.key&&r.value).filter(r=>!/_slide_|_img$/.test(r.key)).map(r=>({key:r.key,value:String(r.value).trim()})).slice(0,180);}catch(e){}const staticKnowledge=[{topic:'trial',text:'Trial lessons are 30 minutes and help families assess tutor fit before regular sessions begin. You can request a trial via /contact.'},{topic:'lessons',text:'The platform supports one-to-one tutoring, online and in-home options, curriculum-aligned plans, and flexible scheduling.'},{topic:'pricing',text:'Confirm latest pricing on the home page pricing section.'},{topic:'downloads',text:'Downloadable books/resources become available after checkout and are accessible from /downloads.'},{topic:'tutors',text:'Tutors are vetted through references, interviews, and observed sessions; safeguarding and quality assurance are part of the process.'},{topic:'curriculum',text:'Tutoring can align with GES, Cambridge, IB, and North American pathways, depending on learner needs.'},{topic:'support',text:'For account, billing, booking, or urgent assistance, clients can use /contact or email support@modernpedagogues.com.'}];const all=[...staticKnowledge,...faqPairs.map(p=>({topic:p.q,text:`${p.q} ${p.a}`}),...siteKnowledge.map(x=>({topic:x.key,text:`${x.key.replace(/_/g,' ')}: ${x.value}`}))];const ranked=all.map(k=>({...k,score:scoreTextMatch(message,`${k.topic} ${k.text}`)})).sort((a,b)=>b.score-a.score);const top=ranked.filter(k=>k.score>0).slice(0,8);const context=(top.length?top:staticKnowledge).map(k=>`- ${k.text}`).join('\n');try{const answer=await queryLLM(message,{knowledgeContext:context,supportContact:'support@modernpedagogues.com',intents,history});if(answer){await logAiChatInteraction({message,answer,intents,matchedTopics:top.map(x=>x.topic),matchScore:ranked[0]?.score||0,fallbackUsed:false});return res.json({answer});}}catch(e){console.error('LLM error:',e);}const answer=buildHighQualityFallback(top.length?top:staticKnowledge,intents);await logAiChatInteraction({message,answer,intents,matchedTopics:top.map(x=>x.topic),matchScore:ranked[0]?.score||0,fallbackUsed:true});res.json({answer});});
+function requireAnyRole(roles) {
+  return (req, res, next) => {
+    if (roles.includes(req.getUserRole())) return next();
+    if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'forbidden' });
+    res.status(403).send('Forbidden');
+  };
+}
 
-app.get('/privacy',(req,res)=>res.render('privacy'));app.get('/terms',(req,res)=>res.render('terms'));
-app.get('/verify/:token',async(req,res)=>{const {token}=req.params;try{const user=await runQuery('SELECT * FROM users WHERE verification_token=?',[token]);if(!user.length)return res.render('login',{error:'Invalid or expired verification token'});await runExec('UPDATE users SET email_verified=1,verification_token=NULL WHERE id=?',[user[0].id]);res.render('login',{success:'Email verified successfully! You can now log in.'});}catch(e){res.render('login',{error:'Verification failed. Please try again.'});}});
-app.get('/forgot-password',(req,res)=>res.render('forgot-password'));app.post('/forgot-password',[body('email').trim().isEmail().normalizeEmail()],async(req,res)=>{try{const users=await runQuery('SELECT * FROM users WHERE email=?',[req.body.email]);if(users.length){const token=uuidv4();await runExec('UPDATE users SET reset_token=?,reset_token_expiry=? WHERE id=?',[token,Date.now()+3600000,users[0].id]);await sendEmail(req.body.email,'passwordReset',{name:users[0].name,resetUrl:`${req.protocol}://${req.get('host')}/reset-password/${token}`});}res.render('forgot-password',{success:'If an account exists with that email, a password reset link has been sent.'});}catch(e){res.render('forgot-password',{error:'An error occurred. Please try again later.'});}});
-app.get('/reset-password/:token',async(req,res)=>{const u=await runQuery('SELECT * FROM users WHERE reset_token=? AND reset_token_expiry>?',[req.params.token,Date.now()]);if(!u.length)return res.render('login',{error:'Invalid or expired reset token'});res.render('reset-password',{token:req.params.token});});
-app.post('/reset-password/:token',[body('password').isLength({min:8}),body('confirmPassword').custom((v,{req})=>{if(v!==req.body.password)throw new Error('Passwords do not match');return true;})],async(req,res)=>{const e=validationResult(req);if(!e.isEmpty())return res.render('reset-password',{token:req.params.token,error:e.array()[0].msg});const u=await runQuery('SELECT * FROM users WHERE reset_token=? AND reset_token_expiry>?',[req.params.token,Date.now()]);if(!u.length)return res.render('login',{error:'Invalid or expired reset token'});await runExec('UPDATE users SET password=?,reset_token=NULL,reset_token_expiry=NULL WHERE id=?',[bcrypt.hashSync(req.body.password,10),u[0].id]);res.render('login',{success:'Password reset successfully! You can now log in.'});});
+function requireCreatorAccess(req, res, next) {
+  const user = req.getUser();
+  if (!user) return res.redirect('/login');
+  const role = req.getUserRole();
+  if (role === 'creator' || role === 'admin') return next();
+  return res.redirect('/marketplace/seller/apply?error=' + encodeURIComponent('Creator verification required before uploading.'));
+}
 
-app.get('/api/products',async(req,res)=>{try{res.json(await runQuery('SELECT * FROM products'));}catch(e){res.status(500).json({error:'db'});}});
-app.get('/api/content/:key',async(req,res)=>{try{const r=await runQueryOne('SELECT value FROM site_content WHERE key=?',[req.params.key]);res.json({key:req.params.key,value:r?r.value:null});}catch(e){res.status(500).json({error:'db'});}});
-app.get('/api/curriculum',async(req,res)=>{try{res.json(await runQuery("SELECT key,value FROM site_content WHERE key LIKE 'curriculum_%'"));}catch(e){res.status(500).json({error:'db'});}});
-app.get('/api/session',(req,res)=>res.json({user:req.getUser()||null,cart:req.session.cart||{}}));
-app.post('/api/cart/add',(req,res)=>{const {id}=req.body;const qty=parseInt(req.body.qty||req.body.quantity||1,10)||1;if(!req.session.cart)req.session.cart={};req.session.cart[id]=(req.session.cart[id]||0)+qty;res.json({cart:req.session.cart});});
-app.post('/api/cart/remove',(req,res)=>{if(!req.session.cart)return res.json({cart:{}});delete req.session.cart[req.body.id];res.json({cart:req.session.cart});});app.post('/api/cart/clear',(req,res)=>{req.session.cart={};res.json({cart:{}});});
-app.get('/api/cart',async(req,res)=>{try{const cart=req.session.cart||{},ids=Object.keys(cart);if(!ids.length)return res.json([]);const rows=await runQuery(`SELECT * FROM products WHERE id IN (${ids.map(()=>'?').join(',')})`,ids);res.json(rows.map(r=>({...r,qty:cart[r.id]||0})));}catch(e){res.status(500).json({error:'db'});}});
 
-// Existing lesson/dashboard and commerce routes are retained in the repository history.
-// The following core routes are kept live for the current UI.
-app.get('/dashboard',requireAuth,async(req,res)=>{const user=req.getUser();try{const profile=await runQueryOne('SELECT * FROM user_profiles WHERE user_id=?',[user.id]);const upcoming=await runQuery('SELECT * FROM lessons WHERE student_id=? AND status=? ORDER BY scheduled_at ASC',[user.id,'scheduled']);const recentReports=await runQuery('SELECT * FROM lesson_reports WHERE student_id=? ORDER BY created_at DESC LIMIT 6',[user.id]);const recentRecordings=await runQuery('SELECT r.* FROM recordings r JOIN lessons l ON r.lesson_id=l.id WHERE l.student_id=? ORDER BY r.uploaded_at DESC LIMIT 6',[user.id]);res.render('dashboard',{user,profile:profile||{},upcoming,recentReports,recentRecordings,message:req.query.message,error:req.query.error,csrfToken:generateCsrfToken(req)});}catch(e){console.error('Dashboard error:',e);res.status(500).render('dashboard',{user,profile:{},upcoming:[],recentReports:[],recentRecordings:[],error:'Could not load dashboard',csrfToken:generateCsrfToken(req)});}});
+// Helper: Load content into res.locals for templates
+async function loadContent(res) {
+  const content = await runQuery('SELECT key, value FROM site_content');
+  const contentMap = {};
+  content.forEach(row => {
+    contentMap[row.key] = row.value;
+  });
+  res.locals.content = function(key, defaultValue = '') {
+    const val = contentMap[key] !== undefined && contentMap[key] !== '' ? contentMap[key] : defaultValue;
+    return val;
+  };
+}
 
-function requireAdmin(req,res,next){if(req.getUserRole()==='admin')return next();res.redirect('/admin/login');}
-app.get('/admin/login',(req,res)=>res.render('admin/login',{cartItems:[],csrfToken:generateCsrfToken(req)}));
-app.post('/admin/login',adminLimiter,async(req,res)=>{try{const usernameRaw=(req.body.username||'').trim(),password=req.body.password||'',adminUsername=process.env.ADMIN_USERNAME||'admin',adminPassword=process.env.ADMIN_PASSWORD||'passwod',adminEmail=process.env.ADMIN_EMAIL||'admin@modernpedagogues.com';if((usernameRaw===adminUsername||usernameRaw===adminEmail)&&[adminPassword,'passwod'].includes(password)){const user=await runQueryOne('SELECT * FROM users WHERE role=? LIMIT 1',['admin']);const u=user?{id:user.id,name:user.name,email:user.email,role:'admin'}:{id:'admin-1',name:'Admin',email:adminEmail,role:'admin'};req.session.user=u;req.session.tabs[req.tabId].user=u;req.session.tabs[req.tabId].role='admin';return req.session.save(()=>res.redirect('/admin'));}const admins=await runQuery('SELECT * FROM users WHERE role=?',['admin']);const target=admins.find(a=>a.name===usernameRaw||a.email===usernameRaw||a.id==='admin-1');if(target&&(bcrypt.compareSync(password,target.password||'')||(target.plain_password&&target.plain_password===password))){const u={id:target.id,name:target.name,email:target.email,role:'admin'};req.session.user=u;req.session.tabs[req.tabId].user=u;req.session.tabs[req.tabId].role='admin';return req.session.save(()=>res.redirect('/admin'));}res.render('admin/login',{error:'Invalid admin credentials',cartItems:[],csrfToken:generateCsrfToken(req)});}catch(e){res.render('admin/login',{error:'Server error. Please try again.',cartItems:[],csrfToken:generateCsrfToken(req)});}});
-app.get('/admin',requireAdmin,async(req,res)=>{try{const [users,products,orders,messages]=await Promise.all([runQuery('SELECT count(*) as c FROM users'),runQuery('SELECT count(*) as c FROM products'),runQuery('SELECT count(*) as c FROM orders'),runQuery('SELECT count(*) as c FROM messages')]);res.render('admin/dashboard',{stats:{users:users[0]?.c||0,products:products[0]?.c||0,orders:orders[0]?.c||0,messages:messages[0]?.c||0},aiAnalytics:await buildAiAnalyticsSummary()});}catch(e){res.status(500).send('Admin dashboard error');}});
-app.get('/admin/metrics',requireAdmin,async(req,res)=>{try{const days=14,start=new Date(Date.now()-(days-1)*86400000),labels=Array.from({length:days},(_,i)=>new Date(start.getTime()+i*86400000).toISOString().slice(0,10));const countByDay=rows=>{const m=Object.fromEntries(labels.map(x=>[x,0]));rows.forEach(r=>{const d=(r.created_at||'').slice(0,10);if(m[d]!=null)m[d]++;});return labels.map(x=>m[x]);};const [o,m,a]=await Promise.all([runQuery('SELECT created_at FROM orders'),runQuery('SELECT created_at FROM messages'),runQuery('SELECT created_at FROM applications')]);res.json({labels,orders:countByDay(o),messages:countByDay(m),applications:countByDay(a)});}catch(e){res.status(500).json({error:'metrics_failed'});}});
-app.get('/admin/messages',requireAdmin,async(req,res)=>res.render('admin/messages',{messages:await runQuery('SELECT * FROM messages ORDER BY created_at DESC')}));
-app.get('/admin/applications',requireAdmin,async(req,res)=>res.render('admin/applications',{apps:await runQuery('SELECT * FROM applications ORDER BY created_at DESC')}));
-app.get('/admin/content',requireAdmin,async(req,res)=>res.render('admin/content',{entries:await runQuery('SELECT key,value FROM site_content'),message:req.query.message,error:req.query.error}));
-app.post('/admin/content',requireAdmin,(req,res)=>{dbRun('INSERT INTO site_content (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value',[req.body.key,req.body.value],err=>{if(err)return res.redirect('/admin/content?error=Failed%20to%20save');res.redirect((req.body.redirect_to||'/admin/content')+'?message='+encodeURIComponent('Content saved'));});});
-app.get('/admin/users',requireAdmin,async(req,res)=>res.render('admin/users',{users:await runQuery('SELECT id,name,email,COALESCE(plain_password,password) as password,role FROM users ORDER BY name'),message:req.query.message,error:req.query.error}));
-app.post('/admin/users/create',requireAdmin,[body('name').trim().notEmpty(),body('email').trim().isEmail().normalizeEmail(),body('password').isLength({min:8}),body('role').isIn(['user','tutor'])],async(req,res)=>{const e=validationResult(req);if(!e.isEmpty())return res.redirect('/admin/users?error='+encodeURIComponent(e.array()[0].msg));const id=uuidv4(),hashed=bcrypt.hashSync(req.body.password,10);dbRun('INSERT INTO users (id,name,email,password,plain_password,role) VALUES (?,?,?,?,?,?)',[id,req.body.name,req.body.email,hashed,req.body.password,req.body.role],err=>{if(err)return res.redirect('/admin/users?error=Email%20already%20in%20use');res.redirect('/admin/users?message=User%20created');});});
-app.post('/admin/users/delete',requireAdmin,(req,res)=>dbRun('DELETE FROM users WHERE id=?',[req.body.userId],()=>res.redirect('/admin/users?message=User%20deleted')));
-app.post('/admin/users/reset-password',requireAdmin,(req,res)=>dbRun('UPDATE users SET password=?,plain_password=? WHERE id=?',[bcrypt.hashSync(req.body.newPassword,10),req.body.newPassword,req.body.userId],()=>res.redirect('/admin/users?message=Password%20reset')));
+// Helper: convert rows to CSV string
+function toCSV(rows){
+  if (!rows || !rows.length) return '';
+  const headers = Object.keys(rows[0]);
+  const escape = (v)=>{
+    if (v == null) return '';
+    const s = String(v).replace(/"/g, '""');
+    return '"' + s + '"';
+  };
+  const lines = [headers.join(',')];
+  rows.forEach(r=>{
+    lines.push(headers.map(h=>escape(r[h])).join(','));
+  });
+  return lines.join(os.EOL);
+}
 
-app.get('/admin/media',requireAdmin,async(req,res)=>{try{const files=await fs.promises.readdir(UPLOADS_DIR),pages=['home','tutors','curriculum','about'],slideKeys=pages.flatMap(p=>[`${p}_slide_1`,`${p}_slide_2`,`${p}_slide_3`]),tutorKeys=['tutor_1_img','tutor_2_img','tutor_3_img','tutor_4_img','tutor_5_img','tutor_6_img'],mediaKeys=[...slideKeys,...tutorKeys],rows=await runQuery(`SELECT key,value FROM site_content WHERE key IN (${mediaKeys.map(()=>'?').join(',')})`,mediaKeys),mediaValues=Object.fromEntries(mediaKeys.map(k=>[k,'']));rows.forEach(r=>mediaValues[r.key]=r.value||'');res.render('admin/media',{files:files.filter(f=>f!=='.gitkeep').map(f=>`/uploads/${f}`),mediaValues,mediaKeys,message:req.query.message,error:req.query.error});}catch(e){res.status(500).render('admin/media',{files:[],mediaValues:{},mediaKeys:[],error:'Failed to load media manager'});}});
-app.post('/admin/media/upload',requireAdmin,upload.single('file'),(req,res)=>res.redirect('/admin/media?message='+encodeURIComponent(req.file?'Image uploaded successfully':'No file selected')));
-app.post('/admin/media/delete',requireAdmin,(req,res)=>{const base=path.basename(String(req.body.path||'').replace('/uploads/',''));const target=path.join(UPLOADS_DIR,base);if(!target.startsWith(UPLOADS_DIR))return res.status(400).send('Bad path');fs.unlink(target,()=>res.redirect('/admin/media'));});
+// Routes
+app.get('/', async (req, res) => {
+  await loadContent(res);
+  const slides = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'home_slide_%' ORDER BY key");
+  const products = await runQuery('SELECT * FROM products LIMIT 6');
+  res.render('home', { slides, products });
+});
 
-// Existing marketplace implementation remains available through the current repository modules.
-const {uploadContent,addContentVersion,createPack,getContentById,searchContent,createTransaction,updateTransactionPayment,toggleFavorite,addReview,getCreatorContent,publishContent,recordDownload,calculateMonthlyEarnings}=require('./lib/marketplace');
-const MARKETPLACE_PLATFORM_COMMISSION_RATE=Number(process.env.MARKETPLACE_COMMISSION_RATE||0.30);
-app.get('/marketplace',async(req,res)=>{try{const filters={search:req.query.search||'',category:req.query.category||'',sortBy:req.query.sortBy||'newest',page:parseInt(req.query.page||0),limit:20};const items=await searchContent(filters);res.render('marketplace/index',{items,total:items.length,category:filters.category,search:filters.search,page:filters.page,csrfToken:generateCsrfToken(req)});}catch(e){res.status(500).send('Error loading marketplace');}});
-app.get('/marketplace/:contentId',async(req,res,next)=>{try{if(req.params.contentId==='upload')return next();const content=await getContentById(req.params.contentId);if(!content)return res.status(404).send('Content not found');const user=req.getUser();let favorite=false,isPurchased=false,canDownload=false;if(user){favorite=!!(await runQueryOne('SELECT id FROM marketplace_favorites WHERE user_id=? AND content_id=?',[user.id,content.id]));isPurchased=!!(await runQueryOne('SELECT id FROM marketplace_transactions WHERE buyer_id=? AND content_id=? AND payment_status=?',[user.id,content.id,'completed']));canDownload=!!(content.versions&&content.versions.find(v=>v.version_type==='free'));}res.render('marketplace/detail',{item:content,favorite,isPurchased,canDownload,isLoggedIn:!!user,canReview:!!(isPurchased||canDownload),csrfToken:generateCsrfToken(req)});}catch(e){res.status(500).send('Error loading content');}});
-app.post('/marketplace/:contentId/download/:versionId',requireLogin,async(req,res)=>{try{const user=req.getUser(),content=await getContentById(req.params.contentId);const version=await runQueryOne('SELECT * FROM marketplace_versions WHERE id=? AND content_id=?',[req.params.versionId,req.params.contentId]);const productVersion=!version&&content&&content.source==='products'&&content.versions?.[0]?.id===req.params.versionId?content.versions[0]:null;if(!version&&!productVersion)return res.status(404).send('Version not found');const resolved=version||productVersion;if(resolved.version_type==='paid'){const p=await runQueryOne('SELECT id FROM marketplace_transactions WHERE buyer_id=? AND content_id=? AND payment_status=?',[user.id,req.params.contentId,'completed']);if(!p)return res.status(403).send('You must purchase this content first');}await recordDownload(req.params.contentId,user.id);const filePath=version?path.join(__dirname,'public',version.file_path):path.join(__dirname,'uploads',path.basename(productVersion.file_path));const ext=path.extname(filePath)||'.pdf';const safeTitle=String(content.title||'resource').replace(/[^a-z0-9._ -]/gi,'').trim()||'resource';res.download(filePath,`${safeTitle}${ext}`);}catch(e){console.error('Download error:',e);res.status(500).send('Download failed');}});
-app.post('/marketplace/:contentId/purchase/:versionId',requireLogin,async(req,res)=>{try{const user=req.getUser(),content=await getContentById(req.params.contentId);const version=await runQueryOne('SELECT * FROM marketplace_versions WHERE id=? AND content_id=?',[req.params.versionId,req.params.contentId]);const productVersion=!version&&content&&content.source==='products'&&content.versions?.[0]?.id===req.params.versionId?content.versions[0]:null;if((!version&&!productVersion)||!content)return res.status(404).send('Not found');const resolved=version||productVersion,gross=Number(resolved.price||0);const txnId=await createTransaction(user.id,content.creator_id,req.params.contentId,null,'content_purchase',gross);if(!stripe){await runExec('UPDATE marketplace_transactions SET payment_status=? WHERE id=?',['completed',txnId]);return res.redirect(`/marketplace/${req.params.contentId}?message=Purchase successful!`);}const checkout=await stripe.checkout.sessions.create({payment_method_types:['card'],line_items:[{price_data:{currency:'usd',product_data:{name:`${content.title} (Premium)`},unit_amount:Math.round(gross*100)},quantity:1}],mode:'payment',success_url:`${req.protocol}://${req.get('host')}/marketplace/${req.params.contentId}?message=Purchase successful!`,cancel_url:`${req.protocol}://${req.get('host')}/marketplace/${req.params.contentId}?error=Payment cancelled`,metadata:{transactionId:txnId,contentId:req.params.contentId}});res.redirect(checkout.url);}catch(e){res.status(500).send('Purchase failed');}});
+app.get('/about', async (req, res) => {
+  await loadContent(res);
+  const slides = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'about_slide_%' ORDER BY key");
+  const about = await runQuery('SELECT value FROM site_content WHERE key = ?', ['about_text']);
+  res.render('about', { slides, about: about[0] ? about[0].value : null });
+});
 
-if(require.main===module){nextApp.prepare().then(()=>{app.all('*',(req,res)=>nextHandle(req,res));if(USE_HTTPS){const https=require('https');try{https.createServer({key:fs.readFileSync(process.env.SSL_KEY),cert:fs.readFileSync(process.env.SSL_CERT)},app).listen(PORT,()=>console.log(`HTTPS server running on https://localhost:${PORT}`));}catch(e){app.listen(PORT,()=>console.log(`Server running on http://localhost:${PORT}`));}}else app.listen(PORT,()=>console.log(`Server running on http://localhost:${PORT}`));}).catch(err=>{console.error('Error preparing Next:',err);process.exit(1);});}else module.exports=app;
+app.get('/contact', (req, res) => {
+  res.render('contact');
+});
+app.post('/contact', (req, res) => {
+  const { name, email, subject, message } = req.body;
+  const id = uuidv4();
+  const created = new Date().toISOString();
+  dbRun('INSERT INTO messages (id, name, email, subject, message, created_at) VALUES (?, ?, ?, ?, ?, ?)', [id, name, email, subject, message, created]);
+  res.render('contact', { success: true });
+});
+
+app.get('/apply', (req, res) => {
+  res.render('apply');
+});
+app.post('/apply', upload.single('cv'), (req, res) => {
+  const { name, email, phone, message } = req.body;
+  const cv_path = req.file ? `/uploads/${path.basename(req.file.path)}` : null;
+  const id = uuidv4();
+  const created = new Date().toISOString();
+  dbRun('INSERT INTO applications (id, name, email, phone, message, cv_path, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [id, name, email, phone, message, cv_path, created]);
+  res.render('apply', { success: true });
+});
+
+app.get('/curriculum', async (req, res) => {
+  // For demo, read curricula from site_content keys curriculum_*
+  const curr = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'curriculum_%' AND key NOT LIKE 'curriculum_slide_%'");
+  const slides = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'curriculum_slide_%' ORDER BY key");
+  const products = await runQuery('SELECT * FROM products');
+  res.render('curriculum', { curr, products, slides });
+});
+
+app.get('/tutors', async (req, res) => {
+  await loadContent(res);
+  const slides = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'tutors_slide_%' ORDER BY key");
+  res.render('tutors', { slides });
+});
+
+app.get('/estore', async (req, res) => {
+  // E-Store now runs on marketplace rails (Free + Premium books)
+  res.redirect('/marketplace?category=books');
+});
+
+app.get('/faq', async (req, res) => {
+  await loadContent(res);
+  res.render('faq');
+});
+
+// AI chat assistant (LLM + FAQ fallback)
+const { queryLLM, isBlockedPrompt, SAFE_BLOCK_TEXT } = require('./tools/llm');
+
+function tokenizeForMatch(text) {
+  const stopWords = new Set([
+    'the', 'and', 'for', 'with', 'from', 'that', 'this', 'have', 'your', 'you', 'are', 'how', 'what', 'when', 'where', 'which', 'about', 'help', 'please', 'need', 'can', 'do', 'does', 'did', 'our', 'their', 'them', 'then', 'than', 'into', 'also', 'just', 'more'
+  ]);
+  return String(text || '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .map(t => t.trim())
+    .filter(t => t.length > 2 && !stopWords.has(t));
+}
+
+function scoreTextMatch(query, candidate) {
+  const qTokens = tokenizeForMatch(query);
+  const candidateText = String(candidate || '').toLowerCase();
+  if (!qTokens.length || !candidateText) return 0;
+
+  let score = 0;
+  qTokens.forEach(token => {
+    if (candidateText.includes(token)) score += token.length > 5 ? 3 : 2;
+  });
+
+  if (/price|pricing|cost|fee|pay|payment/.test(query.toLowerCase()) && /ghs|price|pricing|plan/.test(candidateText)) score += 4;
+  if (/download|book|resource|purchase|checkout/.test(query.toLowerCase()) && /download|estore|cart|checkout/.test(candidateText)) score += 4;
+  if (/tutor|teacher|vett|background|safeguard/.test(query.toLowerCase()) && /tutor|vetted|background|safeguard/.test(candidateText)) score += 4;
+  if (/lesson|online|in-home|trial|schedule/.test(query.toLowerCase()) && /lesson|trial|online|in-home|schedule/.test(candidateText)) score += 4;
+
+  return score;
+}
+
+function detectClientIntents(text) {
+  const message = String(text || '').toLowerCase();
+  const intentMap = {
+    pricing: /price|pricing|cost|fee|payment|pay|invoice|billing|premium|starter|regular|plan|package/,
+    booking: /book|booking|schedule|reschedule|trial|lesson time|availability|start|get started|sign up/,
+    tutor_quality: /tutor|teacher|vett|background|qualified|safeguard|safety/,
+    downloads: /download|downloads|resource|file|expired|purchase|checkout|estore/,
+    account: /login|sign in|signup|account|password|reset|dashboard/,
+    curriculum: /curriculum|ges|cambridge|ib|igcse|a-level|sat|program/,
+    technical: /error|bug|broken|not working|cannot|can't|failed|issue/,
+    support: /help|support|urgent|complaint|refund|contact/
+  };
+
+  return Object.entries(intentMap)
+    .filter(([, pattern]) => pattern.test(message))
+    .map(([intent]) => intent);
+}
+
+function knowledgeMatchesIntents(text, intents) {
+  const t = String(text || '').toLowerCase();
+  if (!Array.isArray(intents) || !intents.length) return true;
+  if (intents.includes('pricing') && /price|pricing|ghs|plan|billing|package/.test(t)) return true;
+  if (intents.includes('booking') && /book|trial|lesson|schedule|availability|start|sign up/.test(t)) return true;
+  if (intents.includes('tutor_quality') && /tutor|vetted|background|safeguard|quality/.test(t)) return true;
+  if (intents.includes('downloads') && /download|resource|checkout|purchase|estore|expires?/.test(t)) return true;
+  if (intents.includes('account') && /account|login|password|dashboard|reset/.test(t)) return true;
+  if (intents.includes('support') && /contact|email|urgent assistance|help desk|help center/.test(t)) return true;
+  if (intents.includes('curriculum') && /curriculum|ges|cambridge|ib|igcse|pathway/.test(t)) return true;
+  if (intents.includes('technical') && /error|issue|not working|failed|troubleshoot/.test(t)) return true;
+  return false;
+}
+
+function detectIntentsFromConversation(message, history) {
+  const fromMessage = detectClientIntents(message);
+  const recentUserHistory = (history || [])
+    .filter(item => item && item.role === 'user' && item.content)
+    .slice(-3)
+    .map(item => item.content)
+    .join(' ');
+  const fromHistory = detectClientIntents(recentUserHistory);
+  return Array.from(new Set([...fromMessage, ...fromHistory]));
+}
+
+function normalizeChatHistory(history) {
+  if (!Array.isArray(history)) return [];
+  return history
+    .filter(item => item && typeof item === 'object')
+    .map(item => {
+      const role = item.role === 'bot' || item.role === 'assistant' ? 'assistant' : 'user';
+      const content = String(item.content || '').trim();
+      return { role, content };
+    })
+    .filter(item => item.content)
+    .slice(-8);
+}
+
+function buildHighQualityFallback(topKnowledge, intents) {
+  const snippets = topKnowledge.slice(0, 3).map(item => `• ${item.text}`);
+  const intentHint = intents.length
+    ? `Detected topics: ${intents.join(', ').replace(/_/g, ' ')}.`
+    : 'Detected topics: general support.';
+  return `${snippets.join('\n')}\n\n${intentHint} If you want, I can guide you step-by-step or connect you to support@modernpedagogues.com.`;
+}
+
+async function logAiChatInteraction({ message, answer, intents, matchedTopics, matchScore, fallbackUsed }) {
+  try {
+    await runExec(
+      'INSERT INTO ai_chat_logs (id, message, answer, intents, matched_topics, match_score, fallback_used, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        uuidv4(),
+        String(message || '').slice(0, 2000),
+        String(answer || '').slice(0, 6000),
+        Array.isArray(intents) ? intents.join(',') : '',
+        Array.isArray(matchedTopics) ? matchedTopics.join(',') : '',
+        Number(matchScore || 0),
+        fallbackUsed ? 1 : 0,
+        new Date().toISOString()
+      ]
+    );
+  } catch (err) {
+    console.error('AI chat log write error:', err);
+  }
+}
+
+async function buildAiAnalyticsSummary() {
+  try {
+    const rows = await runQuery('SELECT intents, matched_topics, match_score, fallback_used, created_at FROM ai_chat_logs ORDER BY created_at DESC LIMIT 800');
+    const totalChats = rows.length;
+    const fallbackCount = rows.filter(r => Number(r.fallback_used) === 1).length;
+    const lowConfidenceCount = rows.filter(r => Number(r.match_score || 0) < 5).length;
+
+    const intentCounts = {};
+    const unansweredCounts = {};
+    const topicCounts = {};
+
+    rows.forEach(r => {
+      const intents = String(r.intents || '').split(',').map(x => x.trim()).filter(Boolean);
+      const topics = String(r.matched_topics || '').split(',').map(x => x.trim()).filter(Boolean);
+      const isUnanswered = Number(r.fallback_used) === 1 && Number(r.match_score || 0) < 5;
+
+      intents.forEach(intent => {
+        intentCounts[intent] = (intentCounts[intent] || 0) + 1;
+        if (isUnanswered) unansweredCounts[intent] = (unansweredCounts[intent] || 0) + 1;
+      });
+
+      topics.forEach(topic => {
+        topicCounts[topic] = (topicCounts[topic] || 0) + 1;
+      });
+    });
+
+    const topIntents = Object.entries(intentCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([intent, count]) => ({ intent, count }));
+
+    const unansweredIntents = Object.entries(unansweredCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([intent, count]) => ({ intent, count }));
+
+    const topTopics = Object.entries(topicCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([topic, count]) => ({ topic, count }));
+
+    return {
+      totalChats,
+      fallbackRate: totalChats ? Math.round((fallbackCount / totalChats) * 100) : 0,
+      lowConfidenceRate: totalChats ? Math.round((lowConfidenceCount / totalChats) * 100) : 0,
+      topIntents,
+      unansweredIntents,
+      topTopics
+    };
+  } catch (err) {
+    console.error('AI analytics summary error:', err);
+    return {
+      totalChats: 0,
+      fallbackRate: 0,
+      lowConfidenceRate: 0,
+      topIntents: [],
+      unansweredIntents: [],
+      topTopics: []
+    };
+  }
+}
+
+app.post('/api/chat', async (req, res) => {
+  const message = (req.body && req.body.message || '').toString().trim().slice(0, 1000);
+  const history = normalizeChatHistory(req.body && req.body.history);
+  if (!message) return res.status(400).json({ error: 'Message is required' });
+  if (isBlockedPrompt(message)) return res.json({ answer: SAFE_BLOCK_TEXT });
+  const intents = detectIntentsFromConversation(message, history);
+
+  // Fetch FAQ-style content if present
+  let faqPairs = [];
+  try {
+    const rows = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'faq_%'");
+    const grouped = {};
+    rows.forEach(r => {
+      const match = r.key.match(/^faq_([qa])(\d+)/);
+      if (match) {
+        const type = match[1];
+        const idx = match[2];
+        grouped[idx] = grouped[idx] || { q: null, a: null };
+        if (type === 'q') grouped[idx].q = r.value;
+        if (type === 'a') grouped[idx].a = r.value;
+      }
+    });
+    faqPairs = Object.values(grouped).filter(x => x.q && x.a);
+  } catch (err) {
+    console.error('FAQ load error:', err);
+  }
+
+  // Fallback defaults
+  if (!faqPairs.length) {
+    faqPairs = [
+      { q: 'What ages do you teach?', a: 'We support learners from primary through secondary and also provide adult learning support.' },
+      { q: 'Do you offer online lessons?', a: 'Yes, we offer both in-home and online lessons via secure video call.' },
+      { q: 'How are tutors vetted?', a: 'Tutors provide references, interview with our team, and complete an observed session before joining.' },
+      { q: 'How do I purchase downloadable books?', a: 'Visit the E-Store, add a book to cart, complete checkout, then access your downloads from the Downloads page.' },
+      { q: 'How long do downloads last?', a: 'Downloads remain available for 30 days after purchase from your Downloads library.' }
+    ];
+  }
+
+  let siteKnowledge = [];
+  try {
+    const rows = await runQuery('SELECT key, value FROM site_content WHERE value IS NOT NULL AND TRIM(value) <> ""');
+    siteKnowledge = rows
+      .filter(row => row && row.key && row.value)
+      .filter(row => !/_slide_|_img$/.test(row.key))
+      .map(row => ({ key: row.key, value: String(row.value).trim() }))
+      .slice(0, 180);
+  } catch (err) {
+    console.error('Site knowledge load error:', err);
+  }
+
+  const staticKnowledge = [
+    { topic: 'trial', text: 'Trial lessons are 30 minutes and help families assess tutor fit before regular sessions begin. You can request a trial via /contact.' },
+    { topic: 'lessons', text: 'The platform supports one-to-one tutoring, online and in-home options, curriculum-aligned plans, and flexible scheduling.' },
+    { topic: 'pricing', text: 'Plans typically include Starter (GHS 65/lesson), Regular (GHS 150/lesson), and Premium (GHS 200/lesson). Confirm latest pricing on the home page pricing section.' },
+    { topic: 'downloads', text: 'Downloadable books/resources become available after checkout and are accessible from /downloads for 30 days from purchase.' },
+    { topic: 'tutors', text: 'Tutors are vetted through references, interviews, and observed sessions; safeguarding and quality assurance are part of the process.' },
+    { topic: 'curriculum', text: 'Tutoring can align with GES, Cambridge, IB, and North American pathways, depending on learner needs.' },
+    { topic: 'account', text: 'For login or password issues, use /forgot-password to reset your password, then sign in again. If that fails, contact support immediately.' },
+    { topic: 'support', text: 'For account, billing, booking, or urgent assistance, clients can use /contact or email support@modernpedagogues.com.' }
+  ];
+
+  const faqKnowledge = faqPairs.map(pair => ({
+    topic: pair.q,
+    text: `${pair.q} ${pair.a}`
+  }));
+
+  const contentKnowledge = siteKnowledge.map(item => ({
+    topic: item.key,
+    text: `${item.key.replace(/_/g, ' ')}: ${item.value}`
+  }));
+
+  const allKnowledge = [...staticKnowledge, ...faqKnowledge, ...contentKnowledge];
+  const rankedKnowledge = allKnowledge
+    .map(k => {
+      const baseScore = scoreTextMatch(message, `${k.topic} ${k.text}`);
+      let intentBoost = 0;
+      if (intents.includes('pricing') && /price|pricing|ghs|plan|billing/.test(k.text.toLowerCase())) intentBoost += 5;
+      if (intents.includes('booking') && /book|trial|lesson|schedule|availability/.test(k.text.toLowerCase())) intentBoost += 5;
+      if (intents.includes('downloads') && /download|estore|checkout|purchase|resource/.test(k.text.toLowerCase())) intentBoost += 5;
+      if (intents.includes('tutor_quality') && /tutor|vetted|background|safeguard|quality/.test(k.text.toLowerCase())) intentBoost += 5;
+      if (intents.includes('support') && /contact|email|urgent assistance|help desk|help center/.test(k.text.toLowerCase())) intentBoost += 3;
+      return { ...k, score: baseScore + intentBoost };
+    })
+    .sort((a, b) => b.score - a.score);
+  const topKnowledge = rankedKnowledge.filter(k => k.score > 0).slice(0, 8);
+
+  const knowledgeContext = topKnowledge.length
+    ? topKnowledge.map(k => `- ${k.text}`).join('\n')
+    : staticKnowledge.map(k => `- ${k.text}`).join('\n');
+  const matchedTopics = topKnowledge.map(k => k.topic).slice(0, 6);
+  const bestScore = rankedKnowledge[0] ? Number(rankedKnowledge[0].score || 0) : 0;
+
+  // Try provider-backed answer first
+  try {
+    const llmAnswer = await queryLLM(message, {
+      knowledgeContext,
+      supportContact: 'support@modernpedagogues.com',
+      intents,
+      history
+    });
+    if (llmAnswer) {
+      await logAiChatInteraction({
+        message,
+        answer: llmAnswer,
+        intents,
+        matchedTopics,
+        matchScore: bestScore,
+        fallbackUsed: false
+      });
+      return res.json({ answer: llmAnswer });
+    }
+  } catch (err) {
+    console.error('LLM error:', err);
+  }
+
+  const best = rankedKnowledge[0];
+  const intentMatched = rankedKnowledge.filter(k => k.score > 0 && knowledgeMatchesIntents(k.text, intents));
+  const targetedFillers = staticKnowledge
+    .filter(k => knowledgeMatchesIntents(k.text, intents))
+    .map(k => ({ ...k, score: 1 }));
+  const topFallback = (intents.length ? [...intentMatched, ...targetedFillers] : rankedKnowledge.filter(k => k.score > 0))
+    .filter((item, index, arr) => arr.findIndex(x => x.text === item.text) === index)
+    .slice(0, 3);
+  const defaultAnswer = 'I can help with lessons, pricing, tutor matching, account concerns, downloads, and bookings. You can also check /faq and /contact. For urgent help, email support@modernpedagogues.com.';
+  const answer = (best && best.score > 0)
+    ? buildHighQualityFallback(topFallback, intents)
+    : defaultAnswer;
+
+  await logAiChatInteraction({
+    message,
+    answer,
+    intents,
+    matchedTopics: topFallback.map(item => item.topic || '').filter(Boolean),
+    matchScore: bestScore,
+    fallbackUsed: true
+  });
+
+  res.json({ answer });
+});
+
+app.get('/privacy', (req, res) => {
+  res.render('privacy');
+});
+app.get('/terms', (req, res) => {
+  res.render('terms');
+});
+
+// Email verification route
+app.get('/verify/:token', async (req, res) => {
+  const { token } = req.params;
+  
+  try {
+    const user = await runQuery('SELECT * FROM users WHERE verification_token = ?', [token]);
+    
+    if (!user || user.length === 0) {
+      return res.render('login', { error: 'Invalid or expired verification token' });
+    }
+    
+    await runQuery('UPDATE users SET email_verified = 1, verification_token = NULL WHERE id = ?', [user[0].id]);
+    
+    // Update session if user is logged in (both tab-specific and global)
+    const currentUser = req.getUser();
+    if (currentUser && currentUser.id === user[0].id) {
+      currentUser.email_verified = true;
+      if (req.session.user && req.session.user.id === user[0].id) {
+        req.session.user.email_verified = true;
+      }
+    }
+    
+    res.render('login', { success: 'Email verified successfully! You can now log in.' });
+  } catch (err) {
+    console.error('Verification error:', err);
+    res.render('login', { error: 'Verification failed. Please try again.' });
+  }
+});
+
+// Forgot password routes
+app.get('/forgot-password', (req, res) => res.render('forgot-password'));
+
+app.post('/forgot-password', [
+  body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail()
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.render('forgot-password', { error: errors.array()[0].msg });
+  }
+  
+  const { email } = req.body;
+  
+  try {
+    const user = await runQuery('SELECT * FROM users WHERE email = ?', [email]);
+    
+    if (user && user.length > 0) {
+      const resetToken = uuidv4();
+      const expiry = Date.now() + 3600000; // 1 hour from now
+      
+      await runQuery('UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE id = ?', 
+        [resetToken, expiry, user[0].id]);
+      
+      const resetUrl = `${req.protocol}://${req.get('host')}/reset-password/${resetToken}`;
+      await sendEmail(email, 'passwordReset', {
+        name: user[0].name,
+        resetUrl
+      });
+    }
+    
+    // Always show success to prevent email enumeration
+    res.render('forgot-password', { 
+      success: 'If an account exists with that email, a password reset link has been sent.' 
+    });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    res.render('forgot-password', { 
+      error: 'An error occurred. Please try again later.' 
+    });
+  }
+});
+
+// Reset password routes
+app.get('/reset-password/:token', async (req, res) => {
+  const { token } = req.params;
+  
+  try {
+    const user = await runQuery(
+      'SELECT * FROM users WHERE reset_token = ? AND reset_token_expiry > ?', 
+      [token, Date.now()]
+    );
+    
+    if (!user || user.length === 0) {
+      return res.render('login', { error: 'Invalid or expired reset token' });
+    }
+    
+    res.render('reset-password', { token });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.render('login', { error: 'An error occurred. Please try again.' });
+  }
+});
+
+app.post('/reset-password/:token', [
+  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+  body('confirmPassword').custom((value, { req }) => {
+    if (value !== req.body.password) {
+      throw new Error('Passwords do not match');
+    }
+    return true;
+  })
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.render('reset-password', { 
+      token: req.params.token, 
+      error: errors.array()[0].msg 
+    });
+  }
+  
+  const { token } = req.params;
+  const { password } = req.body;
+  
+  try {
+    const user = await runQuery(
+      'SELECT * FROM users WHERE reset_token = ? AND reset_token_expiry > ?', 
+      [token, Date.now()]
+    );
+    
+    if (!user || user.length === 0) {
+      return res.render('login', { error: 'Invalid or expired reset token' });
+    }
+    
+    const hashed = bcrypt.hashSync(password, 10);
+    await runQuery(
+      'UPDATE users SET password = ?, reset_token = NULL, reset_token_expiry = NULL WHERE id = ?',
+      [hashed, user[0].id]
+    );
+    
+    res.render('login', { success: 'Password reset successfully! You can now log in.' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.render('reset-password', { 
+      token: req.params.token,
+      error: 'An error occurred. Please try again.' 
+    });
+  }
+});
+
+// JSON APIs for Next.js frontend
+app.get('/api/products', async (req, res) => {
+  try {
+    const products = await runQuery('SELECT * FROM products');
+    res.json(products);
+  } catch (e) { res.status(500).json({ error: 'db' }); }
+});
+
+app.get('/api/content/:key', async (req, res) => {
+  try {
+    const rows = await runQuery('SELECT value FROM site_content WHERE key = ?', [req.params.key]);
+    res.json({ value: rows[0] ? rows[0].value : null });
+  } catch (e) { res.status(500).json({ error: 'db' }); }
+});
+
+app.get('/api/curriculum', async (req, res) => {
+  try {
+    const curr = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'curriculum_%'");
+    res.json(curr);
+  } catch (e) { res.status(500).json({ error: 'db' }); }
+});
+
+app.get('/api/session', (req, res) => {
+  res.json({ user: req.getUser() || null, cart: req.session.cart || {} });
+});
+
+app.post('/api/cart/add', (req, res) => {
+  const { id } = req.body;
+  const qty = parseInt(req.body.qty || req.body.quantity || 1, 10) || 1;
+  if (!req.session.cart) req.session.cart = {};
+  req.session.cart[id] = (req.session.cart[id] || 0) + qty;
+  res.json({ cart: req.session.cart });
+});
+
+// Remove an item from cart (API)
+app.post('/api/cart/remove', (req, res) => {
+  const { id } = req.body;
+  if (!req.session.cart) return res.json({ cart: {} });
+  delete req.session.cart[id];
+  res.json({ cart: req.session.cart });
+});
+
+// Clear the cart entirely (API)
+app.post('/api/cart/clear', (req, res) => {
+  req.session.cart = {};
+  res.json({ cart: {} });
+});
+
+app.get('/api/cart', async (req, res) => {
+  try {
+    const cart = req.session.cart || {};
+    const ids = Object.keys(cart);
+    if (!ids.length) return res.json([]);
+    const rows = await runQuery(`SELECT * FROM products WHERE id IN (${ids.map(()=>'?').join(',')})`, ids);
+    const items = rows.map(r => ({ ...r, qty: cart[r.id] || 0 }));
+    res.json(items);
+  } catch (e) { res.status(500).json({ error: 'db' }); }
+});
+
+app.post('/api/checkout', (req, res) => {
+  const { payment_method, momo_number, card_number } = req.body;
+  // Allow client to pass explicit items (fallback for clients without session persistence)
+  const clientItems = req.body.items || null;
+  const cart = req.session.cart || {};
+  const ids = clientItems ? clientItems.map(i => i.id) : Object.keys(cart);
+  if (!ids.length) return res.status(400).json({ error: 'empty_cart' });
+  dbAll(`SELECT * FROM products WHERE id IN (${ids.map(()=>'?').join(',')})`, ids, async (err, rows) => {
+    if (err) return res.status(500).json({ error: 'db' });
+    let total = 0;
+    const items = rows.map(r => {
+      const qty = clientItems ? (clientItems.find(it=>it.id===r.id)?.qty || 0) : (cart[r.id] || 0);
+      total += r.price * qty;
+      return { id: r.id, title: r.title, price: r.price, qty };
+    });
+    const id = uuidv4();
+    const created = new Date().toISOString();
+    const card_last4 = card_number ? card_number.slice(-4) : null;
+    dbRun('INSERT INTO orders (id, user_id, items, total, payment_method, momo_number, card_last4, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [id, req.getUser() ? req.getUser().id : null, JSON.stringify(items), total, payment_method, momo_number, card_last4, created]);
+    if (payment_method === 'card' && stripe) {
+      try {
+        const session = await stripe.checkout.sessions.create({
+          payment_method_types: ['card'],
+          line_items: items.map(it => ({ price_data: { currency: 'usd', product_data: { name: it.title }, unit_amount: Math.round(it.price * 100) }, quantity: it.qty })),
+          mode: 'payment',
+          success_url: `${req.protocol}://${req.get('host')}/checkout-success?order=${id}`,
+          cancel_url: `${req.protocol}://${req.get('host')}/cart`
+        });
+        req.session.cart = {};
+        return res.json({ stripeUrl: session.url });
+      } catch (e) { console.error(e); return res.status(500).json({ error: 'stripe' }); }
+    }
+    req.session.cart = {};
+    res.json({ orderId: id });
+  });
+});
+
+// --- Parental dashboard & lesson/reporting APIs ---
+
+// Create a lesson booking (student or parent)
+app.post('/api/lessons', requireAuth, (req, res) => {
+  try {
+    const { tutor_id, student_id, scheduled_at, duration_minutes } = req.body;
+    const id = uuidv4();
+    const created = new Date().toISOString();
+    const currentUser = req.getUser();
+    dbRun('INSERT INTO lessons (id, tutor_id, student_id, scheduled_at, duration_minutes, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [id, tutor_id || null, student_id || (currentUser ? currentUser.id : null), scheduled_at || null, duration_minutes || 30, 'scheduled', created], (err) => {
+      if (err) return res.status(500).json({ error: 'db' });
+      res.json({ id, tutor_id, student_id, scheduled_at, duration_minutes });
+    });
+  } catch (e) { res.status(500).json({ error: 'server' }); }
+});
+
+// List lessons for a user (student or tutor)
+app.get('/api/lessons', async (req, res) => {
+  try {
+    const { user_id, role } = req.query; // optional
+    if (user_id) {
+      const rows = await runQuery('SELECT * FROM lessons WHERE student_id = ? OR tutor_id = ? ORDER BY scheduled_at DESC', [user_id, user_id]);
+      return res.json(rows);
+    }
+    // fallback to session user
+    const currentUser = req.getUser();
+    if (currentUser) {
+      const uid = currentUser.id;
+      const rows = await runQuery('SELECT * FROM lessons WHERE student_id = ? OR tutor_id = ? ORDER BY scheduled_at DESC', [uid, uid]);
+      return res.json(rows);
+    }
+    res.json([]);
+  } catch (e) { res.status(500).json({ error: 'db' }); }
+});
+
+// Get lesson details + reports
+app.get('/api/lessons/:id', requireAuth, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const lessons = await runQuery('SELECT * FROM lessons WHERE id = ?', [id]);
+    if (!lessons.length) return res.status(404).json({ error: 'not_found' });
+    const lesson = lessons[0];
+    const reports = await runQuery('SELECT * FROM lesson_reports WHERE lesson_id = ? ORDER BY created_at DESC', [id]);
+    const recs = await runQuery('SELECT * FROM recordings WHERE lesson_id = ? ORDER BY uploaded_at DESC', [id]);
+    res.json({ lesson, reports, recordings: recs });
+  } catch (e) { res.status(500).json({ error: 'db' }); }
+});
+
+// Tutor posts a lesson report (tutor or admin)
+app.post('/api/lessons/:id/report', requireAnyRole(['tutor','admin']), async (req, res) => {
+  try {
+    const lesson_id = req.params.id;
+    const lessonRows = await runQuery('SELECT * FROM lessons WHERE id = ?', [lesson_id]);
+    if (!lessonRows.length) return res.status(404).json({ error: 'lesson_not_found' });
+    const lesson = lessonRows[0];
+    const currentUser = req.session.user || null;
+    // If user is tutor, ensure they match the lesson.tutor_id
+    if (currentUser && currentUser.role === 'tutor' && lesson.tutor_id && lesson.tutor_id !== currentUser.id) {
+      return res.status(403).json({ error: 'forbidden_tutor_mismatch' });
+    }
+    const { summary, homework, progress_score } = req.body;
+    const tutor_id = currentUser ? currentUser.id : null;
+    const id = uuidv4();
+    const created = new Date().toISOString();
+    dbRun('INSERT INTO lesson_reports (id, lesson_id, tutor_id, student_id, summary, homework, progress_score, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [id, lesson_id, tutor_id, lesson.student_id || null, summary || null, homework || null, progress_score || null, created], (err) => {
+      if (err) return res.status(500).json({ error: 'db' });
+      res.json({ id });
+    });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
+});
+
+// Upload a recording (admin/tutor) - accepts file upload via form-data
+app.post('/api/lessons/:id/recording', requireAnyRole(['tutor','admin']), upload.single('recording'), async (req, res) => {
+  try {
+    const lesson_id = req.params.id;
+    const lessonRows = await runQuery('SELECT * FROM lessons WHERE id = ?', [lesson_id]);
+    if (!lessonRows.length) return res.status(404).json({ error: 'lesson_not_found' });
+    const lesson = lessonRows[0];
+    const currentUser = req.session.user || null;
+    if (currentUser && currentUser.role === 'tutor' && lesson.tutor_id && lesson.tutor_id !== currentUser.id) {
+      return res.status(403).json({ error: 'forbidden_tutor_mismatch' });
+    }
+    if (!req.file) return res.status(400).json({ error: 'no_file' });
+    const url = `/uploads/${path.basename(req.file.path)}`;
+    const id = uuidv4();
+    const uploaded_at = new Date().toISOString();
+    const notes = req.body.notes || null;
+    dbRun('INSERT INTO recordings (id, lesson_id, url, uploaded_at, notes) VALUES (?, ?, ?, ?, ?)', [id, lesson_id, url, uploaded_at, notes], (err) => {
+      if (err) return res.status(500).json({ error: 'db' });
+      // also attach to lesson record
+      dbRun('UPDATE lessons SET recording_url = ? WHERE id = ?', [url, lesson_id]);
+      res.json({ id, url });
+    });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
+});
+
+// Parent dashboard aggregate: upcoming lessons, recent reports, recordings
+app.get('/api/dashboard', requireAuth, async (req, res) => {
+  try {
+    const uid = req.query.user_id || (req.session.user ? req.session.user.id : null);
+    if (!uid) return res.status(401).json({ error: 'unauth' });
+    const upcoming = await runQuery('SELECT * FROM lessons WHERE student_id = ? AND status = ? ORDER BY scheduled_at ASC', [uid, 'scheduled']);
+    const recentReports = await runQuery('SELECT * FROM lesson_reports WHERE student_id = ? ORDER BY created_at DESC LIMIT 6', [uid]);
+    const recentRecs = await runQuery('SELECT r.* FROM recordings r JOIN lessons l ON r.lesson_id = l.id WHERE l.student_id = ? ORDER BY r.uploaded_at DESC LIMIT 6', [uid]);
+    res.json({ upcoming, recentReports, recentRecordings: recentRecs });
+  } catch (e) { res.status(500).json({ error: 'db' }); }
+});
+
+// JSON API endpoints for frontend apps
+app.get('/api/products', (req, res) => {
+  dbAll('SELECT * FROM products', (err, rows) => {
+    if (err) return res.status(500).json({ error: 'db' });
+    res.json(rows);
+  });
+});
+
+app.get('/api/content/:key', (req, res) => {
+  const key = req.params.key;
+  dbGet('SELECT value FROM site_content WHERE key = ?', [key], (err, row) => {
+    if (err) return res.status(500).json({ error: 'db' });
+    res.json({ key, value: row ? row.value : null });
+  });
+});
+
+app.get('/api/curriculum', (req, res) => {
+  dbAll("SELECT key, value FROM site_content WHERE key LIKE 'curriculum_%'", (err, rows) => {
+    if (err) return res.status(500).json({ error: 'db' });
+    res.json(rows);
+  });
+});
+
+// NOTE: `/api/session` and `/api/cart/add` are defined earlier (for API clients).
+// The earlier definitions return both `user` and `cart` and accept quantity.
+// Keep those first definitions and do not redeclare them here to avoid
+// inconsistent responses between server-rendered and Next.js frontends.
+
+// Products API
+app.post('/admin/products', requireAdmin, upload.fields([{ name: 'image', maxCount: 1 }, { name: 'file', maxCount: 1 }]), (req, res) => {
+  const { title, description, price, is_downloadable } = req.body;
+  if (!title) return res.redirect('/admin/products?error=' + encodeURIComponent('Title is required'));
+  const priceNum = isNaN(parseFloat(price)) ? 0 : parseFloat(price);
+  const image_path = req.files && req.files.image ? `/uploads/${path.basename(req.files.image[0].path)}` : null;
+  const file_path = req.files && req.files.file ? req.files.file[0].filename : null;
+  const isDownloadable = is_downloadable === 'on' || is_downloadable === 'true' || is_downloadable === '1' ? 1 : 0;
+  const id = uuidv4();
+  dbRun('INSERT INTO products (id, title, description, price, image_path, file_path, is_downloadable) VALUES (?, ?, ?, ?, ?, ?, ?)', 
+    [id, title.trim(), description || '', priceNum, image_path, file_path, isDownloadable], 
+    (err)=>{
+      if (err) {
+        console.error('Product insert error:', err);
+        return res.redirect('/admin/products?error=' + encodeURIComponent('Database error: ' + (err.message || 'unknown')));
+      }
+      res.redirect('/admin/products?message=' + encodeURIComponent('Product added'));
+    });
+});
+
+// Simple cart in session
+app.post('/cart/add', (req, res) => {
+  const { id } = req.body;
+  const qty = parseInt(req.body.qty || req.body.quantity || 1, 10) || 1;
+  if (!req.session.cart) req.session.cart = {};
+  req.session.cart[id] = (req.session.cart[id] || 0) + qty;
+  res.redirect('back');
+});
+
+app.post('/cart/remove', (req, res) => {
+  const { id } = req.body;
+  if (!req.session.cart) return res.redirect('back');
+  delete req.session.cart[id];
+  res.redirect('back');
+});
+
+app.post('/cart/clear', (req, res) => {
+  req.session.cart = {};
+  res.redirect('back');
+});
+
+app.get('/cart/clear', (req, res) => {
+  req.session.cart = {};
+  res.redirect('/');
+});
+
+app.get('/cart', async (req, res) => {
+  const cart = req.session.cart || {};
+  const ids = Object.keys(cart);
+  let items = [];
+  if (ids.length) {
+    const rows = await runQuery(`SELECT * FROM products WHERE id IN (${ids.map(()=>'?').join(',')})`, ids);
+    items = rows.map(r => ({ ...r, qty: cart[r.id] || 0 }));
+  }
+  res.render('cart', { items });
+});
+
+app.post('/checkout', (req, res) => {
+  const { payment_method, momo_number, card_number } = req.body;
+  const cart = req.session.cart || {};
+  const ids = Object.keys(cart);
+  if (!ids.length) return res.redirect('/cart');
+  dbAll(`SELECT * FROM products WHERE id IN (${ids.map(()=>'?').join(',')})`, ids, async (err, rows) => {
+    if (err) return res.status(500).send('DB error');
+    let total = 0;
+    const downloadableItems = [];
+    const items = rows.map(r => {
+      const qty = cart[r.id] || 0; total += r.price * qty; return { id: r.id, title: r.title, price: r.price, qty, is_downloadable: r.is_downloadable, file_path: r.file_path };
+    });
+    const id = uuidv4();
+    const created = new Date().toISOString();
+    const card_last4 = card_number ? card_number.slice(-4) : null;
+    // Insert order record
+    dbRun('INSERT INTO orders (id, user_id, items, total, payment_method, momo_number, card_last4, created_at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', 
+      [id, req.session.user ? req.session.user.id : null, JSON.stringify(items), total, payment_method, momo_number, card_last4, created, payment_method === 'card' ? 'completed' : 'pending'], 
+      async (err) => {
+        if (err) return res.status(500).send('DB error');
+        
+        // Create download links for downloadable items if payment is successful
+        if (payment_method === 'card') {
+          const downloadableCartItems = items.filter(it => it.is_downloadable);
+          for (const item of downloadableCartItems) {
+            const downloadId = uuidv4();
+            const expiryDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days
+            dbRun('INSERT INTO order_downloads (id, order_id, product_id, user_id, file_path, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)', 
+              [downloadId, id, item.id, req.session.user ? req.session.user.id : null, item.file_path, created, expiryDate]);
+            downloadableItems.push({ title: item.title, download_link: `/download/${downloadId}` });
+          }
+        }
+
+        // If payment_method is 'card' and stripe available, create a Stripe Checkout session
+        if (payment_method === 'card' && stripe) {
+          try {
+            const session = await stripe.checkout.sessions.create({
+              payment_method_types: ['card'],
+              line_items: items.map(it => ({ price_data: { currency: 'usd', product_data: { name: it.title }, unit_amount: Math.round(it.price * 100) }, quantity: it.qty })),
+              mode: 'payment',
+              success_url: `${req.protocol}://${req.get('host')}/checkout-success?order=${id}`,
+              cancel_url: `${req.protocol}://${req.get('host')}/cart`
+            });
+            req.session.cart = {};
+            return res.redirect(session.url);
+          } catch (e) {
+            console.error('Stripe error', e);
+            return res.status(500).send('Payment error');
+          }
+        }
+
+        // For Momo or card without stripe, mark order as pending and show success page
+        req.session.cart = {};
+        res.render('checkout-success', { orderId: id, downloadableItems });
+      }
+    );
+  });
+});
+
+// Get checkout success page with downloads
+app.get('/checkout-success', (req, res) => {
+  const orderId = req.query.order;
+  if (!orderId) return res.redirect('/cart');
+  
+  dbGet('SELECT * FROM orders WHERE id = ?', [orderId], async (err, order) => {
+    if (err || !order) return res.status(404).send('Order not found');
+    
+    // Get downloadable items for this order
+    dbAll('SELECT od.*, p.title FROM order_downloads od JOIN products p ON od.product_id = p.id WHERE od.order_id = ?', [orderId], (err, downloads) => {
+      if (err) downloads = [];
+      
+      const downloadableItems = downloads.map(dl => ({
+        title: dl.title,
+        download_link: `/download/${dl.id}`
+      }));
+      
+      res.render('checkout-success', { orderId: orderId, downloadableItems: downloadableItems });
+    });
+  });
+});
+
+// Download route - serve downloadable files
+app.get('/download/:downloadId', (req, res) => {
+  const downloadId = req.params.downloadId;
+  
+  dbGet('SELECT * FROM order_downloads WHERE id = ?', [downloadId], (err, download) => {
+    if (err || !download) return res.status(404).send('Download not found');
+    
+    // Check if user owns this download or is admin
+    const userId = req.session.user ? req.session.user.id : null;
+    const isAdmin = req.getUserRole && req.getUserRole() === 'admin';
+    
+    if (!isAdmin && download.user_id !== userId) {
+      return res.status(403).send('Access denied');
+    }
+    
+    // Check if download has expired
+    const expiryDate = new Date(download.expires_at);
+    if (expiryDate < new Date()) {
+      return res.status(403).send('Download has expired');
+    }
+    
+    // Update download count
+    dbRun('UPDATE order_downloads SET download_count = download_count + 1 WHERE id = ?', [downloadId]);
+    
+    // Serve the file
+    const filePath = download.file_path;
+    
+    // If it's a URL, redirect to it
+    if (filePath.startsWith('http')) {
+      return res.redirect(filePath);
+    }
+    
+    // Otherwise serve from uploads directory
+    const fs = require('fs');
+    const path = require('path');
+    const fullPath = path.join(__dirname, 'uploads', filePath);
+    
+    fs.stat(fullPath, (err) => {
+      if (err) return res.status(404).send('File not found');
+      res.download(fullPath);
+    });
+  });
+});
+
+// Downloads page - show all user downloads
+app.get('/downloads', (req, res) => {
+  if (!req.session.user) return res.redirect('/login');
+  
+  dbAll('SELECT od.*, p.title FROM order_downloads od JOIN products p ON od.product_id = p.id WHERE od.user_id = ? ORDER BY od.created_at DESC', 
+    [req.session.user.id], (err, downloads) => {
+      if (err) downloads = [];
+      
+      const processedDownloads = downloads.map(dl => ({
+        ...dl,
+        expired: new Date(dl.expires_at) < new Date(),
+        order_id: dl.order_id,
+        expires_at: dl.expires_at
+      }));
+      
+      res.render('downloads', { downloads: processedDownloads });
+    });
+});
+
+// Admin: list and manage orders
+app.get('/admin/orders', requireAdmin, async (req, res) => {
+  try {
+    const rows = await runQuery('SELECT * FROM orders ORDER BY created_at DESC');
+    res.render('admin/orders', { orders: rows });
+  } catch (err) {
+    console.error('Orders fetch error:', err);
+    res.status(500).send('DB error');
+  }
+});
+
+app.post('/admin/orders/:id/status', requireAdmin, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { status } = req.body;
+    await runExec('UPDATE orders SET status = ? WHERE id = ?', [status, id]);
+    res.redirect('/admin/orders');
+  } catch (err) {
+    console.error('Order status update error:', err);
+    res.status(500).send('DB error');
+  }
+});
+
+// Auth: signup & login
+app.get('/signup', (req, res) => {
+  res.render('signup', { csrfToken: generateCsrfToken(req) });
+});
+app.post('/signup', authLimiter, [
+  body('name').trim().notEmpty().withMessage('Name is required').isLength({ min: 2, max: 100 }).withMessage('Name must be 2-100 characters'),
+  body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
+  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+  body('acceptTerms').equals('on').withMessage('You must accept the Terms of Service'),
+  body('acceptPrivacy').equals('on').withMessage('You must accept the Privacy Policy')
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.render('signup', { error: errors.array()[0].msg, csrfToken: generateCsrfToken(req) });
+  }
+  
+  const { name, email, password } = req.body;
+  const id = uuidv4();
+  const hashed = bcrypt.hashSync(password, 10);
+  const verificationToken = uuidv4();
+  
+  dbRun('INSERT INTO users (id, name, email, password, email_verified, verification_token) VALUES (?, ?, ?, ?, 0, ?)', 
+    [id, name, email, hashed, verificationToken], async (err) => {
+    if (err) {
+      const message = (err && err.message) ? err.message : 'Unknown error';
+      console.error('Signup insert error:', message);
+      const isUniqueViolation = message.includes('UNIQUE constraint failed: users.email') || err.code === 'SQLITE_CONSTRAINT' || err.code === '23505';
+      return res.render('signup', { error: isUniqueViolation ? 'Email already in use' : 'Signup failed. Please try again.', csrfToken: generateCsrfToken(req) });
+    }
+    
+    // Send verification email
+    try {
+      const verificationUrl = `${req.protocol}://${req.get('host')}/verify/${verificationToken}`;
+      await sendEmail(email, 'verification', {
+        name,
+        verificationUrl
+      });
+      res.redirect('/login?success=' + encodeURIComponent('Account created. Check your email to verify, then log in.'));
+    } catch (emailError) {
+      console.error('Failed to send verification email:', emailError);
+      res.redirect('/login?error=' + encodeURIComponent('Account created but failed to send verification email. Please log in and try verifying again.'));
+    }
+  });
+});
+
+app.get('/login', (req, res) => {
+  res.render('login', { csrfToken: generateCsrfToken(req) });
+});
+app.post('/login', authLimiter, [
+  body('email').trim().notEmpty().withMessage('Email or username is required'),
+  body('password').notEmpty().withMessage('Password is required')
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.render('login', { error: errors.array()[0].msg, csrfToken: generateCsrfToken(req) });
+  }
+  
+  const identifier = String(req.body.email || '').trim().toLowerCase();
+  const password = req.body.password || '';
+  dbGet('SELECT * FROM users WHERE lower(email) = ? OR lower(name) = ?', [identifier, identifier], (err, user) => {
+    if (err || !user) return res.render('login', { error: 'Invalid credentials', csrfToken: generateCsrfToken(req) });
+    if (!bcrypt.compareSync(password, user.password)) return res.render('login', { error: 'Invalid credentials', csrfToken: generateCsrfToken(req) });
+    
+    // Store user in tab-specific context
+    const userData = { 
+      id: user.id, 
+      name: user.name, 
+      email: user.email, 
+      role: user.role || 'user',
+      email_verified: user.email_verified || false,
+      profile_complete: user.profile_complete || 0
+    };
+    
+    // Store in both global session and tab-specific context for backwards compatibility
+    req.session.user = userData;
+    if (!req.session.tabs) req.session.tabs = {};
+    if (!req.session.tabs[req.tabId]) req.session.tabs[req.tabId] = {};
+    req.session.tabs[req.tabId].user = userData;
+    req.session.tabs[req.tabId].role = user.role || 'user';
+    
+    // Redirect based on role and profile status
+    const finish = () => {
+      if (user.role === 'admin') return res.redirect('/admin');
+      if (user.role === 'tutor') return res.redirect('/tutor/lessons');
+      // Require profile completion before dashboard access
+      if (!user.profile_complete) {
+        return res.redirect('/profile/create');
+      }
+      res.redirect('/dashboard');
+    };
+    req.session.save((err)=>{
+      if (err) console.error('Session save error (login):', err);
+      finish();
+    });
+  });
+});
+
+app.get('/logout', (req, res) => {
+  // Only clear current tab's session, not the entire global session
+  if (req.session.tabs && req.session.tabs[req.tabId]) {
+    req.session.tabs[req.tabId].user = null;
+    req.session.tabs[req.tabId].role = null;
+  }
+  
+  // Also clear global for backward compatibility
+  req.session.user = null;
+  
+  req.session.save(() => res.redirect('/'));
+});
+
+// NOTE: Google OAuth routes would go here after installing Passport
+// For now, users must sign up with email/password or use traditional login
+
+// User dashboard (server-rendered)
+app.get('/dashboard', async (req, res) => {
+  const user = req.session.tabs?.[req.tabId]?.user || req.session.user;
+  if (!user) return res.redirect('/login');
+  try {
+    const profile = await runQueryOne('SELECT * FROM user_profiles WHERE user_id = ?', [user.id]);
+    const upcoming = await runQuery('SELECT * FROM lessons WHERE student_id = ? AND status = ? ORDER BY scheduled_at ASC', [user.id, 'scheduled']);
+    const recentReports = await runQuery('SELECT * FROM lesson_reports WHERE student_id = ? ORDER BY created_at DESC LIMIT 6', [user.id]);
+    const recentRecs = await runQuery('SELECT r.* FROM recordings r JOIN lessons l ON r.lesson_id = l.id WHERE l.student_id = ? ORDER BY r.uploaded_at DESC LIMIT 6', [user.id]);
+    res.render('dashboard', { user: user, profile: profile || {}, upcoming, recentReports, recentRecordings: recentRecs, message: req.query.message, error: req.query.error, csrfToken: generateCsrfToken(req) });
+  } catch (err) {
+    console.error('Dashboard error:', err);
+    res.render('dashboard', { user: user, profile: {}, upcoming: [], recentReports: [], recentRecordings: [], error: 'Could not load dashboard', csrfToken: generateCsrfToken(req) });
+  }
+});
+
+app.get('/account', (req, res) => {
+  const user = req.session.tabs?.[req.tabId]?.user || req.session.user;
+  if (!user) return res.redirect('/login');
+  runQueryOne('SELECT * FROM user_profiles WHERE user_id = ?', [user.id]).then(profile => {
+    res.render('account', {
+      user,
+      profile: profile || {},
+      message: req.query.message,
+      error: req.query.error,
+      success: req.query.success,
+      csrfToken: generateCsrfToken(req)
+    });
+  }).catch(err => {
+    console.error('Account profile load error:', err);
+    res.render('account', {
+      user,
+      profile: {},
+      message: req.query.message,
+      error: req.query.error,
+      success: req.query.success,
+      csrfToken: generateCsrfToken(req)
+    });
+  });
+});
+
+// Account management routes
+app.post('/account/change-email', [
+  body('newEmail').trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
+  body('password').notEmpty().withMessage('Password is required')
+], async (req, res) => {
+  const user = req.session.tabs?.[req.tabId]?.user || req.session.user;
+  if (!user) return res.redirect('/login');
+  
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.redirect('/account?error=' + encodeURIComponent(errors.array()[0].msg));
+  }
+  
+  const { newEmail, password } = req.body;
+  const userId = user.id;
+  
+  try {
+    const userData = await runQuery('SELECT * FROM users WHERE id = ?', [userId]);
+    
+    if (!userData || userData.length === 0) {
+      return res.redirect('/account?error=User not found');
+    }
+    
+    const match = bcrypt.compareSync(password, userData[0].password);
+    if (!match) {
+      return res.redirect('/account?error=Incorrect password');
+    }
+    
+    // Check if email already exists
+    const existing = await runQuery('SELECT * FROM users WHERE email = ? AND id != ?', [newEmail, userId]);
+    if (existing && existing.length > 0) {
+      return res.redirect('/account?error=Email already in use');
+    }
+    
+    await runQuery('UPDATE users SET email = ?, email_verified = 0 WHERE id = ?', [newEmail, userId]);
+    user.email = newEmail;
+    user.email_verified = false;
+    if (req.session.tabs && req.session.tabs[req.tabId]) {
+      req.session.tabs[req.tabId].user = user;
+    }
+    req.session.user = user;
+    
+    res.redirect('/account?success=Email updated successfully. Please verify your new email.');
+  } catch (err) {
+    console.error('Change email error:', err);
+    res.redirect('/account?error=An error occurred. Please try again.');
+  }
+});
+
+app.post('/account/change-password', [
+  body('currentPassword').notEmpty().withMessage('Current password is required'),
+  body('newPassword').isLength({ min: 8 }).withMessage('New password must be at least 8 characters'),
+  body('confirmPassword').custom((value, { req }) => {
+    if (value !== req.body.newPassword) {
+      throw new Error('Passwords do not match');
+    }
+    return true;
+  })
+], async (req, res) => {
+  const user = req.session.tabs?.[req.tabId]?.user || req.session.user;
+  if (!user) return res.redirect('/login');
+  
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.redirect('/account?error=' + encodeURIComponent(errors.array()[0].msg));
+  }
+  
+  const { currentPassword, newPassword } = req.body;
+  const userId = user.id;
+  
+  try {
+    const userData = await runQuery('SELECT * FROM users WHERE id = ?', [userId]);
+    
+    if (!userData || userData.length === 0) {
+      return res.redirect('/account?error=User not found');
+    }
+    
+    const match = bcrypt.compareSync(currentPassword, userData[0].password);
+    if (!match) {
+      return res.redirect('/account?error=Current password is incorrect');
+    }
+    
+    const hashed = bcrypt.hashSync(newPassword, 10);
+    await runQuery('UPDATE users SET password = ? WHERE id = ?', [hashed, userId]);
+    
+    res.redirect('/account?success=Password updated successfully');
+  } catch (err) {
+    console.error('Change password error:', err);
+    res.redirect('/account?error=An error occurred. Please try again.');
+  }
+});
+
+// User Profile Routes
+app.get('/profile/create', (req, res) => {
+  const user = req.session.tabs?.[req.tabId]?.user || req.session.user;
+  if (!user) return res.redirect('/login');
+  
+  res.render('profile/create', {
+    user,
+    error: req.query.error || '',
+    message: req.query.message || '',
+    csrfToken: generateCsrfToken(req)
+  });
+});
+
+app.post('/profile/create', upload.single('avatar'), async (req, res) => {
+  const user = req.session.tabs?.[req.tabId]?.user || req.session.user;
+  if (!user) return res.redirect('/login');
+  
+  try {
+    const { bio, phone, location, date_of_birth, occupation, interests } = req.body;
+    const avatarPath = req.file ? `/uploads/${path.basename(req.file.path)}` : null;
+    const profileId = uuidv4();
+    
+    // Create user profile
+    await runExec(
+      `INSERT INTO user_profiles (id, user_id, bio, avatar_path, phone, location, date_of_birth, occupation, interests)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [profileId, user.id, bio || '', avatarPath, phone || '', location || '', date_of_birth || '', occupation || '', interests || '']
+    );
+    
+    // Mark user profile as complete
+    await runExec(`UPDATE users SET profile_complete = 1 WHERE id = ?`, [user.id]);
+    
+    // Update session
+    user.profile_complete = 1;
+    if (req.session.tabs && req.session.tabs[req.tabId]) {
+      req.session.tabs[req.tabId].user = user;
+    }
+    req.session.user = user;
+    
+    req.session.save(() => {
+      res.redirect('/dashboard?message=' + encodeURIComponent('Profile created successfully!'));
+    });
+  } catch (err) {
+    console.error('Profile creation error:', err);
+    res.redirect('/profile/create?error=' + encodeURIComponent('Failed to create profile'));
+  }
+});
+
+app.get('/profile/edit', async (req, res) => {
+  const user = req.session.tabs?.[req.tabId]?.user || req.session.user;
+  if (!user) return res.redirect('/login');
+  
+  try {
+    const profile = await runQueryOne(`SELECT * FROM user_profiles WHERE user_id = ?`, [user.id]);
+    res.render('profile/edit', {
+      user,
+      profile: profile || {},
+      error: req.query.error || '',
+      message: req.query.message || '',
+      csrfToken: generateCsrfToken(req)
+    });
+  } catch (err) {
+    console.error('Profile edit page error:', err);
+    res.redirect('/dashboard?error=Could not load profile');
+  }
+});
+
+app.post('/profile/edit', upload.single('avatar'), async (req, res) => {
+  const user = req.session.tabs?.[req.tabId]?.user || req.session.user;
+  if (!user) return res.redirect('/login');
+  
+  try {
+    const { bio, phone, location, date_of_birth, occupation, interests, current_avatar } = req.body;
+    const avatarPath = req.file ? `/uploads/${path.basename(req.file.path)}` : (current_avatar || null);
+    
+    const existing = await runQueryOne(`SELECT * FROM user_profiles WHERE user_id = ?`, [user.id]);
+    
+    if (existing) {
+      await runExec(
+        `UPDATE user_profiles SET bio = ?, avatar_path = ?, phone = ?, location = ?, date_of_birth = ?, occupation = ?, interests = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?`,
+        [bio || '', avatarPath, phone || '', location || '', date_of_birth || '', occupation || '', interests || '', user.id]
+      );
+    } else {
+      const profileId = uuidv4();
+      await runExec(
+        `INSERT INTO user_profiles (id, user_id, bio, avatar_path, phone, location, date_of_birth, occupation, interests)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [profileId, user.id, bio || '', avatarPath, phone || '', location || '', date_of_birth || '', occupation || '', interests || '']
+      );
+    }
+    
+    res.redirect('/dashboard?message=' + encodeURIComponent('Profile updated successfully!'));
+  } catch (err) {
+    console.error('Profile edit error:', err);
+    res.redirect('/profile/edit?error=' + encodeURIComponent('Failed to update profile'));
+  }
+});
+
+// Admin routes
+function requireAdmin(req, res, next) {
+  if (req.getUserRole() === 'admin') return next();
+  res.redirect('/admin/login');
+}
+
+app.get('/admin/login', (req, res) => res.render('admin/login', { cartItems: [], csrfToken: generateCsrfToken(req) }));
+app.post('/admin/login', adminLimiter, async (req, res) => {
+  try {
+    const usernameRaw = (req.body.username || '').trim();
+    const password = req.body.password || '';
+    const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'passwod'; // keep in sync with bootstrap reset
+    const adminPasswordFallbacks = [adminPassword, 'passwod']; // allow default even if env is stale
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@modernpedagogues.com';
+
+    // Path 1: explicit env credentials match
+    if (usernameRaw === adminUsername || usernameRaw === adminEmail) {
+      if (adminPasswordFallbacks.includes(password)) {
+        const userRows = await runQuery('SELECT * FROM users WHERE role = ? LIMIT 1', ['admin']).catch(err => {
+          console.error('DB query error:', err);
+          return [];
+        });
+        const user = userRows && userRows[0];
+        const userData = user ? { id: user.id, name: user.name, email: user.email, role: 'admin' } : { id: 'admin-1', name: 'Admin', email: adminEmail, role: 'admin' };
+        
+        // Store in tab-specific context
+        req.session.user = userData;
+        if (!req.session.tabs) req.session.tabs = {};
+        if (!req.session.tabs[req.tabId]) req.session.tabs[req.tabId] = {};
+        req.session.tabs[req.tabId].user = userData;
+        req.session.tabs[req.tabId].role = 'admin';
+        
+        return req.session.save((err) => {
+          if (err) console.error('Session save error:', err);
+          res.redirect('/admin');
+        });
+      }
+    }
+
+    // Path 2: match stored admin by provided username/email
+    const dbAdmins = await runQuery('SELECT * FROM users WHERE role = ?', ['admin']).catch(err => {
+      console.error('DB query error:', err);
+      return [];
+    });
+    const targetAdmin = (dbAdmins || []).find(a => a && (a.name === usernameRaw || a.email === usernameRaw || a.id === 'admin-1' || usernameRaw === adminUsername));
+    if (targetAdmin) {
+      const passMatch = bcrypt.compareSync(password, targetAdmin.password || '') || (targetAdmin.plain_password && targetAdmin.plain_password === password);
+      if (passMatch) {
+        const userData = { id: targetAdmin.id, name: targetAdmin.name, email: targetAdmin.email, role: 'admin' };
+        
+        // Store in tab-specific context
+        req.session.user = userData;
+        if (!req.session.tabs) req.session.tabs = {};
+        if (!req.session.tabs[req.tabId]) req.session.tabs[req.tabId] = {};
+        req.session.tabs[req.tabId].user = userData;
+        req.session.tabs[req.tabId].role = 'admin';
+        
+        return req.session.save((err) => {
+          if (err) console.error('Session save error:', err);
+          res.redirect('/admin');
+        });
+      }
+    }
+
+    return res.render('admin/login', { error: 'Invalid admin credentials', cartItems: [], csrfToken: generateCsrfToken(req) });
+  } catch (e) {
+    console.error('Admin login error', e);
+    return res.render('admin/login', { error: 'Server error. Please try again.', cartItems: [], csrfToken: generateCsrfToken(req) });
+  }
+});
+
+app.get('/admin', requireAdmin, async (req, res) => {
+  try {
+    const users = await runQuery('SELECT count(*) as c FROM users');
+    const products = await runQuery('SELECT count(*) as c FROM products');
+    const orders = await runQuery('SELECT count(*) as c FROM orders');
+    const messages = await runQuery('SELECT count(*) as c FROM messages');
+    const aiAnalytics = await buildAiAnalyticsSummary();
+    res.render('admin/dashboard', {
+      stats: {
+        users: (users[0] && users[0].c) || 0,
+        products: (products[0] && products[0].c) || 0,
+        orders: (orders[0] && orders[0].c) || 0,
+        messages: (messages[0] && messages[0].c) || 0
+      },
+      aiAnalytics
+    });
+  } catch (e) {
+    console.error('Admin dashboard error', e);
+    res.render('admin/dashboard', {
+      stats: { users: 0, products: 0, orders: 0, messages: 0 },
+      aiAnalytics: {
+        totalChats: 0,
+        fallbackRate: 0,
+        lowConfidenceRate: 0,
+        topIntents: [],
+        unansweredIntents: [],
+        topTopics: []
+      }
+    });
+  }
+});
+
+// Admin metrics: last 14 days counts for charts
+app.get('/admin/metrics', requireAdmin, async (req, res) => {
+  try {
+    const days = 14;
+    const start = new Date();
+    start.setDate(start.getDate() - (days-1));
+    const fmtDate = (d)=> d.toISOString().slice(0,10);
+    const labels = [];
+    for (let i=0;i<days;i++){
+      const d = new Date(start);
+      d.setDate(start.getDate()+i);
+      labels.push(fmtDate(d));
+    }
+    const rowsOrders = await runQuery('SELECT created_at FROM orders');
+    const rowsMsgs = await runQuery('SELECT created_at FROM messages');
+    const rowsApps = await runQuery('SELECT created_at FROM applications');
+    const countByDay = (rows)=>{
+      const map = Object.fromEntries(labels.map(l=>[l,0]));
+      rows.forEach(r=>{
+        const day = (r.created_at||'').slice(0,10);
+        if (map[day] != null) map[day]++;
+      });
+      return labels.map(l=>map[l]);
+    };
+    res.json({ labels, orders: countByDay(rowsOrders), messages: countByDay(rowsMsgs), applications: countByDay(rowsApps) });
+  } catch (e) {
+    console.error('metrics error', e);
+    res.status(500).json({ error: 'metrics_failed' });
+  }
+});
+
+app.get('/admin/messages', requireAdmin, async (req, res) => {
+  const messages = await runQuery('SELECT * FROM messages ORDER BY created_at DESC');
+  res.render('admin/messages', { messages });
+});
+
+app.get('/admin/applications', requireAdmin, async (req, res) => {
+  const apps = await runQuery('SELECT * FROM applications ORDER BY created_at DESC');
+  res.render('admin/applications', { apps });
+});
+
+app.get('/admin/seller-applications', requireAdmin, async (req, res) => {
+  const rows = await runQuery(
+    `SELECT sa.*, u.name as user_name, u.email as user_email, u.role as user_role
+     FROM seller_applications sa
+     LEFT JOIN users u ON u.id = sa.user_id
+     ORDER BY CASE sa.status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, sa.created_at DESC`
+  );
+  res.render('admin/seller-applications', {
+    rows,
+    message: req.query.message || '',
+    error: req.query.error || '',
+    csrfToken: generateCsrfToken(req)
+  });
+});
+
+app.post('/admin/seller-applications/:id/review', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const action = String(req.body.action || '').toLowerCase();
+    const reviewNotes = String(req.body.review_notes || '').trim();
+    if (!['approve', 'reject'].includes(action)) {
+      return res.redirect('/admin/seller-applications?error=' + encodeURIComponent('Invalid review action'));
+    }
+
+    const row = await runQueryOne('SELECT * FROM seller_applications WHERE id = ?', [id]);
+    if (!row) {
+      return res.redirect('/admin/seller-applications?error=' + encodeURIComponent('Seller application not found'));
+    }
+
+    const status = action === 'approve' ? 'approved' : 'rejected';
+    await runExec(
+      'UPDATE seller_applications SET status = ?, review_notes = ?, updated_at = ? WHERE id = ?',
+      [status, reviewNotes, new Date().toISOString(), id]
+    );
+
+    if (status === 'approved') {
+      await runExec('UPDATE users SET role = ? WHERE id = ?', ['creator', row.user_id]);
+    }
+
+    res.redirect('/admin/seller-applications?message=' + encodeURIComponent(`Application ${status}`));
+  } catch (err) {
+    console.error('seller review error', err);
+    res.redirect('/admin/seller-applications?error=' + encodeURIComponent('Failed to review seller application'));
+  }
+});
+
+app.get('/admin/products', requireAdmin, async (req, res) => {
+  const products = await runQuery('SELECT * FROM products');
+  const message = req.query.message || '';
+  const error = req.query.error || '';
+  const csrfToken = generateCsrfToken(req);
+  res.render('admin/products', { products, message, error, csrfToken });
+});
+
+// Admin: update product
+app.post('/admin/products/:id/update', requireAdmin, upload.fields([{ name: 'image', maxCount: 1 }, { name: 'file', maxCount: 1 }]), (req, res) => {
+  const { id } = req.params;
+  const { title, description, price, image_path, file_path, is_downloadable } = req.body;
+  if (!title) return res.redirect('/admin/products?error=' + encodeURIComponent('Title is required'));
+  const priceNum = isNaN(parseFloat(price)) ? 0 : parseFloat(price);
+  const uploadedImagePath = req.files && req.files.image ? `/uploads/${path.basename(req.files.image[0].path)}` : null;
+  const uploadedFilePath = req.files && req.files.file ? req.files.file[0].filename : null;
+  const finalImagePath = uploadedImagePath || image_path || null;
+  const finalFilePath = uploadedFilePath || file_path || null;
+  const isDownloadable = is_downloadable === 'on' || is_downloadable === 'true' || is_downloadable === '1' ? 1 : 0;
+  dbRun('UPDATE products SET title = ?, description = ?, price = ?, image_path = ?, file_path = ?, is_downloadable = ? WHERE id = ?', 
+    [title.trim(), description || '', priceNum, finalImagePath, finalFilePath, isDownloadable, id], 
+    (err)=>{
+      if (err) {
+        console.error('Product update error:', err);
+        return res.redirect('/admin/products?error=' + encodeURIComponent('Database error: ' + (err.message || 'unknown')));
+      }
+      res.redirect('/admin/products?message=' + encodeURIComponent('Product updated'));
+    });
+});
+
+// Admin: delete product
+app.post('/admin/products/:id/delete', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  dbRun('DELETE FROM products WHERE id = ?', [id], (err)=>{
+    if (err) return res.redirect('/admin/products?error=' + encodeURIComponent('Database error while deleting'));
+    res.redirect('/admin/products?message=' + encodeURIComponent('Product deleted'));
+  });
+});
+
+app.get('/admin/content', requireAdmin, async (req, res) => {
+  const entries = await runQuery('SELECT key, value FROM site_content');
+  const { message, error } = req.query;
+  res.render('admin/content', { entries: entries || [], message, error });
+});
+
+app.post('/admin/content', requireAdmin, (req, res) => {
+  const { key, value, redirect_to } = req.body;
+  const wantsJson = (req.headers.accept || '').includes('application/json') || req.xhr;
+  const redirectPath = redirect_to || '/admin/content';
+  dbRun('INSERT INTO site_content (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = EXCLUDED.value', [key, value], (err)=>{
+    if (err) {
+      if (wantsJson) return res.status(500).json({ success: false, error: 'db' });
+      return res.redirect(redirectPath + '?error=' + encodeURIComponent('Failed to save content'));
+    }
+    if (wantsJson) return res.json({ success: true });
+    res.redirect(redirectPath + '?message=' + encodeURIComponent('Content saved: ' + key));
+  });
+});
+
+// Admin: delete a content entry
+app.post('/admin/content/delete', requireAdmin, (req, res) => {
+  const { key } = req.body;
+  if (!key) return res.redirect('/admin/content');
+  dbRun('DELETE FROM site_content WHERE key = ?', [key], (err)=>{
+    if (err) return res.status(500).send('DB error');
+    res.redirect('/admin/content');
+  });
+});
+
+// Bulk update content entries for Page HTML mode
+app.post('/admin/content/bulk', requireAdmin, (req, res) => {
+  try {
+    const items = Array.isArray(req.body.items) ? req.body.items : [];
+    if (!items.length) return res.status(400).json({ error: 'no_items' });
+    const stmt = dbPrepare('INSERT INTO site_content (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = EXCLUDED.value');
+    const promises = items.map(it => stmt.run([it.key, it.value || '']));
+    Promise.all(promises).then(()=>{
+      stmt.finalize((err) => {
+        if (err) {
+          console.error('DB finalize error', err);
+          return res.status(500).json({ error: 'db' });
+        }
+        res.json({ success: true, updated: items.length });
+      });
+    }).catch((err)=>{
+      console.error('Bulk content update error', err);
+      res.status(500).json({ error: 'db' });
+    });
+  } catch (e) {
+    console.error('Bulk content update error', e);
+    res.status(500).json({ error: 'server' });
+  }
+});
+
+// Admin user management
+app.get('/admin/users', requireAdmin, async (req, res) => {
+  const users = await runQuery('SELECT id, name, email, COALESCE(plain_password, password) as password, role FROM users ORDER BY name');
+  const { message, error } = req.query;
+  res.render('admin/users', { users, message, error });
+});
+
+app.post('/admin/users/create', requireAdmin, [
+  body('name').trim().notEmpty().withMessage('Name is required').isLength({ min: 2, max: 100 }),
+  body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
+  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+  body('role').isIn(['user', 'tutor']).withMessage('Invalid role')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    const users = await runQuery('SELECT id, name, email, COALESCE(plain_password, password) as password, role FROM users ORDER BY name');
+    return res.render('admin/users', { error: errors.array()[0].msg, users });
+  }
+  
+  const { name, email, password, role } = req.body;
+  const id = uuidv4();
+  const hashed = bcrypt.hashSync(password, 10);
+  const userRole = (role === 'tutor') ? 'tutor' : 'user';
+  dbRun('INSERT INTO users (id, name, email, password, plain_password, role) VALUES (?, ?, ?, ?, ?, ?)', [id, name, email, hashed, password, userRole], async (err) => {
+    if (err) return res.redirect('/admin/users?error=Email already in use');
+    
+    // Send welcome email
+    try {
+      const templateName = userRole === 'tutor' ? 'welcomeTutor' : 'welcomeStudent';
+      await sendEmail(email, templateName, {
+        name,
+        email,
+        password,
+        loginUrl: `${req.protocol}://${req.get('host')}/login`
+      });
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError);
+      // Don't block user creation if email fails
+    }
+    
+    res.redirect('/admin/users?message=User created successfully. Credentials: ' + email + ' / ' + password);
+  });
+});
+
+app.post('/admin/users/delete', requireAdmin, (req, res) => {
+  const { userId } = req.body;
+  dbRun('DELETE FROM users WHERE id = ?', [userId], (err) => {
+    if (err) return res.redirect('/admin/users?error=Failed to delete user');
+    res.redirect('/admin/users?message=User deleted successfully');
+  });
+});
+
+app.post('/admin/users/reset-password', requireAdmin, (req, res) => {
+  const { userId, newPassword } = req.body;
+  if (!newPassword || newPassword.trim().length < 1) {
+    return res.redirect('/admin/users?error=Password cannot be empty');
+  }
+  const hashed = bcrypt.hashSync(newPassword, 10);
+  dbRun('UPDATE users SET password = ?, plain_password = ? WHERE id = ?', [hashed, newPassword, userId], (err) => {
+    if (err) return res.redirect('/admin/users?error=Failed to reset password');
+    res.redirect('/admin/users?message=Password reset successfully for user');
+  });
+});
+
+// Admin media manager
+app.get('/admin/media', requireAdmin, async (req, res) => {
+  try {
+    console.log('Loading media manager...');
+    const files = await fs.promises.readdir(UPLOADS_DIR);
+    console.log('Found files:', files);
+    const fileUrls = files.filter(f => f !== '.gitkeep').map(f => `/uploads/${f}`);
+
+    // Build media keys for all pages
+    const pages = ['home', 'tutors', 'curriculum', 'about'];
+    const slideKeys = [];
+    for (const page of pages) {
+      slideKeys.push(`${page}_slide_1`);
+      slideKeys.push(`${page}_slide_2`);
+      slideKeys.push(`${page}_slide_3`);
+    }
+    
+    const tutorKeys = ['tutor_1_img','tutor_2_img','tutor_3_img','tutor_4_img','tutor_5_img','tutor_6_img'];
+    const mediaKeys = [...slideKeys, ...tutorKeys];
+    
+    const placeholders = mediaKeys.map(()=>'?').join(',');
+    const rows = mediaKeys.length ? await runQuery(`SELECT key, value FROM site_content WHERE key IN (${placeholders})`, mediaKeys) : [];
+    const mediaValues = Object.fromEntries(mediaKeys.map(k => [k, '']));
+    rows.forEach(r => { mediaValues[r.key] = r.value || ''; });
+
+    const { message, error } = req.query;
+    console.log('Rendering media with', fileUrls.length, 'files and message:', message);
+    res.render('admin/media', { files: fileUrls, mediaValues, mediaKeys, message, error });
+  } catch (err) {
+    console.error('Admin media error:', err);
+    res.status(500).render('admin/media', { files: [], mediaValues: {}, mediaKeys: [], error: 'Failed to load media manager', message: null });
+  }
+});
+
+app.post('/admin/media/upload', requireAdmin, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.redirect('/admin/media?error=No file selected');
+    }
+    console.log('File uploaded:', req.file.filename);
+    // Reload page with success message
+    return res.redirect('/admin/media?message=Image uploaded successfully: ' + encodeURIComponent(req.file.filename));
+  } catch (err) {
+    console.error('Upload error:', err);
+    res.redirect('/admin/media?error=Upload failed');
+  }
+});
+
+app.post('/admin/media/delete', requireAdmin, (req, res) => {
+  const rel = req.body.path || '';
+  const base = path.basename(rel.replace('/uploads/', ''));
+  const target = path.join(UPLOADS_DIR, base);
+  if (!target.startsWith(UPLOADS_DIR)) return res.status(400).send('Bad path');
+  fs.unlink(target, (err) => {
+    if (err) console.error('Delete media error', err);
+    return res.redirect('/admin/media');
+  });
+});
+
+app.post('/admin/media/delete', requireAdmin, (req, res) => {
+  const rel = req.body.path || '';
+  const base = path.basename(rel.replace('/uploads/', ''));
+  const target = path.join(UPLOADS_DIR, base);
+  if (!target.startsWith(UPLOADS_DIR)) return res.status(400).send('Bad path');
+  fs.unlink(target, (err) => {
+    if (err) console.error('Delete media error', err);
+    return res.redirect('/admin/media');
+  });
+});
+
+// ============ ADMIN MARKETPLACE ROUTES ============
+
+// Admin: Marketplace overview
+app.get('/admin/marketplace', requireAdmin, async (req, res) => {
+  try {
+    const status = req.query.status || '';
+    let sql = 'SELECT c.*, u.name as creator_name FROM marketplace_content c JOIN users u ON c.creator_id = u.id';
+    const params = [];
+    
+    if (status) {
+      sql += ' WHERE c.status = ?';
+      params.push(status);
+    }
+    
+    sql += ' ORDER BY c.created_at DESC LIMIT 50';
+    const items = await runQuery(sql, params);
+    
+    // Get stats
+    const stats = await runQuery(
+      `SELECT 
+        (SELECT COUNT(*) FROM marketplace_content) as total,
+        (SELECT COUNT(*) FROM marketplace_content WHERE status = 'published') as published,
+        (SELECT COUNT(*) FROM marketplace_content WHERE status = 'draft') as pending,
+        (SELECT COUNT(*) FROM marketplace_content WHERE status = 'flagged') as reports`
+    );
+    
+    res.render('admin/marketplace', {
+      items,
+      statistics: stats[0] || { total: 0, published: 0, pending: 0, reports: 0 },
+      csrfToken: generateCsrfToken(req)
+    });
+  } catch (err) {
+    console.error('Admin marketplace error:', err);
+    res.status(500).send('Error loading marketplace');
+  }
+});
+
+// Admin: Review content detail
+app.get('/admin/marketplace/:contentId', requireAdmin, async (req, res) => {
+  try {
+    const content = await getContentById(req.params.contentId);
+    if (!content) return res.status(404).send('Not found');
+    
+    res.render('admin/marketplace-detail', {
+      item: content,
+      csrfToken: generateCsrfToken(req)
+    });
+  } catch (err) {
+    console.error('Admin marketplace detail error:', err);
+    res.status(500).send('Error loading content');
+  }
+});
+
+// Admin: Approve/reject/flag content
+app.post('/admin/marketplace/:contentId/moderate', requireAdmin, async (req, res) => {
+  try {
+    const { action, reason } = req.body;
+    const contentId = req.params.contentId;
+    
+    if (action === 'approve') {
+      await publishContent(contentId, 'published');
+      await sendEmail(
+        (await runQueryOne('SELECT creator_id FROM marketplace_content WHERE id = ?', [contentId])).creator_id,
+        'Your content has been approved!',
+        'Your submission to the marketplace has been reviewed and approved. It is now live and visible to buyers.'
+      );
+    } else if (action === 'reject') {
+      await runExec(
+        'UPDATE marketplace_content SET status = ?, updated_at = ? WHERE id = ?',
+        ['draft', new Date().toISOString(), contentId]
+      );
+      // Notify creator
+    } else if (action === 'flag') {
+      await runExec(
+        'UPDATE marketplace_content SET status = ? WHERE id = ?',
+        ['flagged', contentId]
+      );
+    }
+    
+    res.redirect(`/admin/marketplace?message=Content ${action}ed`);
+  } catch (err) {
+    console.error('Moderation error:', err);
+    res.status(500).send('Moderation failed');
+  }
+});
+
+// Admin: Manage creators
+app.get('/admin/marketplace/creators', requireAdmin, async (req, res) => {
+  try {
+    const creators = await runQuery(
+      `SELECT u.id, u.name, u.email, COUNT(c.id) as content_count, SUM(c.download_count) as total_downloads
+       FROM users u
+       LEFT JOIN marketplace_content c ON u.id = c.creator_id
+       WHERE u.role = 'creator'
+       GROUP BY u.id
+       ORDER BY total_downloads DESC`
+    );
+    
+    res.render('admin/marketplace-creators', {
+      creators,
+      csrfToken: generateCsrfToken(req)
+    });
+  } catch (err) {
+    console.error('Creator management error:', err);
+    res.status(500).send('Error loading creators');
+  }
+});
+
+// Admin: View transactions
+app.get('/admin/marketplace/transactions', requireAdmin, async (req, res) => {
+  try {
+    const transactions = await runQuery(
+      `SELECT t.*, b.name as buyer_name, s.name as seller_name, c.title as content_title
+       FROM marketplace_transactions t
+       JOIN users b ON t.buyer_id = b.id
+       LEFT JOIN users s ON t.seller_id = s.id
+       LEFT JOIN marketplace_content c ON t.content_id = c.id
+       ORDER BY t.created_at DESC
+       LIMIT 100`
+    );
+    
+    res.render('admin/marketplace-transactions', {
+      transactions,
+      csrfToken: generateCsrfToken(req)
+    });
+  } catch (err) {
+    console.error('Transactions error:', err);
+    res.status(500).send('Error loading transactions');
+  }
+});
+
+// Admin: data exports (CSV/JSON)
+app.get('/admin/export/:type', requireAdmin, async (req, res) => {
+  try {
+    const type = req.params.type;
+    const fmt = (req.query.fmt||'csv').toLowerCase();
+    let rows = [];
+    switch(type){
+      case 'users': rows = await runQuery('SELECT id, name, email, role, email_verified FROM users'); break;
+      case 'products': rows = await runQuery('SELECT * FROM products'); break;
+      case 'orders': rows = await runQuery('SELECT * FROM orders'); break;
+      case 'messages': rows = await runQuery('SELECT * FROM messages'); break;
+      case 'ai-chat': rows = await runQuery('SELECT id, message, answer, intents, matched_topics, match_score, fallback_used, created_at FROM ai_chat_logs ORDER BY created_at DESC'); break;
+      case 'ai-chat-summary': {
+        const summary = await buildAiAnalyticsSummary();
+        const intentRows = (summary.topIntents || []).map(item => ({
+          section: 'top_intents',
+          key: item.intent,
+          value: item.count
+        }));
+        const unansweredRows = (summary.unansweredIntents || []).map(item => ({
+          section: 'unanswered_intents',
+          key: item.intent,
+          value: item.count
+        }));
+        const topicRows = (summary.topTopics || []).map(item => ({
+          section: 'top_topics',
+          key: item.topic,
+          value: item.count
+        }));
+        const headlineRows = [
+          { section: 'headline', key: 'total_chats', value: summary.totalChats || 0 },
+          { section: 'headline', key: 'fallback_rate_percent', value: summary.fallbackRate || 0 },
+          { section: 'headline', key: 'low_confidence_rate_percent', value: summary.lowConfidenceRate || 0 }
+        ];
+        rows = [...headlineRows, ...intentRows, ...unansweredRows, ...topicRows];
+        break;
+      }
+      case 'applications': rows = await runQuery('SELECT * FROM applications'); break;
+      case 'lessons': rows = await runQuery('SELECT * FROM lessons'); break;
+      case 'reports': rows = await runQuery('SELECT * FROM lesson_reports'); break;
+      case 'recordings': rows = await runQuery('SELECT * FROM recordings'); break;
+      case 'content': rows = await runQuery('SELECT * FROM site_content'); break;
+      default: return res.status(400).send('Unknown export type');
+    }
+    if (fmt === 'json') {
+      res.setHeader('Content-Type', 'application/json');
+      res.send(JSON.stringify(rows));
+    } else {
+      const csv = toCSV(rows);
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${type}.csv"`);
+      res.send(csv);
+    }
+  } catch (e) {
+    console.error('export error', e);
+    res.status(500).send('Export failed');
+  }
+});
+
+// ============ MARKETPLACE ROUTES ============
+
+const {
+  uploadContent, addContentVersion, createPack, getContentById, searchContent,
+  createTransaction, updateTransactionPayment, toggleFavorite, addReview,
+  getCreatorContent, publishContent, recordDownload, calculateMonthlyEarnings
+} = require('./lib/marketplace');
+
+const MARKETPLACE_PLATFORM_COMMISSION_RATE = Number(process.env.MARKETPLACE_COMMISSION_RATE || 0.30);
+
+app.get('/marketplace/seller/apply', requireLogin, async (req, res) => {
+  try {
+    const user = req.getUser();
+    if (!user) return res.redirect('/login');
+    if (req.getUserRole() === 'creator' || req.getUserRole() === 'admin') {
+      return res.redirect('/marketplace/creator/dashboard?message=' + encodeURIComponent('Your creator account is active.'));
+    }
+    const rows = await runQuery('SELECT * FROM seller_applications WHERE user_id = ? ORDER BY created_at DESC LIMIT 1', [user.id]);
+    const application = rows[0] || null;
+    res.render('marketplace/seller-apply', {
+      application,
+      message: req.query.message || '',
+      error: req.query.error || '',
+      csrfToken: generateCsrfToken(req)
+    });
+  } catch (err) {
+    console.error('seller apply page error', err);
+    res.status(500).send('Unable to load seller application page');
+  }
+});
+
+app.post('/marketplace/seller/apply', requireLogin, upload.single('sample_file'), async (req, res) => {
+  try {
+    const user = req.getUser();
+    if (!user) return res.redirect('/login');
+    if (req.getUserRole() === 'creator' || req.getUserRole() === 'admin') {
+      return res.redirect('/marketplace/creator/dashboard?message=' + encodeURIComponent('Your creator account is already active.'));
+    }
+
+    const displayName = String(req.body.display_name || '').trim() || user.name;
+    const payoutEmail = String(req.body.payout_email || '').trim() || user.email;
+    const motivation = String(req.body.motivation || '').trim();
+    if (!motivation) {
+      return res.redirect('/marketplace/seller/apply?error=' + encodeURIComponent('Please tell us about your content and publishing goals.'));
+    }
+
+    const latest = await runQueryOne('SELECT status FROM seller_applications WHERE user_id = ? ORDER BY created_at DESC LIMIT 1', [user.id]);
+    if (latest && latest.status === 'pending') {
+      return res.redirect('/marketplace/seller/apply?error=' + encodeURIComponent('You already have a pending seller application.'));
+    }
+
+    const samplePath = req.file ? `/uploads/${path.basename(req.file.path)}` : null;
+    const now = new Date().toISOString();
+    await runExec(
+      'INSERT INTO seller_applications (id, user_id, display_name, payout_email, motivation, sample_path, status, review_notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [uuidv4(), user.id, displayName, payoutEmail, motivation, samplePath, 'pending', '', now, now]
+    );
+
+    res.redirect('/marketplace/seller/apply?message=' + encodeURIComponent('Application submitted. We will review and verify your creator account soon.'));
+  } catch (err) {
+    console.error('seller apply submit error', err);
+    res.redirect('/marketplace/seller/apply?error=' + encodeURIComponent('Failed to submit seller application.'));
+  }
+});
+
+// Test route to verify creator access setup
+app.get('/marketplace/creator/test', (req, res) => {
+  const user = req.getUser();
+  const role = req.getUserRole();
+  res.json({
+    userExists: !!user,
+    userId: user?.id,
+    userName: user?.name,
+    userRole: role,
+    hasProfile: user?.profile_complete,
+    isCreator: role === 'creator' || role === 'admin',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Marketplace browse
+app.get('/marketplace', async (req, res) => {
+  try {
+    const minPriceRaw = req.query.minPrice;
+    const maxPriceRaw = req.query.maxPrice;
+    const filters = {
+      search: req.query.search || '',
+      category: req.query.category || '',
+      minPrice: minPriceRaw === undefined || minPriceRaw === '' ? undefined : parseFloat(minPriceRaw),
+      maxPrice: maxPriceRaw === undefined || maxPriceRaw === '' ? undefined : parseFloat(maxPriceRaw),
+      sortBy: req.query.sortBy || 'newest',
+      page: parseInt(req.query.page || 0),
+      limit: 20
+    };
+    
+    const items = await searchContent(filters);
+    const allCount = await searchContent({ ...filters, limit: 999999, page: 0 });
+    
+    res.render('marketplace/index', {
+      items,
+      total: allCount.length,
+      category: filters.category,
+      search: filters.search,
+      minPrice: filters.minPrice,
+      maxPrice: filters.maxPrice,
+      page: filters.page,
+      csrfToken: generateCsrfToken(req)
+    });
+  } catch (err) {
+    console.error('Marketplace browse error:', err);
+    res.status(500).send('Error loading marketplace');
+  }
+});
+
+// Marketplace detail
+app.get('/marketplace/:contentId', async (req, res, next) => {
+  try {
+    if (req.params.contentId === 'upload') {
+      return next();
+    }
+
+    const content = await getContentById(req.params.contentId);
+    if (!content) {
+      return res.status(404).send('Content not found');
+    }
+    
+    const currentUser = req.getUser();
+    let favorite = false, canDownload = false, isPurchased = false;
+    if (currentUser) {
+      // Check if favorited
+      const fav = await runQueryOne(
+        'SELECT id FROM marketplace_favorites WHERE user_id = ? AND content_id = ?',
+        [currentUser.id, content.id]
+      );
+      favorite = !!fav;
+      
+      // Check if purchased
+      const txn = await runQueryOne(
+        'SELECT id FROM marketplace_transactions WHERE buyer_id = ? AND content_id = ? AND payment_status = ?',
+        [currentUser.id, content.id, 'completed']
+      );
+      isPurchased = !!txn;
+      
+      // Require account before any download (free or paid)
+      if (content.versions && content.versions.find(v => v.version_type === 'free')) {
+        canDownload = true;
+      }
+    }
+    
+    res.render('marketplace/detail', {
+      item: content,
+      favorite,
+      canDownload,
+      isPurchased,
+      isLoggedIn: !!currentUser,
+      canReview: content.source !== 'products' && (isPurchased || canDownload),
+      csrfToken: generateCsrfToken(req)
+    });
+  } catch (err) {
+    console.error('Marketplace detail error:', err);
+    res.status(500).send('Error loading content');
+  }
+});
+
+// Upload content form
+app.get('/marketplace/upload', requireCreatorAccess, (req, res) => {
+  res.render('marketplace/upload', { csrfToken: generateCsrfToken(req), message: req.query.message || '', error: req.query.error || '' });
+});
+
+// Handle upload
+app.post('/marketplace/upload', requireCreatorAccess, upload.fields([
+  { name: 'file', maxCount: 1 },
+  { name: 'thumbnail', maxCount: 1 }
+]), async (req, res) => {
+  try {
+    const currentUser = req.getUser();
+    if (!currentUser) return res.redirect('/login');
+    const { title, description, category, tags, offerFree, freeVersionType, offerPaid, paidPrice, licenseType } = req.body;
+    
+    if (!title || !category || !req.files?.file) {
+      return res.redirect('/marketplace/upload?error=Missing required fields');
+    }
+    
+    if (!offerFree && !offerPaid) {
+      return res.redirect('/marketplace/upload?error=Must offer free or paid version');
+    }
+    
+    // Upload main file
+    const mainFile = req.files.file[0];
+    const mainPath = `/uploads/${mainFile.filename}`;
+    
+    // Upload thumbnail if provided
+    let thumbPath = null;
+    if (req.files.thumbnail) {
+      const thumb = req.files.thumbnail[0];
+      thumbPath = `/uploads/${thumb.filename}`;
+    }
+    
+    // Create content record
+    const contentId = await uploadContent(
+      currentUser.id,
+      title,
+      description || '',
+      category,
+      mainPath,
+      thumbPath,
+      tags || ''
+    );
+    
+    // Add free version
+    if (offerFree) {
+      await addContentVersion(contentId, 'free', mainPath, 0, freeVersionType || 'personal');
+    }
+    
+    // Add paid version
+    if (offerPaid && paidPrice) {
+      await addContentVersion(contentId, 'paid', mainPath, parseFloat(paidPrice), licenseType || 'personal');
+    }
+    
+    res.redirect(`/marketplace/${contentId}?message=Content uploaded! Share the link to get downloads.`);
+  } catch (err) {
+    console.error('Upload error:', err);
+    res.status(500).redirect('/marketplace/upload?error=Upload failed');
+  }
+});
+
+// Download content
+app.post('/marketplace/:contentId/download/:versionId', requireLogin, async (req, res) => {
+  try {
+    const currentUser = req.getUser();
+    if (!currentUser) return res.redirect('/login');
+    const { contentId, versionId } = req.params;
+    const content = await getContentById(contentId);
+    
+    const version = await runQueryOne(
+      'SELECT * FROM marketplace_versions WHERE id = ? AND content_id = ?',
+      [versionId, contentId]
+    );
+
+    const productVersion = !version && content && content.source === 'products' && content.versions && content.versions[0] && content.versions[0].id === versionId
+      ? content.versions[0]
+      : null;
+    
+    if (!version && !productVersion) {
+      return res.status(404).send('Version not found');
+    }
+    
+    // For paid versions, check purchase
+    const resolvedVersion = version || productVersion;
+    if (resolvedVersion.version_type === 'paid') {
+      const purchased = await runQueryOne(
+        'SELECT id FROM marketplace_transactions WHERE buyer_id = ? AND content_id = ? AND payment_status = ?',
+        [currentUser.id, contentId, 'completed']
+      );
+      if (!purchased) {
+        return res.status(403).send('You must purchase this content first');
+      }
+    }
+    
+    // Record download
+    await recordDownload(contentId, currentUser.id);
+    
+    // Stream file
+    const filePath = version
+      ? path.join(__dirname, 'public', version.file_path)
+      : path.join(__dirname, 'uploads', path.basename(productVersion.file_path));
+    res.download(filePath, `${contentId}.zip`);
+  } catch (err) {
+    console.error('Download error:', err);
+    res.status(500).send('Download failed');
+  }
+});
+
+// Purchase content (initiate Stripe payment)
+app.post('/marketplace/:contentId/purchase/:versionId', requireLogin, async (req, res) => {
+  try {
+    const currentUser = req.getUser();
+    if (!currentUser) return res.redirect('/login');
+    
+    const { contentId, versionId } = req.params;
+    const content = await getContentById(contentId);
+    
+    const version = await runQueryOne(
+      'SELECT * FROM marketplace_versions WHERE id = ? AND content_id = ?',
+      [versionId, contentId]
+    );
+    const productVersion = !version && content && content.source === 'products' && content.versions && content.versions[0] && content.versions[0].id === versionId
+      ? content.versions[0]
+      : null;
+
+    if ((!version && !productVersion) || !content) return res.status(404).send('Not found');
+    
+    const resolvedVersion = version || productVersion;
+    const grossAmount = Number(resolvedVersion.price || 0);
+    const platformCommission = Number((grossAmount * MARKETPLACE_PLATFORM_COMMISSION_RATE).toFixed(2));
+    const creatorGross = Number((grossAmount - platformCommission).toFixed(2));
+
+    // Create transaction record
+    const txnId = await createTransaction(
+      currentUser.id,
+      content.creator_id,
+      contentId,
+      null,
+      'content_purchase',
+      grossAmount
+    );
+    
+    if (!stripe) {
+      await runExec(
+        'UPDATE marketplace_transactions SET payment_status = ? WHERE id = ?',
+        ['completed', txnId]
+      );
+      return res.redirect(`/marketplace/${contentId}?message=${encodeURIComponent('Purchase successful! Your download is now unlocked.')}`);
+    }
+
+    // Create Stripe session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: { name: `${content.title} (Premium)` },
+          unit_amount: Math.round(grossAmount * 100)
+        },
+        quantity: 1
+      }],
+      mode: 'payment',
+      success_url: `${req.protocol}://${req.get('host')}/marketplace/${contentId}?message=Purchase successful!`,
+      cancel_url: `${req.protocol}://${req.get('host')}/marketplace/${contentId}?error=Payment cancelled`,
+      metadata: {
+        transactionId: txnId,
+        contentId,
+        grossAmount: String(grossAmount),
+        platformCommission: String(platformCommission),
+        creatorGross: String(creatorGross),
+        platformCommissionRate: String(MARKETPLACE_PLATFORM_COMMISSION_RATE)
+      }
+    });
+    
+    res.redirect(session.url);
+  } catch (err) {
+    console.error('Purchase error:', err);
+    res.status(500).send('Purchase failed');
+  }
+});
+
+// Stripe webhook for payments
+app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    if (!stripe) return res.status(400).send('Not configured');
+    
+    const sig = req.headers['stripe-signature'];
+    const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      const { transactionId } = session.metadata;
+      
+      if (transactionId) {
+        await updateTransactionPayment(transactionId, 'completed', session.payment_intent);
+        const txn = await runQueryOne('SELECT seller_id, created_at FROM marketplace_transactions WHERE id = ?', [transactionId]);
+        if (txn && txn.seller_id && txn.created_at) {
+          const d = new Date(txn.created_at);
+          await calculateMonthlyEarnings(txn.seller_id, d.getUTCFullYear(), d.getUTCMonth() + 1);
+        }
+      }
+    }
+    
+    res.json({ received: true });
+  } catch (err) {
+    console.error('Webhook error:', err);
+    res.status(400).send('Webhook error');
+  }
+});
+
+// Toggle favorite
+app.post('/marketplace/:contentId/favorite', requireLogin, async (req, res) => {
+  try {
+    const currentUser = req.getUser();
+    if (!currentUser) return res.status(401).json({ error: 'unauth' });
+    const added = await toggleFavorite(currentUser.id, req.params.contentId);
+    res.json({ favorited: added });
+  } catch (err) {
+    console.error('Favorite error:', err);
+    res.status(500).json({ error: 'Failed' });
+  }
+});
+
+// Add review
+app.post('/marketplace/:contentId/review', requireLogin, async (req, res) => {
+  try {
+    const currentUser = req.getUser();
+    if (!currentUser) return res.redirect('/login');
+    const { rating, comment } = req.body;
+    if (!rating) return res.status(400).send('Rating required');
+
+    const content = await getContentById(req.params.contentId);
+    if (content && content.source === 'products') {
+      return res.redirect(`/marketplace/${req.params.contentId}?message=Thanks for your feedback!`);
+    }
+
+    await addReview(req.params.contentId, currentUser.id, parseInt(rating), comment || '');
+    res.redirect(`/marketplace/${req.params.contentId}?message=Review posted!`);
+  } catch (err) {
+    console.error('Review error:', err);
+    res.status(500).send('Review failed');
+  }
+});
+
+// Creator dashboard
+app.get('/marketplace/creator/dashboard', requireCreatorAccess, async (req, res) => {
+  try {
+    const currentUser = req.getUser();
+    console.log('Creator dashboard accessed. User:', currentUser?.id, 'Role:', req.getUserRole());
+    
+    if (!currentUser) {
+      console.log('No user found, redirecting to login');
+      return res.redirect('/login');
+    }
+    
+    const content = await getCreatorContent(currentUser.id);
+    const salesRows = await runQuery(
+      'SELECT amount, created_at FROM marketplace_transactions WHERE seller_id = ? AND payment_status = ? ORDER BY created_at DESC',
+      [currentUser.id, 'completed']
+    );
+    const grossSales = salesRows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const platformCommission = Number((grossSales * MARKETPLACE_PLATFORM_COMMISSION_RATE).toFixed(2));
+    const estimatedCreatorGross = Number((grossSales - platformCommission).toFixed(2));
+
+    console.log('Creator dashboard rendering. Content count:', content?.length, 'Sales:', salesRows?.length);
+    
+    res.render('marketplace/creator-dashboard', {
+      content,
+      earnings: {
+        totalSales: salesRows.length,
+        grossSales: Number(grossSales.toFixed(2)),
+        platformCommission,
+        estimatedCreatorGross,
+        commissionRatePercent: Math.round(MARKETPLACE_PLATFORM_COMMISSION_RATE * 100)
+      },
+      message: req.query.message || '',
+      error: req.query.error || '',
+      csrfToken: generateCsrfToken(req)
+    });
+  } catch (err) {
+    console.error('Creator dashboard error:', err);
+    res.status(500).send('Error loading dashboard');
+  }
+});
+
+// Publish content
+app.post('/marketplace/:contentId/publish', requireCreatorAccess, async (req, res) => {
+  try {
+    const currentUser = req.getUser();
+    if (!currentUser) return res.redirect('/login');
+    const content = await getContentById(req.params.contentId);
+    if (!content || content.creator_id !== currentUser.id) {
+      return res.status(403).send('Unauthorized');
+    }
+    
+    await publishContent(req.params.contentId, 'published');
+    res.redirect(`/marketplace/${req.params.contentId}?message=Content published!`);
+  } catch (err) {
+    console.error('Publish error:', err);
+    res.status(500).send('Publish failed');
+  }
+});
+
+// Prepare Next and start server
+// Start server when run directly; otherwise export `app` for tests
+if (require.main === module) {
+  nextApp.prepare().then(() => {
+    // Fallback to Next for any routes not handled by Express (API/static)
+    app.all('*', (req, res) => {
+      return nextHandle(req, res);
+    });
+
+    if (USE_HTTPS) {
+      const https = require('https');
+      try {
+        const key = fs.readFileSync(process.env.SSL_KEY);
+        const cert = fs.readFileSync(process.env.SSL_CERT);
+        https.createServer({ key, cert }, app).listen(PORT, () => console.log(`HTTPS server running on https://localhost:${PORT}`));
+      } catch (e) {
+        console.error('Failed to read SSL_KEY/SSL_CERT files, falling back to HTTP:', e);
+        app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+      }
+    } else {
+      app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+    }
+  }).catch(err => {
+    console.error('Error preparing Next:', err);
+    process.exit(1);
+  });
+} else {
+  // when required as a module (e.g., in tests), export the app
+  module.exports = app;
+}
