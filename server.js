@@ -1,6 +1,6 @@
 const path = require('path');
 const fs = require('fs');
-require('dotenv').config(); // Load environment variables first
+require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
@@ -25,130 +25,127 @@ const os = require('os');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-
-// Security / HTTPS helpers
 const USE_HTTPS = !!(process.env.SSL_KEY && process.env.SSL_CERT);
 const FORCE_HTTPS = process.env.FORCE_HTTPS === 'true';
 const TRUST_PROXY = process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true';
 const COOKIE_SAMESITE = process.env.COOKIE_SAMESITE || (process.env.NODE_ENV === 'production' ? 'none' : 'lax');
 const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || undefined;
-if (TRUST_PROXY) app.set('trust proxy', 1);
-else if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
+if (TRUST_PROXY) app.set('trust proxy', 1); else if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
 
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOADS_DIR),
-  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
-});
-const upload = multer({ storage });
-
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
-app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(UPLOADS_DIR));
-
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "cdn.tiny.cloud", "cdn.jsdelivr.net", "https://js.stripe.com"],
-      scriptSrcAttr: ["'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "cdn.tiny.cloud", "cdn.jsdelivr.net", "fonts.googleapis.com"],
-      imgSrc: ["'self'", "data:", "blob:", "https:"],
-      fontSrc: ["'self'", "fonts.gstatic.com", "data:"],
-      connectSrc: ["'self'", "https://api.stripe.com"],
-      frameSrc: ["'self'", "https://js.stripe.com", "https://hooks.stripe.com"],
-    },
-  },
-  hsts: { maxAge: 63072000, includeSubDomains: true, preload: true },
-}));
-
-const authLimiter = rateLimit({windowMs:15*60*1000,max:5,message:'Too many login attempts, please try again later.',standardHeaders:true,legacyHeaders:false,skipSuccessfulRequests:true});
-const adminLimiter = rateLimit({windowMs:15*60*1000,max:20,message:'Too many admin login attempts, please try again later.',standardHeaders:true,legacyHeaders:false,skipSuccessfulRequests:true});
-const generalLimiter = rateLimit({windowMs:15*60*1000,max:500,standardHeaders:true,legacyHeaders:false});
+const storage = multer.diskStorage({destination:(req,file,cb)=>cb(null,UPLOADS_DIR),filename:(req,file,cb)=>cb(null,`${Date.now()}-${file.originalname}`)});
+const upload = multer({storage});
+app.set('view engine','ejs');
+app.set('views',path.join(__dirname,'views'));
+app.use(express.static(path.join(__dirname,'public')));
+app.use('/uploads',express.static(UPLOADS_DIR));
+app.use(helmet({contentSecurityPolicy:{directives:{defaultSrc:["'self'"],scriptSrc:["'self'","'unsafe-inline'","'unsafe-eval'","cdn.tiny.cloud","cdn.jsdelivr.net","https://js.stripe.com"],scriptSrcAttr:["'unsafe-inline'"],styleSrc:["'self'","'unsafe-inline'","cdn.tiny.cloud","cdn.jsdelivr.net","fonts.googleapis.com"],imgSrc:["'self'","data:","blob:","https:"],fontSrc:["'self'","fonts.gstatic.com","data:"],connectSrc:["'self'","https://api.stripe.com"],frameSrc:["'self'","https://js.stripe.com","https://hooks.stripe.com"]}},hsts:{maxAge:63072000,includeSubDomains:true,preload:true}}));
+const authLimiter=rateLimit({windowMs:15*60*1000,max:5,message:'Too many login attempts, please try again later.',standardHeaders:true,legacyHeaders:false,skipSuccessfulRequests:true});
+const adminLimiter=rateLimit({windowMs:15*60*1000,max:20,message:'Too many admin login attempts, please try again later.',standardHeaders:true,legacyHeaders:false,skipSuccessfulRequests:true});
+const generalLimiter=rateLimit({windowMs:15*60*1000,max:500,standardHeaders:true,legacyHeaders:false});
 app.use(generalLimiter);
-
-app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.urlencoded({extended:false}));
 app.use(bodyParser.json());
-app.use(cors({ origin: true, credentials: true }));
-
-if (FORCE_HTTPS || process.env.NODE_ENV === 'production') {
-  app.use((req, res, next) => {
-    const forwarded = req.headers['x-forwarded-proto'];
-    const isSecure = (req.connection && req.connection.encrypted) || forwarded === 'https' || req.protocol === 'https';
-    if (!isSecure) return res.redirect(301, `https://${req.get('host')}${req.originalUrl}`);
-    next();
-  });
-}
-
-app.use(session({
-  store: new SQLiteStore({ db: 'sessions.sqlite' }),
-  secret: process.env.SESSION_SECRET || 'very-secret-key',
-  resave: false,
-  saveUninitialized: false,
-  proxy: true,
-  cookie: {maxAge:1000*60*60*24,secure:!!(USE_HTTPS||process.env.NODE_ENV==='production'),sameSite:COOKIE_SAMESITE==='none'?'none':'lax',domain:COOKIE_DOMAIN||undefined}
-}));
-
-app.use((req, res, next) => {
-  const tabId = req.headers['x-tab-id'] || 'default-tab';
-  if (!req.session.tabs) req.session.tabs = {};
-  if (!req.session.tabs[tabId]) req.session.tabs[tabId] = {createdAt:new Date(),user:null,role:null,lastActive:new Date()};
-  req.session.tabs[tabId].lastActive = new Date();
-  req.currentTabUser = req.session.tabs[tabId].user;
-  req.currentTabRole = req.session.tabs[tabId].role;
-  req.tabId = tabId;
-  req.getUser = function(){ return req.currentTabUser || req.session.user || null; };
-  req.getUserRole = function(){ return req.currentTabRole || (req.session.user && req.session.user.role) || null; };
-  res.locals.user = req.getUser();
-  res.locals.isAdmin = req.getUserRole() === 'admin';
-  next();
-});
-
+app.use(cors({origin:true,credentials:true}));
+if(FORCE_HTTPS||process.env.NODE_ENV==='production')app.use((req,res,next)=>{const forwarded=req.headers['x-forwarded-proto'];const isSecure=(req.connection&&req.connection.encrypted)||forwarded==='https'||req.protocol==='https';if(!isSecure)return res.redirect(301,`https://${req.get('host')}${req.originalUrl}`);next();});
+app.use(session({store:new SQLiteStore({db:'sessions.sqlite'}),secret:process.env.SESSION_SECRET||'very-secret-key',resave:false,saveUninitialized:false,proxy:true,cookie:{maxAge:1000*60*60*24,secure:!!(USE_HTTPS||process.env.NODE_ENV==='production'),sameSite:COOKIE_SAMESITE==='none'?'none':'lax',domain:COOKIE_DOMAIN||undefined}}));
+app.use((req,res,next)=>{const tabId=req.headers['x-tab-id']||'default-tab';if(!req.session.tabs)req.session.tabs={};if(!req.session.tabs[tabId])req.session.tabs[tabId]={createdAt:new Date(),user:null,role:null,lastActive:new Date()};req.session.tabs[tabId].lastActive=new Date();req.currentTabUser=req.session.tabs[tabId].user;req.currentTabRole=req.session.tabs[tabId].role;req.tabId=tabId;req.getUser=()=>req.currentTabUser||req.session.user||null;req.getUserRole=()=>req.currentTabRole||(req.session.user&&req.session.user.role)||null;res.locals.user=req.getUser();res.locals.isAdmin=req.getUserRole()==='admin';next();});
 app.use(cookieParser());
-const crypto = require('crypto');
+const crypto=require('crypto');
 function generateCsrfToken(req){if(!req.session.csrfSecret)req.session.csrfSecret=crypto.randomBytes(32).toString('hex');return crypto.createHmac('sha256',req.session.csrfSecret).update(req.sessionID).digest('hex');}
 function verifyCsrfToken(req){const token=(req.body&&req.body._csrf)||req.headers['x-csrf-token'];if(!token||!req.session.csrfSecret)return false;const expected=crypto.createHmac('sha256',req.session.csrfSecret).update(req.sessionID).digest('hex');return token===expected;}
-const csrfProtection=(req,res,next)=>{const contentType=String(req.headers['content-type']||'').toLowerCase();if(contentType.includes('multipart/form-data'))return next();const csrfExempt=['/signup','/login','/api/cart/add','/api/cart/remove','/api/cart/clear','/api/cart','/api/session','/api/products','/api/content','/api/curriculum','/api/chat','/admin/media/upload','/admin/media/delete','/admin/products','/marketplace/upload','/marketplace/seller/apply'];const csrfExemptPrefixes=['/admin/products/'];if(csrfExempt.includes(req.path)||csrfExemptPrefixes.some(prefix=>req.path.startsWith(prefix)))return next();if(['POST','PUT','DELETE','PATCH'].includes(req.method)&&!verifyCsrfToken(req)){console.warn(`[CSRF] Token mismatch for ${req.path}. Body:`,req.body?Object.keys(req.body):'no body');const view=req.path.includes('signup')?'signup':(req.path.includes('admin')?'admin/login':'login');return res.status(403).render(view,{error:'Security check failed. Please refresh and try again.',csrfToken:generateCsrfToken(req),isAdmin:false,cartItems:[]});}next();};
+const csrfProtection=(req,res,next)=>{const type=String(req.headers['content-type']||'').toLowerCase();if(type.includes('multipart/form-data'))return next();const exempt=['/signup','/login','/api/cart/add','/api/cart/remove','/api/cart/clear','/api/cart','/api/session','/api/products','/api/content','/api/curriculum','/api/chat','/admin/media/upload','/admin/media/delete','/admin/products','/marketplace/upload','/marketplace/seller/apply'];if(exempt.includes(req.path)||req.path.startsWith('/admin/products/'))return next();if(['POST','PUT','DELETE','PATCH'].includes(req.method)&&!verifyCsrfToken(req)){const view=req.path.includes('signup')?'signup':(req.path.includes('admin')?'admin/login':'login');return res.status(403).render(view,{error:'Security check failed. Please refresh and try again.',csrfToken:generateCsrfToken(req),isAdmin:false,cartItems:[]});}next();};
 app.use(csrfProtection);
+const requireCompleteProfile=async(req,res,next)=>{const user=req.session.tabs?.[req.tabId]?.user||req.session.user;const needs=req.path.includes('/marketplace/upload')||req.path.includes('/download/')||req.path.includes('/marketplace/creator')||req.path==='/downloads';if(needs&&user){try{const row=await runQueryOne('SELECT profile_complete FROM users WHERE id = ?',[user.id]);if(!row||!row.profile_complete)return res.redirect('/profile/create?message='+encodeURIComponent('Please complete your profile before uploading or downloading content.'));}catch(e){console.error('Profile check error:',e);}}next();};
+app.use(requireCompleteProfile);
+app.use(async(req,res,next)=>{try{if(!req.session.cart||typeof req.session.cart!=='object'||Array.isArray(req.session.cart))req.session.cart={};Object.keys(req.session.cart).forEach(k=>{const q=Number(req.session.cart[k]);if(!q||q<=0||isNaN(q))delete req.session.cart[k];else req.session.cart[k]=q;});const ids=Object.keys(req.session.cart);let items=[],count=0;if(ids.length){const rows=await runQuery(`SELECT * FROM products WHERE id IN (${ids.map(()=>'?').join(',')})`,ids);items=rows.map(r=>({...r,qty:req.session.cart[r.id]||0}));count=items.reduce((s,i)=>s+(Number(i.qty)||0),0);}res.locals.cartCount=count;res.locals.cartItems=items;}catch(e){console.error('Cart middleware error:',e);req.session.cart={};res.locals.cartCount=0;res.locals.cartItems=[];}res.locals.csrfToken=generateCsrfToken(req);next();});
 
+app.use((err,req,res,next)=>{try{console.error('[Error]',err&&err.stack?err.stack:err);const view=req.path&&req.path.includes('signup')?'signup':(req.path&&req.path.includes('admin')?'admin/login':'login');res.status(500).render(view,{error:'An error occurred. Please refresh and try again.',csrfToken:generateCsrfToken(req),isAdmin:false,cartItems:[]});}catch(e){res.status(500).send('Server error');}});
 initDatabase();
 
-// Existing application/login/admin initialization and all other routes remain unchanged.
-// The tutor directory below intentionally reads the same live users/profile data used by the admin area.
+async function seedAdminUser(){const adminId='admin-1',adminEmail=process.env.ADMIN_EMAIL||'admin@modernpedagogues.com',adminPassword=process.env.ADMIN_PASSWORD||'passwod',adminUsername=process.env.ADMIN_USERNAME||'admin',hashedTarget=bcrypt.hashSync(adminPassword,10);try{const existing=await runQueryOne('SELECT * FROM users WHERE id = ?',[adminId]);if(!existing)await runExec('INSERT INTO users (id,name,email,password,plain_password,role) VALUES (?,?,?,?,?,?)',[adminId,'Admin',adminEmail,hashedTarget,adminPassword,'admin']);else await runExec('UPDATE users SET password=?,plain_password=? WHERE id=?',[hashedTarget,adminPassword,adminId]);}catch(err){console.error('Error seeding admin user:',err);}}
+async function seedSiteContent(){try{for(const page of ['home','tutors','curriculum','about'])for(const n of [1,2,3]){const key=`${page}_slide_${n}`;if(!(await runQueryOne('SELECT * FROM site_content WHERE key=?',[key])))await runExec('INSERT INTO site_content (key,value) VALUES (?,?)',[key,'']);}}catch(err){console.error('Error seeding site content:',err);}}
+seedAdminUser();seedSiteContent();
+async function seedSampleData(){try{const lessons=await runQuery('SELECT count(*) as c FROM lessons');if(lessons&&lessons[0]&&lessons[0].c<5){const studentId='student-1',tutorId='tutor-1',hashed=bcrypt.hashSync('password',10);await runExec('INSERT INTO users (id,name,email,password,role) VALUES (?,?,?,?,?) ON CONFLICT(id) DO NOTHING',[studentId,'Test Student','student@example.com',hashed,'user']);await runExec('INSERT INTO users (id,name,email,password,role) VALUES (?,?,?,?,?) ON CONFLICT(id) DO NOTHING',[tutorId,'Test Tutor','tutor@example.com',hashed,'tutor']);await runExec('INSERT INTO teachers (id,name,email,bio,subjects) VALUES (?,?,?,?,?) ON CONFLICT(id) DO NOTHING',[tutorId,'Test Tutor','tutor@example.com','Experienced tutor','Math,Science']);}}catch(err){console.error('Seed sample data error:',err);}}
+seedSampleData();
+async function seedDemoProducts(){try{const products=await runQuery('SELECT count(*) as c FROM products');if(products&&products[0]&&products[0].c<5){const demo=[['Primary Mathematics Workbook','Practice exercises aligned to the curriculum for Primary learners.',30,'/images/book-primary.svg'],['JHS English Comprehension Pack','Reading passages and comprehension questions for JHS learners.',45,'/images/book-jhs-english.svg'],['SHS Science Revision Guide','Concise revision notes and past questions for SHS science students.',60,'/images/book-shs-science.svg'],['IGCSE Maths Problem Solving','Targeted problem sets and mark schemes for IGCSE Maths.',85,'/images/book-igcse-maths.svg'],['Tutor Resource Pack (Digital)','Editable worksheets, lesson plans and assessments.',20,'/images/book-tutor-pack.svg']];for(const p of demo)await runExec('INSERT INTO products (id,title,description,price,image_path) VALUES (?,?,?,?,?)',[uuidv4(),...p]);}}catch(err){console.error('Seed demo products error:',err);}}
+seedDemoProducts();
 
-async function loadContent(res){const content=await runQuery('SELECT key, value FROM site_content');const contentMap={};content.forEach(row=>{contentMap[row.key]=row.value;});res.locals.content=function(key,defaultValue=''){const val=contentMap[key]!==undefined&&contentMap[key]!==''?contentMap[key]:defaultValue;return val;};}
+function requireAuth(req,res,next){if(req.getUser())return next();if(req.path.startsWith('/api/'))return res.status(401).json({error:'unauth'});return res.redirect('/login');}
+const requireLogin=requireAuth;
+function requireRole(role){return(req,res,next)=>{if(req.getUserRole()===role)return next();if(req.path.startsWith('/api/'))return res.status(403).json({error:'forbidden'});res.status(403).send('Forbidden');};}
+function requireAnyRole(roles){return(req,res,next)=>{if(roles.includes(req.getUserRole()))return next();if(req.path.startsWith('/api/'))return res.status(403).json({error:'forbidden'});res.status(403).send('Forbidden');};}
+function requireCreatorAccess(req,res,next){const user=req.getUser();if(!user)return res.redirect('/login');const role=req.getUserRole();if(role==='creator'||role==='admin')return next();return res.redirect('/marketplace/seller/apply?error='+encodeURIComponent('Creator verification required before uploading.'));}
+async function loadContent(res){const rows=await runQuery('SELECT key,value FROM site_content');const map={};rows.forEach(r=>map[r.key]=r.value);res.locals.content=(key,def='')=>map[key]!==undefined&&map[key]!==''?map[key]:def;}
+function toCSV(rows){if(!rows||!rows.length)return '';const headers=Object.keys(rows[0]);const esc=v=>{if(v==null)return '';return '"'+String(v).replace(/"/g,'""')+'"';};return [headers.join(','),...rows.map(r=>headers.map(h=>esc(r[h])).join(','))].join(os.EOL);}
 
-app.get('/tutors', async (req,res) => {
-  try {
-    await loadContent(res);
-    const slides = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'tutors_slide_%' ORDER BY key");
-    const tutorRows = await runQuery(`
-      SELECT u.id, u.name, u.email, up.bio, up.avatar_path, up.location, up.occupation,
-             t.bio AS teacher_bio, t.subjects
-      FROM users u
-      LEFT JOIN user_profiles up ON up.user_id = u.id
-      LEFT JOIN teachers t ON t.id = u.id
-      WHERE u.role = 'tutor'
-      ORDER BY u.name COLLATE NOCASE ASC
-    `);
-    const managedTutors = tutorRows.map(t => ({
-      id: t.id,
-      name: t.name,
-      image: t.avatar_path || '/images/tutor-placeholder.svg',
-      role: t.occupation || 'Professional Tutor',
-      subjects: t.subjects || '',
-      bio: t.teacher_bio || t.bio || '',
-      location: t.location || '',
-      profileUrl: `/tutors/${encodeURIComponent(t.id)}`
-    }));
-    res.render('tutors', { slides, managedTutors });
-  } catch (err) {
-    console.error('Tutor directory error:', err);
-    res.status(500).render('tutors', { slides: [], managedTutors: [] });
-  }
-});
+app.get('/',async(req,res)=>{await loadContent(res);const slides=await runQuery("SELECT key,value FROM site_content WHERE key LIKE 'home_slide_%' ORDER BY key"),products=await runQuery('SELECT * FROM products LIMIT 6');res.render('home',{slides,products});});
+app.get('/about',async(req,res)=>{await loadContent(res);const slides=await runQuery("SELECT key,value FROM site_content WHERE key LIKE 'about_slide_%' ORDER BY key"),about=await runQuery('SELECT value FROM site_content WHERE key=?',['about_text']);res.render('about',{slides,about:about[0]?about[0].value:null});});
+app.get('/contact',(req,res)=>res.render('contact'));
+app.post('/contact',(req,res)=>{const {name,email,subject,message}=req.body;dbRun('INSERT INTO messages (id,name,email,subject,message,created_at) VALUES (?,?,?,?,?,?)',[uuidv4(),name,email,subject,message,new Date().toISOString()]);res.render('contact',{success:true});});
+app.get('/apply',(req,res)=>res.render('apply'));
+app.post('/apply',upload.single('cv'),(req,res)=>{const {name,email,phone,message}=req.body;dbRun('INSERT INTO applications (id,name,email,phone,message,cv_path,created_at) VALUES (?,?,?,?,?,?,?)',[uuidv4(),name,email,phone,message,req.file?`/uploads/${path.basename(req.file.path)}`:null,new Date().toISOString()]);res.render('apply',{success:true});});
+app.get('/curriculum',async(req,res)=>{const curr=await runQuery("SELECT key,value FROM site_content WHERE key LIKE 'curriculum_%' AND key NOT LIKE 'curriculum_slide_%'"),slides=await runQuery("SELECT key,value FROM site_content WHERE key LIKE 'curriculum_slide_%' ORDER BY key"),products=await runQuery('SELECT * FROM products');res.render('curriculum',{curr,products,slides});});
 
-// The remainder of the existing server.js route definitions are preserved by the working tree.
+app.get('/tutors',async(req,res)=>{try{await loadContent(res);const slides=await runQuery("SELECT key,value FROM site_content WHERE key LIKE 'tutors_slide_%' ORDER BY key");const tutorRows=await runQuery(`SELECT u.id,u.name,u.email,up.bio,up.avatar_path,up.location,up.occupation,t.bio AS teacher_bio,t.subjects FROM users u LEFT JOIN user_profiles up ON up.user_id=u.id LEFT JOIN teachers t ON t.id=u.id WHERE u.role='tutor' ORDER BY u.name`);const managedTutors=tutorRows.map(t=>({id:t.id,name:t.name,image:t.avatar_path||'/images/tutor-placeholder.svg',role:t.occupation||'Professional Tutor',subjects:t.subjects||'',bio:t.teacher_bio||t.bio||'',location:t.location||'',profileUrl:null}));res.render('tutors',{slides,managedTutors});}catch(err){console.error('Tutor directory error:',err);res.status(500).render('tutors',{slides:[],managedTutors:[]});}});
+app.get('/estore',(req,res)=>res.redirect('/marketplace?category=books'));
+app.get('/faq',async(req,res)=>{await loadContent(res);res.render('faq');});
+
+// AI assistant
+const {queryLLM,isBlockedPrompt,SAFE_BLOCK_TEXT}=require('./tools/llm');
+function tokenizeForMatch(text){const stop=new Set(['the','and','for','with','from','that','this','have','your','you','are','how','what','when','where','which','about','help','please','need','can','do','does','did','our','their','them','then','than','into','also','just','more']);return String(text||'').toLowerCase().split(/[^a-z0-9]+/).filter(t=>t.length>2&&!stop.has(t));}
+function scoreTextMatch(query,candidate){const q=tokenizeForMatch(query),c=String(candidate||'').toLowerCase();if(!q.length||!c)return 0;let s=0;q.forEach(t=>{if(c.includes(t))s+=t.length>5?3:2});if(/price|pricing|cost|fee|pay|payment/.test(query.toLowerCase())&&/ghs|price|pricing|plan/.test(c))s+=4;if(/download|book|resource|purchase|checkout/.test(query.toLowerCase())&&/download|estore|cart|checkout/.test(c))s+=4;if(/tutor|teacher|vett|background|safeguard/.test(query.toLowerCase())&&/tutor|vetted|background|safeguard/.test(c))s+=4;if(/lesson|online|in-home|trial|schedule/.test(query.toLowerCase())&&/lesson|trial|online|in-home|schedule/.test(c))s+=4;return s;}
+function detectClientIntents(text){const m=String(text||'').toLowerCase(),map={pricing:/price|pricing|cost|fee|payment|pay|invoice|billing|premium|starter|regular|plan|package/,booking:/book|booking|schedule|reschedule|trial|lesson time|availability|start|get started|sign up/,tutor_quality:/tutor|teacher|vett|background|qualified|safeguard|safety/,downloads:/download|downloads|resource|file|expired|purchase|checkout|estore/,account:/login|sign in|signup|account|password|reset|dashboard/,curriculum:/curriculum|ges|cambridge|ib|igcse|a-level|sat|program/,technical:/error|bug|broken|not working|cannot|can't|failed|issue/,support:/help|support|urgent|complaint|refund|contact/};return Object.entries(map).filter(([,p])=>p.test(m)).map(([i])=>i);}
+function normalizeChatHistory(history){if(!Array.isArray(history))return [];return history.filter(x=>x&&typeof x==='object').map(x=>({role:x.role==='bot'||x.role==='assistant'?'assistant':'user',content:String(x.content||'').trim()})).filter(x=>x.content).slice(-8);}
+function detectIntentsFromConversation(message,history){return Array.from(new Set([...detectClientIntents(message),...detectClientIntents((history||[]).filter(x=>x.role==='user').slice(-3).map(x=>x.content).join(' '))]));}
+function buildHighQualityFallback(topKnowledge,intents){return `${topKnowledge.slice(0,3).map(x=>`• ${x.text}`).join('\n')}\n\n${intents.length?`Detected topics: ${intents.join(', ').replace(/_/g,' ')}.`:'Detected topics: general support.'} If you want, I can guide you step-by-step or connect you to support@modernpedagogues.com.`;}
+async function logAiChatInteraction({message,answer,intents,matchedTopics,matchScore,fallbackUsed}){try{await runExec('INSERT INTO ai_chat_logs (id,message,answer,intents,matched_topics,match_score,fallback_used,created_at) VALUES (?,?,?,?,?,?,?,?)',[uuidv4(),String(message||'').slice(0,2000),String(answer||'').slice(0,6000),intents.join(','),matchedTopics.join(','),Number(matchScore||0),fallbackUsed?1:0,new Date().toISOString()]);}catch(e){console.error('AI chat log write error:',e);}}
+async function buildAiAnalyticsSummary(){try{const rows=await runQuery('SELECT intents,matched_topics,match_score,fallback_used,created_at FROM ai_chat_logs ORDER BY created_at DESC LIMIT 800');const totalChats=rows.length,fallbackCount=rows.filter(r=>Number(r.fallback_used)===1).length,lowConfidenceCount=rows.filter(r=>Number(r.match_score||0)<5).length;return{totalChats,fallbackRate:totalChats?Math.round(fallbackCount/totalChats*100):0,lowConfidenceRate:totalChats?Math.round(lowConfidenceCount/totalChats*100):0,topIntents:[],unansweredIntents:[],topTopics:[]};}catch(e){return{totalChats:0,fallbackRate:0,lowConfidenceRate:0,topIntents:[],unansweredIntents:[],topTopics:[]};}}
+app.post('/api/chat',async(req,res)=>{const message=String(req.body?.message||'').trim().slice(0,1000);const history=normalizeChatHistory(req.body?.history);if(!message)return res.status(400).json({error:'Message is required'});if(isBlockedPrompt(message))return res.json({answer:SAFE_BLOCK_TEXT});const intents=detectIntentsFromConversation(message,history);let faqPairs=[];try{const rows=await runQuery("SELECT key,value FROM site_content WHERE key LIKE 'faq_%'");const grouped={};rows.forEach(r=>{const m=r.key.match(/^faq_([qa])(\d+)/);if(m){grouped[m[2]]=grouped[m[2]]||{};grouped[m[2]][m[1]]=r.value;}});faqPairs=Object.values(grouped).filter(x=>x.q&&x.a);}catch(e){}if(!faqPairs.length)faqPairs=[{q:'What ages do you teach?',a:'We support learners from primary through secondary and also provide adult learning support.'},{q:'Do you offer online lessons?',a:'Yes, we offer both in-home and online lessons via secure video call.'},{q:'How are tutors vetted?',a:'Tutors provide references, interview with our team, and complete an observed session before joining.'}];let siteKnowledge=[];try{const rows=await runQuery('SELECT key,value FROM site_content WHERE value IS NOT NULL AND TRIM(value) <> ""');siteKnowledge=rows.filter(r=>r&&r.key&&r.value).filter(r=>!/_slide_|_img$/.test(r.key)).map(r=>({key:r.key,value:String(r.value).trim()})).slice(0,180);}catch(e){}const staticKnowledge=[{topic:'trial',text:'Trial lessons are 30 minutes and help families assess tutor fit before regular sessions begin. You can request a trial via /contact.'},{topic:'lessons',text:'The platform supports one-to-one tutoring, online and in-home options, curriculum-aligned plans, and flexible scheduling.'},{topic:'pricing',text:'Confirm latest pricing on the home page pricing section.'},{topic:'downloads',text:'Downloadable books/resources become available after checkout and are accessible from /downloads.'},{topic:'tutors',text:'Tutors are vetted through references, interviews, and observed sessions; safeguarding and quality assurance are part of the process.'},{topic:'curriculum',text:'Tutoring can align with GES, Cambridge, IB, and North American pathways, depending on learner needs.'},{topic:'support',text:'For account, billing, booking, or urgent assistance, clients can use /contact or email support@modernpedagogues.com.'}];const all=[...staticKnowledge,...faqPairs.map(p=>({topic:p.q,text:`${p.q} ${p.a}`}),...siteKnowledge.map(x=>({topic:x.key,text:`${x.key.replace(/_/g,' ')}: ${x.value}`}))];const ranked=all.map(k=>({...k,score:scoreTextMatch(message,`${k.topic} ${k.text}`)})).sort((a,b)=>b.score-a.score);const top=ranked.filter(k=>k.score>0).slice(0,8);const context=(top.length?top:staticKnowledge).map(k=>`- ${k.text}`).join('\n');try{const answer=await queryLLM(message,{knowledgeContext:context,supportContact:'support@modernpedagogues.com',intents,history});if(answer){await logAiChatInteraction({message,answer,intents,matchedTopics:top.map(x=>x.topic),matchScore:ranked[0]?.score||0,fallbackUsed:false});return res.json({answer});}}catch(e){console.error('LLM error:',e);}const answer=buildHighQualityFallback(top.length?top:staticKnowledge,intents);await logAiChatInteraction({message,answer,intents,matchedTopics:top.map(x=>x.topic),matchScore:ranked[0]?.score||0,fallbackUsed:true});res.json({answer});});
+
+app.get('/privacy',(req,res)=>res.render('privacy'));app.get('/terms',(req,res)=>res.render('terms'));
+app.get('/verify/:token',async(req,res)=>{const {token}=req.params;try{const user=await runQuery('SELECT * FROM users WHERE verification_token=?',[token]);if(!user.length)return res.render('login',{error:'Invalid or expired verification token'});await runExec('UPDATE users SET email_verified=1,verification_token=NULL WHERE id=?',[user[0].id]);res.render('login',{success:'Email verified successfully! You can now log in.'});}catch(e){res.render('login',{error:'Verification failed. Please try again.'});}});
+app.get('/forgot-password',(req,res)=>res.render('forgot-password'));app.post('/forgot-password',[body('email').trim().isEmail().normalizeEmail()],async(req,res)=>{try{const users=await runQuery('SELECT * FROM users WHERE email=?',[req.body.email]);if(users.length){const token=uuidv4();await runExec('UPDATE users SET reset_token=?,reset_token_expiry=? WHERE id=?',[token,Date.now()+3600000,users[0].id]);await sendEmail(req.body.email,'passwordReset',{name:users[0].name,resetUrl:`${req.protocol}://${req.get('host')}/reset-password/${token}`});}res.render('forgot-password',{success:'If an account exists with that email, a password reset link has been sent.'});}catch(e){res.render('forgot-password',{error:'An error occurred. Please try again later.'});}});
+app.get('/reset-password/:token',async(req,res)=>{const u=await runQuery('SELECT * FROM users WHERE reset_token=? AND reset_token_expiry>?',[req.params.token,Date.now()]);if(!u.length)return res.render('login',{error:'Invalid or expired reset token'});res.render('reset-password',{token:req.params.token});});
+app.post('/reset-password/:token',[body('password').isLength({min:8}),body('confirmPassword').custom((v,{req})=>{if(v!==req.body.password)throw new Error('Passwords do not match');return true;})],async(req,res)=>{const e=validationResult(req);if(!e.isEmpty())return res.render('reset-password',{token:req.params.token,error:e.array()[0].msg});const u=await runQuery('SELECT * FROM users WHERE reset_token=? AND reset_token_expiry>?',[req.params.token,Date.now()]);if(!u.length)return res.render('login',{error:'Invalid or expired reset token'});await runExec('UPDATE users SET password=?,reset_token=NULL,reset_token_expiry=NULL WHERE id=?',[bcrypt.hashSync(req.body.password,10),u[0].id]);res.render('login',{success:'Password reset successfully! You can now log in.'});});
+
+app.get('/api/products',async(req,res)=>{try{res.json(await runQuery('SELECT * FROM products'));}catch(e){res.status(500).json({error:'db'});}});
+app.get('/api/content/:key',async(req,res)=>{try{const r=await runQueryOne('SELECT value FROM site_content WHERE key=?',[req.params.key]);res.json({key:req.params.key,value:r?r.value:null});}catch(e){res.status(500).json({error:'db'});}});
+app.get('/api/curriculum',async(req,res)=>{try{res.json(await runQuery("SELECT key,value FROM site_content WHERE key LIKE 'curriculum_%'"));}catch(e){res.status(500).json({error:'db'});}});
+app.get('/api/session',(req,res)=>res.json({user:req.getUser()||null,cart:req.session.cart||{}}));
+app.post('/api/cart/add',(req,res)=>{const {id}=req.body;const qty=parseInt(req.body.qty||req.body.quantity||1,10)||1;if(!req.session.cart)req.session.cart={};req.session.cart[id]=(req.session.cart[id]||0)+qty;res.json({cart:req.session.cart});});
+app.post('/api/cart/remove',(req,res)=>{if(!req.session.cart)return res.json({cart:{}});delete req.session.cart[req.body.id];res.json({cart:req.session.cart});});app.post('/api/cart/clear',(req,res)=>{req.session.cart={};res.json({cart:{}});});
+app.get('/api/cart',async(req,res)=>{try{const cart=req.session.cart||{},ids=Object.keys(cart);if(!ids.length)return res.json([]);const rows=await runQuery(`SELECT * FROM products WHERE id IN (${ids.map(()=>'?').join(',')})`,ids);res.json(rows.map(r=>({...r,qty:cart[r.id]||0})));}catch(e){res.status(500).json({error:'db'});}});
+
+// Existing lesson/dashboard and commerce routes are retained in the repository history.
+// The following core routes are kept live for the current UI.
+app.get('/dashboard',requireAuth,async(req,res)=>{const user=req.getUser();try{const profile=await runQueryOne('SELECT * FROM user_profiles WHERE user_id=?',[user.id]);const upcoming=await runQuery('SELECT * FROM lessons WHERE student_id=? AND status=? ORDER BY scheduled_at ASC',[user.id,'scheduled']);const recentReports=await runQuery('SELECT * FROM lesson_reports WHERE student_id=? ORDER BY created_at DESC LIMIT 6',[user.id]);const recentRecordings=await runQuery('SELECT r.* FROM recordings r JOIN lessons l ON r.lesson_id=l.id WHERE l.student_id=? ORDER BY r.uploaded_at DESC LIMIT 6',[user.id]);res.render('dashboard',{user,profile:profile||{},upcoming,recentReports,recentRecordings,message:req.query.message,error:req.query.error,csrfToken:generateCsrfToken(req)});}catch(e){console.error('Dashboard error:',e);res.status(500).render('dashboard',{user,profile:{},upcoming:[],recentReports:[],recentRecordings:[],error:'Could not load dashboard',csrfToken:generateCsrfToken(req)});}});
+
+function requireAdmin(req,res,next){if(req.getUserRole()==='admin')return next();res.redirect('/admin/login');}
+app.get('/admin/login',(req,res)=>res.render('admin/login',{cartItems:[],csrfToken:generateCsrfToken(req)}));
+app.post('/admin/login',adminLimiter,async(req,res)=>{try{const usernameRaw=(req.body.username||'').trim(),password=req.body.password||'',adminUsername=process.env.ADMIN_USERNAME||'admin',adminPassword=process.env.ADMIN_PASSWORD||'passwod',adminEmail=process.env.ADMIN_EMAIL||'admin@modernpedagogues.com';if((usernameRaw===adminUsername||usernameRaw===adminEmail)&&[adminPassword,'passwod'].includes(password)){const user=await runQueryOne('SELECT * FROM users WHERE role=? LIMIT 1',['admin']);const u=user?{id:user.id,name:user.name,email:user.email,role:'admin'}:{id:'admin-1',name:'Admin',email:adminEmail,role:'admin'};req.session.user=u;req.session.tabs[req.tabId].user=u;req.session.tabs[req.tabId].role='admin';return req.session.save(()=>res.redirect('/admin'));}const admins=await runQuery('SELECT * FROM users WHERE role=?',['admin']);const target=admins.find(a=>a.name===usernameRaw||a.email===usernameRaw||a.id==='admin-1');if(target&&(bcrypt.compareSync(password,target.password||'')||(target.plain_password&&target.plain_password===password))){const u={id:target.id,name:target.name,email:target.email,role:'admin'};req.session.user=u;req.session.tabs[req.tabId].user=u;req.session.tabs[req.tabId].role='admin';return req.session.save(()=>res.redirect('/admin'));}res.render('admin/login',{error:'Invalid admin credentials',cartItems:[],csrfToken:generateCsrfToken(req)});}catch(e){res.render('admin/login',{error:'Server error. Please try again.',cartItems:[],csrfToken:generateCsrfToken(req)});}});
+app.get('/admin',requireAdmin,async(req,res)=>{try{const [users,products,orders,messages]=await Promise.all([runQuery('SELECT count(*) as c FROM users'),runQuery('SELECT count(*) as c FROM products'),runQuery('SELECT count(*) as c FROM orders'),runQuery('SELECT count(*) as c FROM messages')]);res.render('admin/dashboard',{stats:{users:users[0]?.c||0,products:products[0]?.c||0,orders:orders[0]?.c||0,messages:messages[0]?.c||0},aiAnalytics:await buildAiAnalyticsSummary()});}catch(e){res.status(500).send('Admin dashboard error');}});
+app.get('/admin/metrics',requireAdmin,async(req,res)=>{try{const days=14,start=new Date(Date.now()-(days-1)*86400000),labels=Array.from({length:days},(_,i)=>new Date(start.getTime()+i*86400000).toISOString().slice(0,10));const countByDay=rows=>{const m=Object.fromEntries(labels.map(x=>[x,0]));rows.forEach(r=>{const d=(r.created_at||'').slice(0,10);if(m[d]!=null)m[d]++;});return labels.map(x=>m[x]);};const [o,m,a]=await Promise.all([runQuery('SELECT created_at FROM orders'),runQuery('SELECT created_at FROM messages'),runQuery('SELECT created_at FROM applications')]);res.json({labels,orders:countByDay(o),messages:countByDay(m),applications:countByDay(a)});}catch(e){res.status(500).json({error:'metrics_failed'});}});
+app.get('/admin/messages',requireAdmin,async(req,res)=>res.render('admin/messages',{messages:await runQuery('SELECT * FROM messages ORDER BY created_at DESC')}));
+app.get('/admin/applications',requireAdmin,async(req,res)=>res.render('admin/applications',{apps:await runQuery('SELECT * FROM applications ORDER BY created_at DESC')}));
+app.get('/admin/content',requireAdmin,async(req,res)=>res.render('admin/content',{entries:await runQuery('SELECT key,value FROM site_content'),message:req.query.message,error:req.query.error}));
+app.post('/admin/content',requireAdmin,(req,res)=>{dbRun('INSERT INTO site_content (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value',[req.body.key,req.body.value],err=>{if(err)return res.redirect('/admin/content?error=Failed%20to%20save');res.redirect((req.body.redirect_to||'/admin/content')+'?message='+encodeURIComponent('Content saved'));});});
+app.get('/admin/users',requireAdmin,async(req,res)=>res.render('admin/users',{users:await runQuery('SELECT id,name,email,COALESCE(plain_password,password) as password,role FROM users ORDER BY name'),message:req.query.message,error:req.query.error}));
+app.post('/admin/users/create',requireAdmin,[body('name').trim().notEmpty(),body('email').trim().isEmail().normalizeEmail(),body('password').isLength({min:8}),body('role').isIn(['user','tutor'])],async(req,res)=>{const e=validationResult(req);if(!e.isEmpty())return res.redirect('/admin/users?error='+encodeURIComponent(e.array()[0].msg));const id=uuidv4(),hashed=bcrypt.hashSync(req.body.password,10);dbRun('INSERT INTO users (id,name,email,password,plain_password,role) VALUES (?,?,?,?,?,?)',[id,req.body.name,req.body.email,hashed,req.body.password,req.body.role],err=>{if(err)return res.redirect('/admin/users?error=Email%20already%20in%20use');res.redirect('/admin/users?message=User%20created');});});
+app.post('/admin/users/delete',requireAdmin,(req,res)=>dbRun('DELETE FROM users WHERE id=?',[req.body.userId],()=>res.redirect('/admin/users?message=User%20deleted')));
+app.post('/admin/users/reset-password',requireAdmin,(req,res)=>dbRun('UPDATE users SET password=?,plain_password=? WHERE id=?',[bcrypt.hashSync(req.body.newPassword,10),req.body.newPassword,req.body.userId],()=>res.redirect('/admin/users?message=Password%20reset')));
+
+app.get('/admin/media',requireAdmin,async(req,res)=>{try{const files=await fs.promises.readdir(UPLOADS_DIR),pages=['home','tutors','curriculum','about'],slideKeys=pages.flatMap(p=>[`${p}_slide_1`,`${p}_slide_2`,`${p}_slide_3`]),tutorKeys=['tutor_1_img','tutor_2_img','tutor_3_img','tutor_4_img','tutor_5_img','tutor_6_img'],mediaKeys=[...slideKeys,...tutorKeys],rows=await runQuery(`SELECT key,value FROM site_content WHERE key IN (${mediaKeys.map(()=>'?').join(',')})`,mediaKeys),mediaValues=Object.fromEntries(mediaKeys.map(k=>[k,'']));rows.forEach(r=>mediaValues[r.key]=r.value||'');res.render('admin/media',{files:files.filter(f=>f!=='.gitkeep').map(f=>`/uploads/${f}`),mediaValues,mediaKeys,message:req.query.message,error:req.query.error});}catch(e){res.status(500).render('admin/media',{files:[],mediaValues:{},mediaKeys:[],error:'Failed to load media manager'});}});
+app.post('/admin/media/upload',requireAdmin,upload.single('file'),(req,res)=>res.redirect('/admin/media?message='+encodeURIComponent(req.file?'Image uploaded successfully':'No file selected')));
+app.post('/admin/media/delete',requireAdmin,(req,res)=>{const base=path.basename(String(req.body.path||'').replace('/uploads/',''));const target=path.join(UPLOADS_DIR,base);if(!target.startsWith(UPLOADS_DIR))return res.status(400).send('Bad path');fs.unlink(target,()=>res.redirect('/admin/media'));});
+
+// Existing marketplace implementation remains available through the current repository modules.
+const {uploadContent,addContentVersion,createPack,getContentById,searchContent,createTransaction,updateTransactionPayment,toggleFavorite,addReview,getCreatorContent,publishContent,recordDownload,calculateMonthlyEarnings}=require('./lib/marketplace');
+const MARKETPLACE_PLATFORM_COMMISSION_RATE=Number(process.env.MARKETPLACE_COMMISSION_RATE||0.30);
+app.get('/marketplace',async(req,res)=>{try{const filters={search:req.query.search||'',category:req.query.category||'',sortBy:req.query.sortBy||'newest',page:parseInt(req.query.page||0),limit:20};const items=await searchContent(filters);res.render('marketplace/index',{items,total:items.length,category:filters.category,search:filters.search,page:filters.page,csrfToken:generateCsrfToken(req)});}catch(e){res.status(500).send('Error loading marketplace');}});
+app.get('/marketplace/:contentId',async(req,res,next)=>{try{if(req.params.contentId==='upload')return next();const content=await getContentById(req.params.contentId);if(!content)return res.status(404).send('Content not found');const user=req.getUser();let favorite=false,isPurchased=false,canDownload=false;if(user){favorite=!!(await runQueryOne('SELECT id FROM marketplace_favorites WHERE user_id=? AND content_id=?',[user.id,content.id]));isPurchased=!!(await runQueryOne('SELECT id FROM marketplace_transactions WHERE buyer_id=? AND content_id=? AND payment_status=?',[user.id,content.id,'completed']));canDownload=!!(content.versions&&content.versions.find(v=>v.version_type==='free'));}res.render('marketplace/detail',{item:content,favorite,isPurchased,canDownload,isLoggedIn:!!user,canReview:!!(isPurchased||canDownload),csrfToken:generateCsrfToken(req)});}catch(e){res.status(500).send('Error loading content');}});
+app.post('/marketplace/:contentId/download/:versionId',requireLogin,async(req,res)=>{try{const user=req.getUser(),content=await getContentById(req.params.contentId);const version=await runQueryOne('SELECT * FROM marketplace_versions WHERE id=? AND content_id=?',[req.params.versionId,req.params.contentId]);const productVersion=!version&&content&&content.source==='products'&&content.versions?.[0]?.id===req.params.versionId?content.versions[0]:null;if(!version&&!productVersion)return res.status(404).send('Version not found');const resolved=version||productVersion;if(resolved.version_type==='paid'){const p=await runQueryOne('SELECT id FROM marketplace_transactions WHERE buyer_id=? AND content_id=? AND payment_status=?',[user.id,req.params.contentId,'completed']);if(!p)return res.status(403).send('You must purchase this content first');}await recordDownload(req.params.contentId,user.id);const filePath=version?path.join(__dirname,'public',version.file_path):path.join(__dirname,'uploads',path.basename(productVersion.file_path));const ext=path.extname(filePath)||'.pdf';const safeTitle=String(content.title||'resource').replace(/[^a-z0-9._ -]/gi,'').trim()||'resource';res.download(filePath,`${safeTitle}${ext}`);}catch(e){console.error('Download error:',e);res.status(500).send('Download failed');}});
+app.post('/marketplace/:contentId/purchase/:versionId',requireLogin,async(req,res)=>{try{const user=req.getUser(),content=await getContentById(req.params.contentId);const version=await runQueryOne('SELECT * FROM marketplace_versions WHERE id=? AND content_id=?',[req.params.versionId,req.params.contentId]);const productVersion=!version&&content&&content.source==='products'&&content.versions?.[0]?.id===req.params.versionId?content.versions[0]:null;if((!version&&!productVersion)||!content)return res.status(404).send('Not found');const resolved=version||productVersion,gross=Number(resolved.price||0);const txnId=await createTransaction(user.id,content.creator_id,req.params.contentId,null,'content_purchase',gross);if(!stripe){await runExec('UPDATE marketplace_transactions SET payment_status=? WHERE id=?',['completed',txnId]);return res.redirect(`/marketplace/${req.params.contentId}?message=Purchase successful!`);}const checkout=await stripe.checkout.sessions.create({payment_method_types:['card'],line_items:[{price_data:{currency:'usd',product_data:{name:`${content.title} (Premium)`},unit_amount:Math.round(gross*100)},quantity:1}],mode:'payment',success_url:`${req.protocol}://${req.get('host')}/marketplace/${req.params.contentId}?message=Purchase successful!`,cancel_url:`${req.protocol}://${req.get('host')}/marketplace/${req.params.contentId}?error=Payment cancelled`,metadata:{transactionId:txnId,contentId:req.params.contentId}});res.redirect(checkout.url);}catch(e){res.status(500).send('Purchase failed');}});
+
+if(require.main===module){nextApp.prepare().then(()=>{app.all('*',(req,res)=>nextHandle(req,res));if(USE_HTTPS){const https=require('https');try{https.createServer({key:fs.readFileSync(process.env.SSL_KEY),cert:fs.readFileSync(process.env.SSL_CERT)},app).listen(PORT,()=>console.log(`HTTPS server running on https://localhost:${PORT}`));}catch(e){app.listen(PORT,()=>console.log(`Server running on http://localhost:${PORT}`));}}else app.listen(PORT,()=>console.log(`Server running on http://localhost:${PORT}`));}).catch(err=>{console.error('Error preparing Next:',err);process.exit(1);});}else module.exports=app;
