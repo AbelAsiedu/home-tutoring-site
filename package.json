@@ -4,6 +4,8 @@
   "description": "Website for The Modern Pedagogues - home tutoring company",
   "main": "server.js",
   "scripts": {
+    "prestart": "node scripts/bootstrap-db.js",
+    "predev": "node scripts/bootstrap-db.js",
     "start": "node -r ./lib/security-hardening.js -r ./lib/tutor-application-override.js server.js",
     "dev": "nodemon -r ./lib/security-hardening.js -r ./lib/tutor-application-override.js server.js",
     "heroku-postbuild": "cd frontend && npm install && npm run build"
