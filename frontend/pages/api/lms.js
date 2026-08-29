@@ -43,10 +43,12 @@ let schemaReady
 async function ensureSchema() {
   if (schemaReady) return schemaReady
   schemaReady = (async () => {
-    await db.runExec(`CREATE TABLE IF NOT EXISTS wards (id TEXT PRIMARY KEY, parent_id TEXT NOT NULL, name TEXT NOT NULL, dob TEXT, school TEXT, level TEXT, subjects TEXT, notes TEXT, status TEXT DEFAULT 'active', created_at TEXT)`)
+    await db.runExec(`CREATE TABLE IF NOT EXISTS wards (id TEXT PRIMARY KEY, parent_id TEXT NOT NULL, student_id TEXT, name TEXT NOT NULL, dob TEXT, school TEXT, level TEXT, subjects TEXT, notes TEXT, status TEXT DEFAULT 'active', created_at TEXT)`)
+    await db.runExec(`ALTER TABLE wards ADD COLUMN student_id TEXT`).catch(() => {})
     await db.runExec(`CREATE TABLE IF NOT EXISTS enrollments (id TEXT PRIMARY KEY, ward_id TEXT NOT NULL, tutor_id TEXT, status TEXT DEFAULT 'pending', start_date TEXT, notes TEXT, created_at TEXT, updated_at TEXT)`)
     await db.runExec(`CREATE TABLE IF NOT EXISTS assignments (id TEXT PRIMARY KEY, enrollment_id TEXT NOT NULL, tutor_id TEXT NOT NULL, title TEXT NOT NULL, instructions TEXT, due_date TEXT, file_path TEXT, total_points INTEGER DEFAULT 100, status TEXT DEFAULT 'published', created_at TEXT, updated_at TEXT)`)
     await db.runExec(`CREATE TABLE IF NOT EXISTS assignment_submissions (id TEXT PRIMARY KEY, assignment_id TEXT NOT NULL, ward_id TEXT NOT NULL, file_path TEXT, answer_text TEXT, submitted_at TEXT, score REAL, feedback TEXT, graded_at TEXT, status TEXT DEFAULT 'submitted')`)
+    await db.runExec(`CREATE TABLE IF NOT EXISTS audit_events (id TEXT PRIMARY KEY, user_id TEXT, role TEXT, action TEXT NOT NULL, method TEXT, path TEXT, status_code INTEGER, ip TEXT, user_agent TEXT, tab_id TEXT, metadata TEXT, created_at TEXT)`)
     return true
   })()
   return schemaReady
@@ -63,7 +65,6 @@ async function handler(req, res) {
   await ensureSchema()
   const user = auth(res, req); if (!user) return
   const role = roleOf(req)
-  const isLearner = ['parent','student'].includes(role)
 
   if (req.method === 'GET') {
     const action = req.query.action || 'overview'
@@ -72,27 +73,35 @@ async function handler(req, res) {
       return res.json({ tutors: await db.runQuery(`SELECT id,name,email FROM users WHERE role='tutor' ORDER BY name`) })
     }
     if (action === 'overview') {
-      const isAdmin=role==='admin', isTutor=role==='tutor'
+      const isAdmin=role==='admin', isTutor=role==='tutor', isStudent=role==='student'
       const wards=isAdmin
         ? await db.runQuery(`SELECT w.*,u.name parent_name,u.email parent_email FROM wards w JOIN users u ON u.id=w.parent_id ORDER BY w.created_at DESC`)
         : isTutor
           ? await db.runQuery(`SELECT DISTINCT w.*,u.name parent_name FROM wards w JOIN enrollments e ON e.ward_id=w.id JOIN users u ON u.id=w.parent_id WHERE e.tutor_id=? ORDER BY w.name`,[user.id])
-          : await db.runQuery(`SELECT * FROM wards WHERE parent_id=? ORDER BY created_at DESC`,[user.id])
+          : isStudent
+            ? await db.runQuery(`SELECT * FROM wards WHERE student_id=? ORDER BY created_at DESC`,[user.id])
+            : await db.runQuery(`SELECT * FROM wards WHERE parent_id=? ORDER BY created_at DESC`,[user.id])
       const enrollments=isAdmin
         ? await db.runQuery(`SELECT e.*,w.name ward_name,u.name tutor_name FROM enrollments e JOIN wards w ON w.id=e.ward_id LEFT JOIN users u ON u.id=e.tutor_id ORDER BY e.created_at DESC`)
         : isTutor
           ? await db.runQuery(`SELECT e.*,w.name ward_name,u.name tutor_name FROM enrollments e JOIN wards w ON w.id=e.ward_id LEFT JOIN users u ON u.id=e.tutor_id WHERE e.tutor_id=? ORDER BY e.created_at DESC`,[user.id])
-          : await db.runQuery(`SELECT e.*,w.name ward_name,u.name tutor_name FROM enrollments e JOIN wards w ON w.id=e.ward_id LEFT JOIN users u ON u.id=e.tutor_id WHERE w.parent_id=? ORDER BY e.created_at DESC`,[user.id])
+          : isStudent
+            ? await db.runQuery(`SELECT e.*,w.name ward_name,u.name tutor_name FROM enrollments e JOIN wards w ON w.id=e.ward_id LEFT JOIN users u ON u.id=e.tutor_id WHERE w.student_id=? ORDER BY e.created_at DESC`,[user.id])
+            : await db.runQuery(`SELECT e.*,w.name ward_name,u.name tutor_name FROM enrollments e JOIN wards w ON w.id=e.ward_id LEFT JOIN users u ON u.id=e.tutor_id WHERE w.parent_id=? ORDER BY e.created_at DESC`,[user.id])
       const assignments=isAdmin
         ? await db.runQuery(`SELECT a.*,w.name ward_name,u.name tutor_name FROM assignments a JOIN enrollments e ON e.id=a.enrollment_id JOIN wards w ON w.id=e.ward_id JOIN users u ON u.id=a.tutor_id ORDER BY a.created_at DESC`)
         : isTutor
           ? await db.runQuery(`SELECT a.*,w.name ward_name FROM assignments a JOIN enrollments e ON e.id=a.enrollment_id JOIN wards w ON w.id=e.ward_id WHERE a.tutor_id=? ORDER BY a.created_at DESC`,[user.id])
-          : await db.runQuery(`SELECT a.*,w.name ward_name,u.name tutor_name FROM assignments a JOIN enrollments e ON e.id=a.enrollment_id JOIN wards w ON w.id=e.ward_id LEFT JOIN users u ON u.id=a.tutor_id WHERE w.parent_id=? ORDER BY a.created_at DESC`,[user.id])
+          : isStudent
+            ? await db.runQuery(`SELECT a.*,w.name ward_name,u.name tutor_name FROM assignments a JOIN enrollments e ON e.id=a.enrollment_id JOIN wards w ON w.id=e.ward_id LEFT JOIN users u ON u.id=a.tutor_id WHERE w.student_id=? ORDER BY a.created_at DESC`,[user.id])
+            : await db.runQuery(`SELECT a.*,w.name ward_name,u.name tutor_name FROM assignments a JOIN enrollments e ON e.id=a.enrollment_id JOIN wards w ON w.id=e.ward_id LEFT JOIN users u ON u.id=a.tutor_id WHERE w.parent_id=? ORDER BY a.created_at DESC`,[user.id])
       const submissions=isAdmin
         ? await db.runQuery(`SELECT s.*,a.title,w.name ward_name FROM assignment_submissions s JOIN assignments a ON a.id=s.assignment_id JOIN wards w ON w.id=s.ward_id ORDER BY s.submitted_at DESC`)
         : isTutor
           ? await db.runQuery(`SELECT s.*,a.title,w.name ward_name FROM assignment_submissions s JOIN assignments a ON a.id=s.assignment_id JOIN wards w ON w.id=s.ward_id WHERE a.tutor_id=? ORDER BY s.submitted_at DESC`,[user.id])
-          : await db.runQuery(`SELECT s.*,a.title,w.name ward_name FROM assignment_submissions s JOIN assignments a ON a.id=s.assignment_id JOIN wards w ON w.id=s.ward_id WHERE w.parent_id=? ORDER BY s.submitted_at DESC`,[user.id])
+          : isStudent
+            ? await db.runQuery(`SELECT s.*,a.title,w.name ward_name FROM assignment_submissions s JOIN assignments a ON a.id=s.assignment_id JOIN wards w ON w.id=s.ward_id WHERE w.student_id=? ORDER BY s.submitted_at DESC`,[user.id])
+            : await db.runQuery(`SELECT s.*,a.title,w.name ward_name FROM assignment_submissions s JOIN assignments a ON a.id=s.assignment_id JOIN wards w ON w.id=s.ward_id WHERE w.parent_id=? ORDER BY s.submitted_at DESC`,[user.id])
       const tutors=isAdmin?await db.runQuery(`SELECT id,name,email FROM users WHERE role='tutor' ORDER BY name`):[]
       return res.json({user:{id:user.id,name:user.name,role},wards,enrollments,assignments,submissions,tutors})
     }
@@ -144,8 +153,9 @@ async function handler(req, res) {
     }
     if(action==='submit_assignment'){
       if(!['parent','student'].includes(role))return forbidden(res)
-      const assignment=await db.runQueryOne(`SELECT a.*,w.id ward_id,w.parent_id FROM assignments a JOIN enrollments e ON e.id=a.enrollment_id JOIN wards w ON w.id=e.ward_id WHERE a.id=?`,[body.assignment_id]); if(!assignment)return res.status(404).json({error:'Assignment not found'})
-      if(assignment.parent_id!==user.id)return forbidden(res)
+      const assignment=await db.runQueryOne(`SELECT a.*,w.id ward_id,w.parent_id,w.student_id FROM assignments a JOIN enrollments e ON e.id=a.enrollment_id JOIN wards w ON w.id=e.ward_id WHERE a.id=?`,[body.assignment_id]); if(!assignment)return res.status(404).json({error:'Assignment not found'})
+      const ownsWard = role==='student' ? assignment.student_id===user.id : assignment.parent_id===user.id
+      if(!ownsWard)return forbidden(res)
       const id=uuidv4(),now=new Date().toISOString(),filePath=await persistUpload(file,'submissions')
       await db.runExec(`INSERT INTO assignment_submissions (id,assignment_id,ward_id,file_path,answer_text,submitted_at,status) VALUES (?,?,?,?,?,?,?)`,[id,assignment.id,assignment.ward_id,filePath,body.answer_text||null,now,'submitted'])
       return finish({success:true,id})
