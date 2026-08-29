@@ -1,8 +1,9 @@
 import LmsPortal from '../../components/LmsPortal'
+import { getExpressUser } from '../../lib/express-session-user'
 
 export async function getServerSideProps({ req }) {
-  const role = (typeof req.getUserRole === 'function' && req.getUserRole()) || req.session?.user?.role
-  if (role !== 'admin') return { redirect: { destination: '/login?next=/admin/lms', permanent: false } }
+  const user = await getExpressUser(req)
+  if (user?.role !== 'admin') return { redirect: { destination: '/login?next=/admin/lms', permanent: false } }
   return { props: {} }
 }
 
