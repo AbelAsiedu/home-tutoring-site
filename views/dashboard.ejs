@@ -1,5 +1,7 @@
 <%- include('partials/header') %>
 
+<% const lmsPath = user && user.role === 'admin' ? '/admin/lms' : user && (user.role === 'tutor' || user.role === 'teacher') ? '/tutor-lms' : user && user.role === 'student' ? '/student-lms' : '/parent-lms'; %>
+
 <main class="container">
   <section class="page glass">
     <div style="display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
@@ -8,93 +10,26 @@
       <% } else { %>
         <div style="width:96px;height:96px;border-radius:24px;background:linear-gradient(135deg,var(--accent-2),var(--accent));display:flex;align-items:center;justify-content:center;color:white;font-size:2rem;font-weight:700;box-shadow:0 12px 30px rgba(0,0,0,0.12)"><%= (user.name || 'U').slice(0,1).toUpperCase() %></div>
       <% } %>
-      <div>
-        <h1 style="margin: 0 0 6px;">Welcome, <%= user.name %></h1>
-        <p class="muted" style="margin:0">Your personal dashboard, activity, and quick actions in one place.</p>
-      </div>
+      <div><h1 style="margin:0 0 6px;">Welcome, <%= user.name %></h1><p class="muted" style="margin:0">Your personal dashboard, activity, and quick actions in one place.</p></div>
     </div>
-
     <% if (typeof message !== 'undefined' && message) { %><div class="notice success"><%= message %></div><% } %>
     <% if (typeof error !== 'undefined' && error) { %><div class="notice error"><%= error %></div><% } %>
-
     <hr style="margin:20px 0;">
-
     <section style="margin-top:20px;">
       <h2>Learning Portal</h2>
       <div class="glass" style="padding:20px;border-radius:18px;background:linear-gradient(135deg,#eef2ff,#f8fafc);border:1px solid #dbeafe;display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap;">
-        <div>
-          <strong style="font-size:20px;">Your LMS workspace is ready</strong>
-          <p class="muted" style="margin:6px 0 0;">Access ward enrollment, tutor assignments, lessons, assignments, submissions, marking and results.</p>
-        </div>
-        <a href="/parent-lms" class="btn">Open Learning Portal</a>
+        <div><strong style="font-size:20px;">Your LMS workspace is ready</strong><p class="muted" style="margin:6px 0 0;">Access coursework, assignments, submissions, lessons, marking, results and learning activity.</p></div>
+        <a href="<%= lmsPath %>" class="btn">Open Learning Portal</a>
       </div>
     </section>
-
     <hr style="margin:20px 0;">
-
-    <section style="margin-top:20px;">
-      <h2>Account Information</h2>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;">
-        <div class="glass" style="padding:16px;border-radius:14px;">
-          <p style="margin:0 0 8px"><strong>Name:</strong> <%= user.name %></p>
-          <p style="margin:0 0 8px"><strong>Email:</strong> <%= user.email %></p>
-          <p style="margin:0"><strong>Role:</strong> <%= user.role %></p>
-        </div>
-        <div class="glass" style="padding:16px;border-radius:14px;">
-          <p style="margin:0 0 8px"><strong>Email Verified:</strong> <%= user.email_verified ? 'Yes' : 'No' %></p>
-          <p style="margin:0"><strong>Profile:</strong> <%= profile && profile.avatar_path ? 'Photo set' : 'Add a photo for a richer profile' %></p>
-          <% if (profile && profile.bio) { %><p style="margin:8px 0 0" class="muted"><%= profile.bio %></p><% } %>
-        </div>
-      </div>
-      <div style="margin-top:15px;">
-        <a href="/account" class="btn">Manage Account</a>
-        <a href="/logout" class="btn ghost" style="margin-left:10px;">Logout</a>
-      </div>
-    </section>
-
+    <section style="margin-top:20px;"><h2>Account Information</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;"><div class="glass" style="padding:16px;border-radius:14px;"><p style="margin:0 0 8px"><strong>Name:</strong> <%= user.name %></p><p style="margin:0 0 8px"><strong>Email:</strong> <%= user.email %></p><p style="margin:0"><strong>Role:</strong> <%= user.role %></p></div><div class="glass" style="padding:16px;border-radius:14px;"><p style="margin:0 0 8px"><strong>Email Verified:</strong> <%= user.email_verified ? 'Yes' : 'No' %></p><p style="margin:0"><strong>Profile:</strong> <%= profile && profile.avatar_path ? 'Photo set' : 'Add a photo for a richer profile' %></p><% if (profile && profile.bio) { %><p style="margin:8px 0 0" class="muted"><%= profile.bio %></p><% } %></div></div><div style="margin-top:15px;"><a href="/account" class="btn">Manage Account</a><a href="/logout" class="btn ghost" style="margin-left:10px;">Logout</a></div></section>
     <hr style="margin:20px 0;">
-
-    <section style="margin-top:20px;">
-      <h2>Upcoming Lessons</h2>
-      <% if (typeof upcoming !== 'undefined' && upcoming.length > 0) { %>
-        <div class="product-grid"><% upcoming.forEach(lesson => { %>
-          <div class="card glass" style="padding:15px;">
-            <div><strong><%= new Date(lesson.scheduled_at).toLocaleString() %></strong></div>
-            <div class="muted">Duration: <%= lesson.duration_minutes %> minutes</div>
-            <div style="margin-top:10px;"><a href="/lessons/<%= lesson.id %>" class="btn">View Details</a></div>
-          </div>
-        <% }); %></div>
-      <% } else { %><div class="muted">No upcoming lessons scheduled.</div><% } %>
-    </section>
-
+    <section style="margin-top:20px;"><h2>Upcoming Lessons</h2><% if (typeof upcoming !== 'undefined' && upcoming.length > 0) { %><div class="product-grid"><% upcoming.forEach(lesson => { %><div class="card glass" style="padding:15px;"><div><strong><%= new Date(lesson.scheduled_at).toLocaleString() %></strong></div><div class="muted">Duration: <%= lesson.duration_minutes %> minutes</div><div style="margin-top:10px;"><a href="/lessons/<%= lesson.id %>" class="btn">View Details</a></div></div><% }); %></div><% } else { %><div class="muted">No upcoming lessons scheduled.</div><% } %></section>
     <hr style="margin:20px 0;">
-
-    <section style="margin-top:20px;">
-      <h2>Recent Lesson Reports</h2>
-      <% if (typeof recentReports !== 'undefined' && recentReports.length > 0) { %>
-        <div style="max-height:300px;overflow-y:auto;"><% recentReports.forEach(report => { %>
-          <div style="background:rgba(255,255,255,0.05);padding:12px;margin-bottom:10px;border-radius:6px;border-left:3px solid #007bff;">
-            <div><strong>Created:</strong> <%= new Date(report.created_at).toLocaleDateString() %></div>
-            <div style="margin-top:5px;"><strong>Summary:</strong> <%= report.summary || 'N/A' %></div>
-            <div><strong>Progress Score:</strong> <%= report.progress_score || 'N/A' %></div>
-          </div>
-        <% }); %></div>
-      <% } else { %><div class="muted">No recent lesson reports.</div><% } %>
-    </section>
-
+    <section style="margin-top:20px;"><h2>Recent Lesson Reports</h2><% if (typeof recentReports !== 'undefined' && recentReports.length > 0) { %><div style="max-height:300px;overflow-y:auto;"><% recentReports.forEach(report => { %><div style="background:rgba(255,255,255,0.05);padding:12px;margin-bottom:10px;border-radius:6px;border-left:3px solid #007bff;"><div><strong>Created:</strong> <%= new Date(report.created_at).toLocaleDateString() %></div><div style="margin-top:5px;"><strong>Summary:</strong> <%= report.summary || 'N/A' %></div><div><strong>Progress Score:</strong> <%= report.progress_score || 'N/A' %></div></div><% }); %></div><% } else { %><div class="muted">No recent lesson reports.</div><% } %></section>
     <hr style="margin:20px 0;">
-
-    <section style="margin-top:20px;">
-      <h2>Quick Links</h2>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">
-        <a href="/parent-lms" class="btn">Learning Portal</a>
-        <a href="/enroll-ward" class="btn">Enroll Ward</a>
-        <a href="/cart" class="btn">View Cart</a>
-        <a href="/curriculum" class="btn">Curriculum</a>
-        <a href="/tutors" class="btn">Find Tutors</a>
-        <a href="/contact" class="btn">Contact Us</a>
-      </div>
-    </section>
+    <section style="margin-top:20px;"><h2>Quick Links</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;"><a href="<%= lmsPath %>" class="btn">Learning Portal</a><% if (user.role === 'parent') { %><a href="/enroll-ward" class="btn">Enroll Ward</a><% } %><a href="/cart" class="btn">View Cart</a><a href="/curriculum" class="btn">Curriculum</a><a href="/tutors" class="btn">Find Tutors</a><a href="/contact" class="btn">Contact Us</a></div></section>
   </section>
 </main>
 
