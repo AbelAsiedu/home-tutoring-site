@@ -1,4 +1,4 @@
-import LmsPortal from '../../components/LmsPortal'
+import LmsPortal from '../../components/LmsPortalV2'
 import { getExpressUser } from '../../lib/express-session-user'
 
 export async function getServerSideProps({ req }) {
