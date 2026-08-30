@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
-import crypto from 'crypto'
 import sqlite3 from 'sqlite3'
+import signature from 'cookie-signature'
 
 function cookies(header) {
   return Object.fromEntries(String(header || '').split(';').map(x => x.trim()).filter(Boolean).map(x => {
@@ -10,30 +10,39 @@ function cookies(header) {
   }))
 }
 
-function unsign(value) {
-  if (!value || !value.startsWith('s:')) return null
-  const raw = value.slice(2)
-  const i = raw.lastIndexOf('.')
-  if (i <= 0) return null
-  const sid = raw.slice(0, i)
-  const signature = raw.slice(i + 1)
-  const expected = crypto.createHmac('sha256', process.env.SESSION_SECRET || 'very-secret-key').update(sid).digest('base64').replace(/=+$/, '')
-  const a = Buffer.from(signature), b = Buffer.from(expected)
-  return a.length === b.length && crypto.timingSafeEqual(a, b) ? sid : null
+function sessionId(req) {
+  const raw = cookies(req.headers?.cookie)['connect.sid']
+  if (!raw) return null
+  const value = decodeURIComponent(raw)
+  if (value.startsWith('s:')) {
+    // Use the same cookie-signature implementation as express-session.
+    const unsigned = signature.unsign(value.slice(2), process.env.SESSION_SECRET || 'very-secret-key')
+    return unsigned || null
+  }
+  // Development/legacy sessions may have an unsigned cookie.
+  return value || null
 }
 
 function sessionDbCandidates() {
   const root = process.cwd()
+  const configured = process.env.SESSION_DB_PATH
+    ? path.resolve(root, process.env.SESSION_DB_PATH)
+    : null
   return [
-    process.env.SESSION_DB_PATH,
-    path.join(root, 'sessions.sqlite'),
-    path.join(root, '..', 'sessions.sqlite'),
-    path.join(root, '..', '..', 'sessions.sqlite')
+    configured,
+    path.resolve(root, 'sessions.sqlite'),
+    path.resolve(root, '..', 'sessions.sqlite'),
+    path.resolve(root, '..', '..', 'sessions.sqlite')
   ].filter(Boolean)
 }
 
 export async function getExpressSession(req) {
-  const sid = unsign(cookies(req.headers?.cookie)['connect.sid'])
+  // When Next is being served by the same Express process, the session
+  // middleware has already populated req.session. Prefer that authoritative
+  // object before falling back to reading connect-sqlite3 directly.
+  if (req.session?.user) return req.session
+
+  const sid = sessionId(req)
   if (!sid) return null
 
   const file = sessionDbCandidates().find(candidate => fs.existsSync(candidate))
