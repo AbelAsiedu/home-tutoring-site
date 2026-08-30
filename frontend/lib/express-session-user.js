@@ -22,13 +22,27 @@ function unsign(value) {
   return a.length === b.length && crypto.timingSafeEqual(a, b) ? sid : null
 }
 
+function sessionDbCandidates() {
+  const root = process.cwd()
+  return [
+    process.env.SESSION_DB_PATH,
+    path.join(root, 'sessions.sqlite'),
+    path.join(root, '..', 'sessions.sqlite'),
+    path.join(root, '..', '..', 'sessions.sqlite')
+  ].filter(Boolean)
+}
+
 export async function getExpressSession(req) {
   const sid = unsign(cookies(req.headers?.cookie)['connect.sid'])
   if (!sid) return null
-  const file = path.join(process.cwd(), 'sessions.sqlite')
-  if (!fs.existsSync(file)) return null
+
+  const file = sessionDbCandidates().find(candidate => fs.existsSync(candidate))
+  if (!file) return null
+
   return new Promise(resolve => {
-    const sdb = new sqlite3.Database(file, sqlite3.OPEN_READONLY, err => { if (err) resolve(null) })
+    const sdb = new sqlite3.Database(file, sqlite3.OPEN_READONLY, err => {
+      if (err) return resolve(null)
+    })
     sdb.get('SELECT sess FROM sessions WHERE sid=?', [sid], (err, row) => {
       sdb.close()
       if (err || !row) return resolve(null)
