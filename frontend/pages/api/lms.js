@@ -23,7 +23,7 @@ const upload = multer({
 
 async function saveFile(file, prefix) {
   if (!file) return null
-  return r2.configured() ? `r2:${await r2.putBuffer(file.buffer, file.originalname, file.mimetype, prefix)}` : file.filename
+  return r2.configured() ? `r2:${await r2.putBuffer(file.buffer, file.originalname, file.mimetype, prefix)` : file.filename
 }
 async function removeFile(filePath) {
   if (!filePath) return
@@ -60,15 +60,16 @@ function unsign(value) {
   const a=Buffer.from(sig),b=Buffer.from(expected)
   return a.length===b.length && crypto.timingSafeEqual(a,b) ? sid : null
 }
+function sessionDbCandidates() {
+  const root = process.cwd()
+  return [process.env.SESSION_DB_PATH,path.join(root,'sessions.sqlite'),path.join(root,'..','sessions.sqlite'),path.join(root,'..','..','sessions.sqlite')].filter(Boolean)
+}
 async function expressSession(req) {
   const sid=unsign(cookies(req)['connect.sid']); if(!sid)return null
-  const file=path.join(process.cwd(),'sessions.sqlite'); if(!fs.existsSync(file))return null
+  const file=sessionDbCandidates().find(candidate=>fs.existsSync(candidate)); if(!file)return null
   return new Promise(resolve => {
     const sdb=new sqlite3.Database(file,sqlite3.OPEN_READONLY,err=>{if(err)return resolve(null)})
-    sdb.get('SELECT sess FROM sessions WHERE sid=?',[sid],(err,row)=>{
-      sdb.close(); if(err||!row)return resolve(null)
-      try { resolve(JSON.parse(row.sess)) } catch (_) { resolve(null) }
-    })
+    sdb.get('SELECT sess FROM sessions WHERE sid=?',[sid],(err,row)=>{sdb.close();if(err||!row)return resolve(null);try{resolve(JSON.parse(row.sess))}catch(_){resolve(null)}})
   })
 }
 async function getUser(req) {
@@ -76,17 +77,17 @@ async function getUser(req) {
   if (req.session?.user) return req.session.user
   const s=await expressSession(req); return s?.user || null
 }
-async function getRole(req,user) { return user?.role || (req.session?.user?.role) || ((await expressSession(req))?.user?.role) || null }
+async function getRole(req,user) { return user?.role || req.session?.user?.role || (await expressSession(req))?.user?.role || null }
 function deny(res){return res.status(403).json({error:'forbidden'})}
 function parseBody(req){return new Promise((resolve,reject)=>{let d='';req.on('data',c=>d+=c);req.on('end',()=>{try{const t=String(req.headers['content-type']||'');if(t.includes('application/json'))return resolve(d?JSON.parse(d):{});const o={};for(const [k,v] of new URLSearchParams(d))o[k]=v;resolve(o)}catch(e){reject(e)}});req.on('error',reject)})}
 
 async function overview(user,role) {
-  const admin=role==='admin', tutor=role==='tutor', student=role==='student'
+  const admin=role==='admin', tutor=role==='tutor'||role==='teacher', student=role==='student'
   const wards=admin?await db.runQuery(`SELECT w.*,u.name parent_name,u.email parent_email FROM wards w JOIN users u ON u.id=w.parent_id ORDER BY w.created_at DESC`):tutor?await db.runQuery(`SELECT DISTINCT w.*,u.name parent_name FROM wards w JOIN enrollments e ON e.ward_id=w.id JOIN users u ON u.id=w.parent_id WHERE e.tutor_id=? ORDER BY w.name`,[user.id]):student?await db.runQuery(`SELECT * FROM wards WHERE student_id=? ORDER BY created_at DESC`,[user.id]):await db.runQuery(`SELECT * FROM wards WHERE parent_id=? ORDER BY created_at DESC`,[user.id])
   const enrollments=admin?await db.runQuery(`SELECT e.*,w.name ward_name,u.name tutor_name FROM enrollments e JOIN wards w ON w.id=e.ward_id LEFT JOIN users u ON u.id=e.tutor_id ORDER BY e.created_at DESC`):tutor?await db.runQuery(`SELECT e.*,w.name ward_name,u.name tutor_name FROM enrollments e JOIN wards w ON w.id=e.ward_id LEFT JOIN users u ON u.id=e.tutor_id WHERE e.tutor_id=? ORDER BY e.created_at DESC`,[user.id]):student?await db.runQuery(`SELECT e.*,w.name ward_name,u.name tutor_name FROM enrollments e JOIN wards w ON w.id=e.ward_id LEFT JOIN users u ON u.id=e.tutor_id WHERE w.student_id=? ORDER BY e.created_at DESC`,[user.id]):await db.runQuery(`SELECT e.*,w.name ward_name,u.name tutor_name FROM enrollments e JOIN wards w ON w.id=e.ward_id LEFT JOIN users u ON u.id=e.tutor_id WHERE w.parent_id=? ORDER BY e.created_at DESC`,[user.id])
   const assignments=admin?await db.runQuery(`SELECT a.*,w.name ward_name,u.name tutor_name FROM assignments a JOIN enrollments e ON e.id=a.enrollment_id JOIN wards w ON w.id=e.ward_id JOIN users u ON u.id=a.tutor_id ORDER BY a.created_at DESC`):tutor?await db.runQuery(`SELECT a.*,w.name ward_name FROM assignments a JOIN enrollments e ON e.id=a.enrollment_id JOIN wards w ON w.id=e.ward_id WHERE a.tutor_id=? ORDER BY a.created_at DESC`,[user.id]):student?await db.runQuery(`SELECT a.*,w.name ward_name,u.name tutor_name FROM assignments a JOIN enrollments e ON e.id=a.enrollment_id JOIN wards w ON w.id=e.ward_id LEFT JOIN users u ON u.id=a.tutor_id WHERE w.student_id=? ORDER BY a.created_at DESC`,[user.id]):await db.runQuery(`SELECT a.*,w.name ward_name,u.name tutor_name FROM assignments a JOIN enrollments e ON e.id=a.enrollment_id JOIN wards w ON w.id=e.ward_id LEFT JOIN users u ON u.id=a.tutor_id WHERE w.parent_id=? ORDER BY a.created_at DESC`,[user.id])
   const submissions=admin?await db.runQuery(`SELECT s.*,a.title,w.name ward_name FROM assignment_submissions s JOIN assignments a ON a.id=s.assignment_id JOIN wards w ON w.id=s.ward_id ORDER BY s.submitted_at DESC`):tutor?await db.runQuery(`SELECT s.*,a.title,w.name ward_name FROM assignment_submissions s JOIN assignments a ON a.id=s.assignment_id JOIN wards w ON w.id=s.ward_id WHERE a.tutor_id=? ORDER BY s.submitted_at DESC`,[user.id]):student?await db.runQuery(`SELECT s.*,a.title,w.name ward_name FROM assignment_submissions s JOIN assignments a ON a.id=s.assignment_id JOIN wards w ON w.id=s.ward_id WHERE w.student_id=? ORDER BY s.submitted_at DESC`,[user.id]):await db.runQuery(`SELECT s.*,a.title,w.name ward_name FROM assignment_submissions s JOIN assignments a ON a.id=s.assignment_id JOIN wards w ON w.id=s.ward_id WHERE w.parent_id=? ORDER BY s.submitted_at DESC`,[user.id])
-  const tutors=admin?await db.runQuery(`SELECT id,name,email FROM users WHERE role='tutor' ORDER BY name`):[]
+  const tutors=admin?await db.runQuery(`SELECT id,name,email FROM users WHERE role IN ('tutor','teacher') ORDER BY name`):[]
   return {user:{id:user.id,name:user.name,role},wards,enrollments,assignments,submissions,tutors}
 }
 
@@ -97,8 +98,8 @@ async function handler(req,res){
     if(!user||!role)return res.status(401).json({error:'unauthenticated',message:'Please sign in before opening the learning portal.'})
     if(req.method==='GET'){
       if((req.query.action||'overview')==='tutors'){
-        if(!['admin','tutor','parent','student'].includes(role))return deny(res)
-        return res.json({tutors:await db.runQuery(`SELECT id,name,email FROM users WHERE role='tutor' ORDER BY name`)})
+        if(!['admin','tutor','teacher','parent','student'].includes(role))return deny(res)
+        return res.json({tutors:await db.runQuery(`SELECT id,name,email FROM users WHERE role IN ('tutor','teacher') ORDER BY name`)})
       }
       if((req.query.action||'overview')==='overview')return res.json(await overview(user,role))
       return res.status(400).json({error:'unknown_action'})
@@ -112,13 +113,13 @@ async function handler(req,res){
         if(role!=='parent')return deny(res);const name=String(body.name||'').trim();if(!name)return res.status(400).json({error:'Ward name is required'})
         const id=uuidv4();await db.runExec(`INSERT INTO wards(id,parent_id,name,dob,school,level,subjects,notes,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)`,[id,user.id,name,body.dob||null,body.school||null,body.level||null,body.subjects||null,body.notes||null,'active',now]);const eid=uuidv4();await db.runExec(`INSERT INTO enrollments(id,ward_id,status,created_at,updated_at) VALUES(?,?,?,?,?)`,[eid,id,'pending',now,now]);return finish({success:true,wardId:id,enrollmentId:eid})
       }
-      if(a==='assign_tutor'){if(role!=='admin')return deny(res);const t=await db.runQueryOne(`SELECT id FROM users WHERE id=? AND role='tutor'`,[body.tutor_id]);if(!t)return res.status(400).json({error:'Tutor not found'});await db.runExec(`UPDATE enrollments SET tutor_id=?,status=?,start_date=COALESCE(start_date,?),updated_at=? WHERE id=?`,[body.tutor_id,body.status||'active',body.start_date||now.slice(0,10),now,body.enrollment_id]);return finish({success:true})}
+      if(a==='assign_tutor'){if(role!=='admin')return deny(res);const t=await db.runQueryOne(`SELECT id FROM users WHERE id=? AND role IN ('tutor','teacher')`,[body.tutor_id]);if(!t)return res.status(400).json({error:'Tutor not found'});await db.runExec(`UPDATE enrollments SET tutor_id=?,status=?,start_date=COALESCE(start_date,?),updated_at=? WHERE id=?`,[body.tutor_id,body.status||'active',body.start_date||now.slice(0,10),now,body.enrollment_id]);return finish({success:true})}
       if(a==='update_enrollment'){if(role!=='admin')return deny(res);await db.runExec(`UPDATE enrollments SET status=?,notes=?,updated_at=? WHERE id=?`,[body.status||'active',body.notes||null,now,body.enrollment_id]);return finish({success:true})}
       if(a==='delete_ward'){if(role!=='admin')return deny(res);const files=await db.runQuery(`SELECT file_path FROM assignment_submissions WHERE ward_id=? AND file_path IS NOT NULL UNION ALL SELECT a.file_path FROM assignments a JOIN enrollments e ON e.id=a.enrollment_id WHERE e.ward_id=? AND a.file_path IS NOT NULL`,[body.ward_id,body.ward_id]);for(const f of files)await removeFile(f.file_path);await db.runExec(`DELETE FROM assignment_submissions WHERE ward_id=?`,[body.ward_id]);await db.runExec(`DELETE FROM assignments WHERE enrollment_id IN (SELECT id FROM enrollments WHERE ward_id=?)`,[body.ward_id]);await db.runExec(`DELETE FROM enrollments WHERE ward_id=?`,[body.ward_id]);await db.runExec(`DELETE FROM wards WHERE id=?`,[body.ward_id]);return finish({success:true})}
-      if(a==='create_assignment'){if(!['tutor','admin'].includes(role))return deny(res);const e=await db.runQueryOne(`SELECT * FROM enrollments WHERE id=?`,[body.enrollment_id]);if(!e)return res.status(404).json({error:'Enrollment not found'});if(role==='tutor'&&e.tutor_id!==user.id)return deny(res);const title=String(body.title||'').trim();if(!title)return res.status(400).json({error:'Title is required'});const id=uuidv4(),fp=await saveFile(file,'assignments'),tid=role==='admin'?(e.tutor_id||user.id):user.id;await db.runExec(`INSERT INTO assignments(id,enrollment_id,tutor_id,title,instructions,due_date,file_path,total_points,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`,[id,e.id,tid,title,body.instructions||null,body.due_date||null,fp,Number(body.total_points)||100,body.status||'published',now,now]);return finish({success:true,id})}
+      if(a==='create_assignment'){if(!['tutor','teacher','admin'].includes(role))return deny(res);const e=await db.runQueryOne(`SELECT * FROM enrollments WHERE id=?`,[body.enrollment_id]);if(!e)return res.status(404).json({error:'Enrollment not found'});if((role==='tutor'||role==='teacher')&&e.tutor_id!==user.id)return deny(res);const title=String(body.title||'').trim();if(!title)return res.status(400).json({error:'Title is required'});const id=uuidv4(),fp=await saveFile(file,'assignments'),tid=role==='admin'?(e.tutor_id||user.id):user.id;await db.runExec(`INSERT INTO assignments(id,enrollment_id,tutor_id,title,instructions,due_date,file_path,total_points,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`,[id,e.id,tid,title,body.instructions||null,body.due_date||null,fp,Number(body.total_points)||100,body.status||'published',now,now]);return finish({success:true,id})}
       if(a==='submit_assignment'){if(!['parent','student'].includes(role))return deny(res);const x=await db.runQueryOne(`SELECT a.*,w.id ward_id,w.parent_id,w.student_id FROM assignments a JOIN enrollments e ON e.id=a.enrollment_id JOIN wards w ON w.id=e.ward_id WHERE a.id=?`,[body.assignment_id]);if(!x)return res.status(404).json({error:'Assignment not found'});if((role==='student'?x.student_id:x.parent_id)!==user.id)return deny(res);const id=uuidv4(),fp=await saveFile(file,'submissions');await db.runExec(`INSERT INTO assignment_submissions(id,assignment_id,ward_id,file_path,answer_text,submitted_at,status) VALUES(?,?,?,?,?,?,?)`,[id,x.id,x.ward_id,fp,body.answer_text||null,now,'submitted']);return finish({success:true,id})}
-      if(a==='grade_submission'){if(!['tutor','admin'].includes(role))return deny(res);const s=await db.runQueryOne(`SELECT s.*,a.tutor_id FROM assignment_submissions s JOIN assignments a ON a.id=s.assignment_id WHERE s.id=?`,[body.submission_id]);if(!s)return res.status(404).json({error:'Submission not found'});if(role==='tutor'&&s.tutor_id!==user.id)return deny(res);const score=Number(body.score);if(!Number.isFinite(score)||score<0)return res.status(400).json({error:'Invalid score'});await db.runExec(`UPDATE assignment_submissions SET score=?,feedback=?,graded_at=?,status=? WHERE id=?`,[score,body.feedback||null,now,'graded',s.id]);return finish({success:true})}
-      if(a==='delete_assignment'){if(!['tutor','admin'].includes(role))return deny(res);const x=await db.runQueryOne(`SELECT * FROM assignments WHERE id=?`,[body.assignment_id]);if(!x)return res.status(404).json({error:'Assignment not found'});if(role==='tutor'&&x.tutor_id!==user.id)return deny(res);const fs2=await db.runQuery(`SELECT file_path FROM assignment_submissions WHERE assignment_id=? AND file_path IS NOT NULL`,[x.id]);for(const f of fs2)await removeFile(f.file_path);await removeFile(x.file_path);await db.runExec(`DELETE FROM assignment_submissions WHERE assignment_id=?`,[x.id]);await db.runExec(`DELETE FROM assignments WHERE id=?`,[x.id]);return finish({success:true})}
+      if(a==='grade_submission'){if(!['tutor','teacher','admin'].includes(role))return deny(res);const s=await db.runQueryOne(`SELECT s.*,a.tutor_id FROM assignment_submissions s JOIN assignments a ON a.id=s.assignment_id WHERE s.id=?`,[body.submission_id]);if(!s)return res.status(404).json({error:'Submission not found'});if((role==='tutor'||role==='teacher')&&s.tutor_id!==user.id)return deny(res);const score=Number(body.score);if(!Number.isFinite(score)||score<0)return res.status(400).json({error:'Invalid score'});await db.runExec(`UPDATE assignment_submissions SET score=?,feedback=?,graded_at=?,status=? WHERE id=?`,[score,body.feedback||null,now,'graded',s.id]);return finish({success:true})}
+      if(a==='delete_assignment'){if(!['tutor','teacher','admin'].includes(role))return deny(res);const x=await db.runQueryOne(`SELECT * FROM assignments WHERE id=?`,[body.assignment_id]);if(!x)return res.status(404).json({error:'Assignment not found'});if((role==='tutor'||role==='teacher')&&x.tutor_id!==user.id)return deny(res);const fs2=await db.runQuery(`SELECT file_path FROM assignment_submissions WHERE assignment_id=? AND file_path IS NOT NULL`,[x.id]);for(const f of fs2)await removeFile(f.file_path);await removeFile(x.file_path);await db.runExec(`DELETE FROM assignment_submissions WHERE assignment_id=?`,[x.id]);await db.runExec(`DELETE FROM assignments WHERE id=?`,[x.id]);return finish({success:true})}
       return res.status(400).json({error:'unknown_action'})
     }
     if(multipart)return upload.single('file')(req,res,async err=>{if(err)return res.status(400).json({error:err.message||'Upload failed'});try{return await act(req.body||{},req.file||null)}catch(e){console.error('[LMS multipart]',e);return res.status(500).json({error:'server'})}})
