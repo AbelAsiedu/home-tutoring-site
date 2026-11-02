@@ -15,6 +15,7 @@ const defaultTutors = [
 
 export default function Tutors() {
   const [tutors, setTutors] = useState(defaultTutors)
+  const [heroImage, setHeroImage] = useState('')
 
   useEffect(() => {
     fetch('/api/content/tutors_json', { cache: 'no-store' })
@@ -29,10 +30,22 @@ export default function Tutors() {
       .catch(() => {})
   }, [])
 
+  useEffect(() => {
+    fetch('/api/content/tutors_hero_banners_json', { cache: 'no-store' })
+      .then(response => response.ok ? response.json() : null)
+      .then(data => {
+        if (!data?.value) return
+        const banners = JSON.parse(data.value)
+        const banner = Array.isArray(banners) && banners.find(item => item?.active !== false && item.image)
+        if (banner?.image) setHeroImage(banner.image)
+      })
+      .catch(() => {})
+  }, [])
+
   return <div>
     <Header />
     <main className="tutors-page">
-      <section className="tutors-hero"><div className="container"><p className="section-kicker">Our tutors</p><h1>Qualified people. One coordinated standard.</h1><p>Every TMP tutor is a qualified, trained graduate educator. We operate as one coordinated team, working to the same standard on every assignment.</p><div className="hero-actions"><a href={whatsappLink} className="cta">Request a Tutor</a><Link href="/contact" className="btn ghost">Talk to admin</Link></div></div></section>
+      <section className="tutors-hero" style={heroImage ? { backgroundImage: `linear-gradient(90deg, rgba(18,36,58,.96), rgba(18,36,58,.68)), url("${encodeURI(heroImage)}")` } : undefined}><div className="container"><p className="section-kicker">Our tutors</p><h1>Qualified people. One coordinated standard.</h1><p>Every TMP tutor is a qualified, trained graduate educator. We operate as one coordinated team, working to the same standard on every assignment.</p><div className="hero-actions"><a href={whatsappLink} className="cta">Request a Tutor</a><Link href="/contact" className="btn ghost">Talk to admin</Link></div></div></section>
       <section className="container tutors-intro"><div><p className="section-kicker">Trust & safety</p><h2>Not a pool of part-timers called in per contract.</h2></div><div><p>Each tutor is assessed, onboarded and monitored before being placed with a ward. Parents always have a direct contact at TMP, not just the tutor.</p><p>We match subject knowledge, teaching style, curriculum experience and practical availability to the learner\'s needs.</p></div></section>
       <section className="tutor-roster"><div className="container"><p className="section-kicker">The team</p><h2>Specialists for different stages and subjects.</h2><div className="tutor-roster-grid">{tutors.map((tutor, index) => <article key={`${tutor.name}-${index}`}><div className="tutor-number">0{index + 1}</div><div className="tutor-card-media"><img src={tutor.image || '/images/tutor-placeholder.svg'} alt={`${tutor.name}, TMP tutor`} /></div><div className="tutor-card-details"><h3>{tutor.name}</h3>{tutor.role && <strong>{tutor.role}</strong>}{tutor.subjects && <p><b>Subjects:</b> {tutor.subjects}</p>}{tutor.levels && <p><b>Levels:</b> {tutor.levels}</p>}{tutor.qualifications && <p><b>Qualifications:</b> {tutor.qualifications}</p>}{tutor.experience && <p><b>Experience:</b> {tutor.experience}</p>}{tutor.location && <p><b>Location:</b> {tutor.location}</p>}{tutor.bio && <p>{tutor.bio}</p>}{tutor.profileUrl && <a className="btn ghost tutor-profile-link" href={tutor.profileUrl}>View profile</a>}</div></article>)}</div></div></section>
       <section className="container tutor-standard"><p className="section-kicker">Every placement includes</p><div className="standard-grid"><article><strong>01</strong><h3>Assessment</h3><p>We review the tutor\'s subject knowledge, experience and fit before introduction.</p></article><article><strong>02</strong><h3>Onboarding</h3><p>Every educator joins one TMP way of working, communicating and reporting.</p></article><article><strong>03</strong><h3>Monitoring</h3><p>Progress, feedback and parent communication keep the assignment accountable.</p></article></div></section>

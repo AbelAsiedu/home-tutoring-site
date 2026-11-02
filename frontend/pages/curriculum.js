@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 
@@ -13,10 +14,19 @@ const pathways = [
 ]
 
 export default function Curriculum() {
+  const [heroImage, setHeroImage] = useState('')
+
+  useEffect(() => {
+    fetch('/api/content/curriculum_slide_1', { cache: 'no-store' })
+      .then(response => response.ok ? response.json() : null)
+      .then(data => setHeroImage(data?.value || ''))
+      .catch(() => {})
+  }, [])
+
   return <div>
     <Header />
     <main className="curriculum-page">
-      <section className="curriculum-hero">
+      <section className="curriculum-hero" style={heroImage ? { backgroundImage: `linear-gradient(90deg, rgba(18,36,58,.96), rgba(18,36,58,.68)), url("${encodeURI(heroImage)}")` } : undefined}>
         <div className="container">
           <p className="section-kicker">Curriculum & Assessment</p>
           <h1>One learner. The right learning route.</h1>
