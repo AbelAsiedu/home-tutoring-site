@@ -2,11 +2,11 @@
 
 /* Light Mode (Default) */
 :root {
-  --bg-1: #eaf7f1;
-  --bg-2: #e8f1ff;
-  --accent: #2aa198;
-  --accent-2: #3b82f6;
-  --muted: #6b7280;
+  --bg-1: #fbf6ea;
+  --bg-2: #f3ead7;
+  --accent: #c9983e;
+  --accent-2: #12243a;
+  --muted: #5e625f;
   --text-primary: #0f172a;
   --text-secondary: #6b7280;
   --glass: rgba(255, 255, 255, 0.55);
@@ -40,8 +40,8 @@
 [data-theme='dark'] {
   --bg-1: #0f172a;
   --bg-2: #1e293b;
-  --accent: #06b6d4;
-  --accent-2: #3b82f6;
+  --accent: #e4c47d;
+  --accent-2: #e8e4d9;
   --muted: #94a3b8;
   --text-primary: #f1f5f9;
   --text-secondary: #cbd5e1;

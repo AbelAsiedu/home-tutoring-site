@@ -17,7 +17,7 @@ const creator = { name: item.creator_name, email: item.creator_email, id: item.c
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 32px;">
       <!-- Content Preview & Meta -->
       <div>
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; height: 300px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, var(--accent-2), var(--accent)); border-radius: 12px; height: 300px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; overflow: hidden;">
           <% if (item.thumbnail_path) { %>
             <img src="<%= item.thumbnail_path %>" alt="<%= item.title %>" style="width: 100%; height: 100%; object-fit: cover;">
           <% } else { %>

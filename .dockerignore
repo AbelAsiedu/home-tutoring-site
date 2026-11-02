@@ -1,10 +1,11 @@
 node_modules
-*.db
-*.sqlite
+frontend/node_modules
+frontend/.next
+.git
 .env
-.env.local
-.env.production
+.env.*
+*.log
+data.db
+sessions.sqlite
 uploads/*
 !uploads/.gitkeep
-.DS_Store
-*.log

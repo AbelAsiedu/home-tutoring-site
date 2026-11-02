@@ -200,7 +200,7 @@ async function callOpenRouter(messages) {
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${key}`,
+        Authorization: 'Bearer ' + key,
         'Content-Type': 'application/json',
         'HTTP-Referer': process.env.SITE_URL || 'http://localhost:3001',
         'X-Title': 'The Modern Pedagogues - Kaitlyn'
@@ -227,7 +227,7 @@ async function callMistral(messages) {
   try {
     const res = await fetch(endpoint, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
       signal: controller.signal
     });
@@ -249,7 +249,7 @@ async function callHuggingFace(prompt) {
   try {
     const res = await fetch(endpoint, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
       body: JSON.stringify({ inputs: prompt, parameters: { max_new_tokens: 600, temperature: 0.35, return_full_text: false } }),
       signal: controller.signal
     });

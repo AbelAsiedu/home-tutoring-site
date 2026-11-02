@@ -7,6 +7,7 @@ export default function App({ Component, pageProps }) {
     <>
       <Head>
         <link rel="stylesheet" href="/css/style.css" />
+        <link rel="stylesheet" href="/css/darkmode.css" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <style>{`
           /* Critical header CSS to reduce layout shift */
@@ -24,9 +25,11 @@ export default function App({ Component, pageProps }) {
         <meta property="og:description" content="Personalised home tutoring and curriculum resources for learners." />
         <meta name="twitter:card" content="summary_large_image" />
       </Head>
+      <Script src="/js/tab-session.js" strategy="beforeInteractive" />
+      <Script src="/js/darkmode.js" strategy="afterInteractive" />
       <Script src="/js/main.js" strategy="afterInteractive" />
+      <Script src="/js/ai-chat.js" strategy="afterInteractive" />
       <Component {...pageProps} />
     </>
   )
 }
-

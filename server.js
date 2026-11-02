@@ -26,6 +26,8 @@ const os = require('os');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+initDatabase();
+
 // Security / HTTPS helpers
 const USE_HTTPS = !!(process.env.SSL_KEY && process.env.SSL_CERT);
 const FORCE_HTTPS = process.env.FORCE_HTTPS === 'true';
@@ -108,8 +110,16 @@ const generalLimiter = rateLimit({
 app.use(generalLimiter); // Apply to all other routes
 
 app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json());
+app.use(bodyParser.json({
+  verify: (req, res, buffer) => {
+    if (req.originalUrl === '/webhooks/stripe') req.rawBody = buffer;
+  }
+}));
 app.use(cors({ origin: true, credentials: true }));
+
+app.get('/healthz', (req, res) => {
+  res.status(200).type('text/plain').send('ok');
+});
 
 // Force HTTPS when behind proxy to keep secure cookies and sessions working
 if (FORCE_HTTPS || process.env.NODE_ENV === 'production') {
@@ -172,12 +182,12 @@ app.use((req, res, next) => {
   
   // Helper function to get current user (tab-aware)
   req.getUser = function() {
-    return req.currentTabUser || req.session.user || null;
+    return req.headers['x-tab-id'] ? req.currentTabUser || null : req.currentTabUser || req.session.user || null;
   };
   
   // Helper function to get current user role (tab-aware)
   req.getUserRole = function() {
-    return req.currentTabRole || (req.session.user && req.session.user.role) || null;
+    return req.headers['x-tab-id'] ? req.currentTabRole || null : req.currentTabRole || (req.session.user && req.session.user.role) || null;
   };
   
   // Override res.locals to use tab-specific user
@@ -219,6 +229,7 @@ const csrfProtection = (req, res, next) => {
     '/api/cart/add','/api/cart/remove','/api/cart/clear','/api/cart','/api/session',
     '/api/products','/api/content','/api/curriculum',
     '/api/chat',
+    '/webhooks/stripe',
     '/admin/media/upload','/admin/media/delete',
     '/admin/products',
     '/marketplace/upload','/marketplace/seller/apply'
@@ -426,31 +437,7 @@ async function seedSampleData() {
   }
 }
 
-// Seed demo products if none exist
-async function seedDemoProducts() {
-  try {
-    const products = await runQuery('SELECT count(*) as c FROM products');
-    if (products && products[0] && products[0].c < 5) {
-      console.log('Seeding demo products for shop...');
-      const demo = [
-        { title: 'Primary Mathematics Workbook', description: 'Practice exercises aligned to the curriculum for Primary learners.', price: 30, image: '/images/book-primary.svg' },
-        { title: 'JHS English Comprehension Pack', description: 'Reading passages and comprehension questions for JHS students.', price: 45, image: '/images/book-jhs-english.svg' },
-        { title: 'SHS Science Revision Guide', description: 'Concise revision notes and past questions for SHS science subjects.', price: 60, image: '/images/book-shs-science.svg' },
-        { title: 'IGCSE Maths Problem Solving', description: 'Targeted problem sets and mark schemes for IGCSE Maths.', price: 85, image: '/images/book-igcse-maths.svg' },
-        { title: 'Tutor Resource Pack (Digital)', description: 'Editable worksheets, lesson plans and assessments (PDF bundle).', price: 20, image: '/images/book-tutor-pack.svg' }
-      ];
-      for (const p of demo) {
-        const id = uuidv4();
-        await runExec('INSERT INTO products (id, title, description, price, image_path) VALUES (?, ?, ?, ?, ?)', [id, p.title, p.description, p.price, p.image]);
-      }
-    }
-  } catch (err) {
-    console.error('Seed demo products error:', err);
-  }
-}
-
 seedSampleData();
-seedDemoProducts();
 
 // Auth middlewares
 function requireAuth(req, res, next) {
@@ -477,6 +464,30 @@ function requireAnyRole(roles) {
     if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'forbidden' });
     res.status(403).send('Forbidden');
   };
+}
+
+async function hasLearningPortalAccess(user, role) {
+  if (!user || role === 'admin') return role === 'admin';
+  if (!['student', 'tutor', 'teacher'].includes(role)) return false;
+  if (role === 'student') {
+    const rows = await runQuery(`SELECT 1 FROM enrollments e JOIN wards w ON w.id=e.ward_id WHERE w.student_id=? AND e.status='active' LIMIT 1`, [user.id]);
+    return rows.length > 0;
+  }
+  const rows = await runQuery(`SELECT 1 FROM enrollments WHERE tutor_id=? AND status='active' LIMIT 1`, [user.id]);
+  return rows.length > 0;
+}
+
+async function requireLearningPortalAccess(req, res, next) {
+  const user = req.getUser();
+  const role = req.getUserRole();
+  try {
+    if (await hasLearningPortalAccess(user, role)) return next();
+  } catch (error) {
+    console.error('Learning portal access check failed:', error);
+    return res.status(503).json({ error: 'access_check_failed' });
+  }
+  if (req.path.startsWith('/api/')) return res.status(user ? 403 : 401).json({ error: user ? 'enrollment_required' : 'unauthenticated' });
+  return res.redirect('/login?next=' + encodeURIComponent(req.originalUrl));
 }
 
 function requireCreatorAccess(req, res, next) {
@@ -519,27 +530,23 @@ function toCSV(rows){
 
 // Routes
 app.get('/', async (req, res) => {
-  await loadContent(res);
-  const slides = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'home_slide_%' ORDER BY key");
-  const products = await runQuery('SELECT * FROM products LIMIT 6');
-  res.render('home', { slides, products });
+  return nextHandle(req, res);
 });
 
 app.get('/about', async (req, res) => {
-  await loadContent(res);
-  const slides = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'about_slide_%' ORDER BY key");
-  const about = await runQuery('SELECT value FROM site_content WHERE key = ?', ['about_text']);
-  res.render('about', { slides, about: about[0] ? about[0].value : null });
+  return nextHandle(req, res);
 });
 
-app.get('/contact', (req, res) => {
+app.get('/contact', async (req, res) => {
+  await loadContent(res);
   res.render('contact');
 });
-app.post('/contact', (req, res) => {
+app.post('/contact', async (req, res) => {
   const { name, email, subject, message } = req.body;
   const id = uuidv4();
   const created = new Date().toISOString();
   dbRun('INSERT INTO messages (id, name, email, subject, message, created_at) VALUES (?, ?, ?, ?, ?, ?)', [id, name, email, subject, message, created]);
+  await loadContent(res);
   res.render('contact', { success: true });
 });
 
@@ -556,27 +563,19 @@ app.post('/apply', upload.single('cv'), (req, res) => {
 });
 
 app.get('/curriculum', async (req, res) => {
-  // For demo, read curricula from site_content keys curriculum_*
-  const curr = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'curriculum_%' AND key NOT LIKE 'curriculum_slide_%'");
-  const slides = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'curriculum_slide_%' ORDER BY key");
-  const products = await runQuery('SELECT * FROM products');
-  res.render('curriculum', { curr, products, slides });
+  return nextHandle(req, res);
 });
 
 app.get('/tutors', async (req, res) => {
-  await loadContent(res);
-  const slides = await runQuery("SELECT key, value FROM site_content WHERE key LIKE 'tutors_slide_%' ORDER BY key");
-  res.render('tutors', { slides });
+  return nextHandle(req, res);
 });
 
 app.get('/estore', async (req, res) => {
-  // E-Store now runs on marketplace rails (Free + Premium books)
-  res.redirect('/marketplace?category=books');
+  return res.redirect('/marketplace?category=books');
 });
 
 app.get('/faq', async (req, res) => {
-  await loadContent(res);
-  res.render('faq');
+  return nextHandle(req, res);
 });
 
 // AI chat assistant (LLM + FAQ fallback)
@@ -669,10 +668,17 @@ function normalizeChatHistory(history) {
 
 function buildHighQualityFallback(topKnowledge, intents) {
   const snippets = topKnowledge.slice(0, 3).map(item => `• ${item.text}`);
-  const intentHint = intents.length
-    ? `Detected topics: ${intents.join(', ').replace(/_/g, ' ')}.`
-    : 'Detected topics: general support.';
-  return `${snippets.join('\n')}\n\n${intentHint} If you want, I can guide you step-by-step or connect you to support@modernpedagogues.com.`;
+  if (!snippets.length) {
+    return 'I could not verify that detail from the current site information. Please contact support@modernpedagogues.com for a current answer.';
+  }
+  const nextStep = intents.includes('booking')
+    ? 'To continue, use the contact page to request a tutor or lesson.'
+    : intents.includes('downloads')
+      ? 'You can continue from the E-Store or your Downloads page.'
+      : intents.includes('account')
+        ? 'You can continue from your account or login page.'
+        : 'Tell me what you want to do next and I can guide you step by step.';
+  return `${snippets.join('\n')}\n\n${nextStep}`;
 }
 
 async function logAiChatInteraction({ message, answer, intents, matchedTopics, matchScore, fallbackUsed }) {
@@ -1458,10 +1464,11 @@ app.get('/download/:downloadId', (req, res) => {
 
 // Downloads page - show all user downloads
 app.get('/downloads', (req, res) => {
-  if (!req.session.user) return res.redirect('/login');
+  const currentUser = req.getUser();
+  if (!currentUser) return res.redirect('/login');
   
   dbAll('SELECT od.*, p.title FROM order_downloads od JOIN products p ON od.product_id = p.id WHERE od.user_id = ? ORDER BY od.created_at DESC', 
-    [req.session.user.id], (err, downloads) => {
+    [currentUser.id], (err, downloads) => {
       if (err) downloads = [];
       
       const processedDownloads = downloads.map(dl => ({
@@ -1596,16 +1603,10 @@ app.post('/login', authLimiter, [
 });
 
 app.get('/logout', (req, res) => {
-  // Only clear current tab's session, not the entire global session
-  if (req.session.tabs && req.session.tabs[req.tabId]) {
-    req.session.tabs[req.tabId].user = null;
-    req.session.tabs[req.tabId].role = null;
-  }
-  
-  // Also clear global for backward compatibility
-  req.session.user = null;
-  
-  req.session.save(() => res.redirect('/'));
+  req.session.destroy(() => {
+    res.clearCookie('connect.sid');
+    res.redirect('/');
+  });
 });
 
 // NOTE: Google OAuth routes would go here after installing Passport
@@ -1854,8 +1855,8 @@ app.post('/admin/login', adminLimiter, async (req, res) => {
     const usernameRaw = (req.body.username || '').trim();
     const password = req.body.password || '';
     const adminUsername = process.env.ADMIN_USERNAME || 'admin';
-    const adminPassword = process.env.ADMIN_PASSWORD || 'passwod'; // keep in sync with bootstrap reset
-    const adminPasswordFallbacks = [adminPassword, 'passwod']; // allow default even if env is stale
+    const adminPassword = process.env.ADMIN_PASSWORD || (process.env.NODE_ENV === 'production' ? null : 'passwod');
+    const adminPasswordFallbacks = adminPassword ? [adminPassword] : [];
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@modernpedagogues.com';
 
     // Path 1: explicit env credentials match
@@ -2209,7 +2210,7 @@ app.get('/admin/media', requireAdmin, async (req, res) => {
     }
     
     const tutorKeys = ['tutor_1_img','tutor_2_img','tutor_3_img','tutor_4_img','tutor_5_img','tutor_6_img'];
-    const mediaKeys = [...slideKeys, ...tutorKeys];
+    const mediaKeys = ['brand_logo', ...slideKeys, ...tutorKeys];
     
     const placeholders = mediaKeys.map(()=>'?').join(',');
     const rows = mediaKeys.length ? await runQuery(`SELECT key, value FROM site_content WHERE key IN (${placeholders})`, mediaKeys) : [];
@@ -2452,6 +2453,15 @@ app.get('/admin/export/:type', requireAdmin, async (req, res) => {
 });
 
 // ============ MARKETPLACE ROUTES ============
+
+app.use('/marketplace', async (req, res, next) => {
+  try {
+    await loadContent(res);
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
 const {
   uploadContent, addContentVersion, createPack, getContentById, searchContent,
@@ -2771,7 +2781,7 @@ app.post('/marketplace/:contentId/purchase/:versionId', requireLogin, async (req
       payment_method_types: ['card'],
       line_items: [{
         price_data: {
-          currency: 'usd',
+          currency: String(process.env.STRIPE_CURRENCY || 'usd').toLowerCase(),
           product_data: { name: `${content.title} (Premium)` },
           unit_amount: Math.round(grossAmount * 100)
         },
@@ -2803,7 +2813,7 @@ app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (r
     if (!stripe) return res.status(400).send('Not configured');
     
     const sig = req.headers['stripe-signature'];
-    const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    const event = stripe.webhooks.constructEvent(req.rawBody || req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
     
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
@@ -2919,6 +2929,10 @@ app.post('/marketplace/:contentId/publish', requireCreatorAccess, async (req, re
   }
 });
 
+// Learning Portal routes are protected before Next handles the page or API.
+app.get(['/admin/lms', '/tutor-lms', '/student-lms', '/parent-lms'], requireLearningPortalAccess, (req, res) => nextHandle(req, res));
+app.all('/api/lms', requireLearningPortalAccess, (req, res) => nextHandle(req, res));
+
 // Prepare Next and start server
 // Start server when run directly; otherwise export `app` for tests
 if (require.main === module) {
@@ -2933,13 +2947,13 @@ if (require.main === module) {
       try {
         const key = fs.readFileSync(process.env.SSL_KEY);
         const cert = fs.readFileSync(process.env.SSL_CERT);
-        https.createServer({ key, cert }, app).listen(PORT, () => console.log(`HTTPS server running on https://localhost:${PORT}`));
+        https.createServer({ key, cert }, app).listen(PORT, '0.0.0.0', () => console.log(`HTTPS server running on https://localhost:${PORT}`));
       } catch (e) {
         console.error('Failed to read SSL_KEY/SSL_CERT files, falling back to HTTP:', e);
-        app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+        app.listen(PORT, '0.0.0.0', () => console.log(`Server running on http://localhost:${PORT}`));
       }
     } else {
-      app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+      app.listen(PORT, '0.0.0.0', () => console.log(`Server running on http://localhost:${PORT}`));
     }
   }).catch(err => {
     console.error('Error preparing Next:', err);

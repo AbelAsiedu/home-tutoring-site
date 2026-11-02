@@ -40,6 +40,10 @@ export async function getExpressSession(req) {
   // When Next is being served by the same Express process, the session
   // middleware has already populated req.session. Prefer that authoritative
   // object before falling back to reading connect-sqlite3 directly.
+  const tabId = req.headers?.['x-tab-id']
+  if (tabId && req.session?.tabs?.[tabId]) {
+    return { ...req.session, user: req.session.tabs[tabId].user || null }
+  }
   if (req.session?.user) return req.session
 
   const sid = sessionId(req)
@@ -55,7 +59,11 @@ export async function getExpressSession(req) {
     sdb.get('SELECT sess FROM sessions WHERE sid=?', [sid], (err, row) => {
       sdb.close()
       if (err || !row) return resolve(null)
-      try { resolve(JSON.parse(row.sess)) } catch (_) { resolve(null) }
+      try {
+        const session = JSON.parse(row.sess)
+        const tab = tabId && session.tabs?.[tabId]
+        resolve(tab ? { ...session, user: tab.user || null } : session)
+      } catch (_) { resolve(null) }
     })
   })
 }

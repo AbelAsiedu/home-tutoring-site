@@ -22,9 +22,9 @@
   <div class="account-box curved" style="margin-bottom: 20px;display:grid;grid-template-columns:96px 1fr;gap:16px;align-items:center;">
     <div>
       <% if (profile && profile.avatar_path) { %>
-        <img src="<%= profile.avatar_path %>" alt="Profile" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:2px solid #3b82f6;">
+        <img src="<%= profile.avatar_path %>" alt="Profile" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);">
       <% } else { %>
-        <div style="width:96px;height:96px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(59,130,246,0.12);color:#2563eb;font-size:2rem;font-weight:700;">
+        <div style="width:96px;height:96px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(201,152,62,0.16);color:var(--accent-2);font-size:2rem;font-weight:700;">
           <%= (user.name || 'U').slice(0,1).toUpperCase() %>
         </div>
       <% } %>

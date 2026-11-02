@@ -34,7 +34,10 @@ document.addEventListener('DOMContentLoaded', function() {
   // Create toggle button if it doesn't exist
   const createToggleButton = () => {
     let btn = document.getElementById('dark-mode-toggle');
-    if (btn) return;
+    if (btn) {
+      bindToggleButton(btn);
+      return;
+    }
     
     btn = document.createElement('button');
     btn.id = 'dark-mode-toggle';
@@ -57,10 +60,7 @@ document.addEventListener('DOMContentLoaded', function() {
     btn.setAttribute('title', 'Toggle dark/light mode');
     btn.setAttribute('aria-label', 'Toggle dark mode');
     
-    btn.addEventListener('click', () => {
-      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-      applyTheme(isDark ? 'light' : 'dark');
-    });
+    bindToggleButton(btn);
     
     // Insert into nav-actions or header
     const navActions = document.querySelector('.nav-actions');
@@ -75,6 +75,15 @@ document.addEventListener('DOMContentLoaded', function() {
         navInner.appendChild(spacer);
       }
     }
+  };
+
+  const bindToggleButton = (btn) => {
+    if (btn.dataset.themeToggleBound === 'true') return;
+    btn.dataset.themeToggleBound = 'true';
+    btn.addEventListener('click', () => {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      applyTheme(isDark ? 'light' : 'dark');
+    });
   };
   
   // Initialize

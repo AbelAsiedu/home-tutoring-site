@@ -42,7 +42,7 @@ export default function EStore({ initialProducts }) {
             <div className="product-grid">
               {products.map(p => (
                 <div key={p.id} className="product glass" style={{display:'flex',flexDirection:'column'}}>
-                  <img src={p.image_path || p.image || '/images/book-placeholder.svg'} alt={p.title} style={{width:'100%',height:180,objectFit:'cover'}} />
+                  <img src={p.image_path && !/book1\.jpg$/i.test(p.image_path) ? p.image_path : (p.image || '/images/book-placeholder.svg')} alt={p.title} style={{width:'100%',height:180,objectFit:'cover'}} />
                   <div style={{padding:'12px',flex:1,display:'flex',flexDirection:'column'}}>
                     <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
                       <div style={{fontWeight:700}}>{p.title}</div>

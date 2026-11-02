@@ -1,182 +1,113 @@
 
-import useSWR from 'swr'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
-import { swrFetcher } from '../lib/api'
+import { getExpressUser } from '../lib/express-session-user'
 
-export default function Home() {
-  const { data: products, error } = useSWR('/api/products', swrFetcher)
+export default function Home({ initialUser }) {
+  const whatsappLink = 'https://wa.me/233593660708?text=Hello%20TMP%2C%20I%20would%20like%20to%20request%20a%20tutor%20for%20my%20ward.'
+  const defaultSlides = ['/images/hero-illustration.svg', '/images/slide2.svg', '/images/tutor-placeholder.svg']
+  const [slideImages, setSlideImages] = useState(defaultSlides)
 
-  async function addToCart(id) {
-    const body = new URLSearchParams({ id })
-    await fetch('/api/cart/add', { method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'}, body, credentials: 'include' })
-    alert('Added to cart')
-    try { window.dispatchEvent(new CustomEvent('cart:updated')) } catch(e) {}
-    try {
-      // persist to localStorage as a fallback for non-session clients
-      const key = 'mp_cart'
-      const cur = JSON.parse(localStorage.getItem(key) || '{}')
-      cur[id] = (Number(cur[id] || 0) || 0) + 1
-      localStorage.setItem(key, JSON.stringify(cur))
-    } catch(e) {}
-    try {
-      const links = Array.from(document.querySelectorAll('.site-header a, .site-header [role="button"]'))
-        // UI updates are handled by Header via the `cart:updated` event and localStorage fallback
-        // don't manipulate header DOM directly here (keeps React in control)
-        const cartLink = links.find(el => /cart/i.test((el.innerText||'')))
-        if (cartLink) {
-          // ensure header refreshes by dispatching the event (Header will update badge)
-          try { window.dispatchEvent(new CustomEvent('cart:updated')) } catch(e) {}
-        }
-    } catch(e) {}
-  }
+  useEffect(() => {
+    Promise.all([1, 2, 3].map(number => fetch(`/api/content/home_slide_${number}`, { cache: 'no-store' }).then(response => response.ok ? response.json() : null).catch(() => null)))
+      .then(rows => {
+        const configuredSlides = rows.map((row, index) => row?.value || defaultSlides[index])
+        setSlideImages(configuredSlides)
+      })
+  }, [])
+
+  const heroBackground = encodeURI(slideImages[0])
 
   return (
     <div>
-      <Header />
-      <section className="hero-slideshow">
-        <div className="hero-slideshow-inner">
-          <div className="slide"><img src="/images/slide2.svg" alt="slide-1"/></div>
-          <div className="slide"><img src="/images/slide2.svg" alt="slide-2"/></div>
-          <div className="slide"><img src="/images/slide2.svg" alt="slide-3"/></div>
-        </div>
-      </section>
-
-      <main className="container">
-        <section className="hero">
-          <div className="hero-left">
-            <h1>Personalised tutoring that builds confident learners</h1>
-            <p className="lead">One-to-one lessons from vetted tutors, curriculum-aligned resources and flexible scheduling — for Primary, JHS, SHS and international programmes.</p>
-            <div style={{display:'flex',gap:12,marginTop:16,flexWrap:'wrap'}}>
-              <Link href="/curriculum" className="cta">Explore Curriculum</Link>
-              <Link href="/apply" className="btn">Become a Tutor</Link>
+      <Header initialUser={initialUser} />
+      <main>
+        <section className="tmp-hero" style={{backgroundImage: `linear-gradient(90deg, rgba(18,36,58,.97) 0%, rgba(18,36,58,.88) 46%, rgba(18,36,58,.42) 100%), url("${heroBackground}")`}}>
+          <div className="tmp-hero-inner">
+            <div className="tmp-hero-copy">
+              <p className="eyebrow">Educational Consultancy · Curriculum & Assessment · Tutoring Programmes</p>
+              <h1>Education keeps changing. So do we.</h1>
+              <p className="hero-copy">We don't lock into one method because it's comfortable. The Modern Pedagogues is always reshaping how we teach, tailored to each ward, tested to make sure it actually works, and built with the future in mind, from Preschool through Senior High School, across Ghanaian, British, Pearson Edexcel, IB and Canadian curricula.</p>
+              <div className="curriculum-badges">
+                {['Ghana Education Service', 'Cambridge / British', 'Pearson Edexcel', 'IB', 'Canadian Curriculum'].map((badge) => <span key={badge}>{badge}</span>)}
+              </div>
+              <div className="hero-actions">
+                <a href={whatsappLink} className="cta">Request a Tutor</a>
+                <Link href="/curriculum" className="btn ghost">Explore Programmes</Link>
+              </div>
             </div>
-            <div className="trust-logos" style={{marginTop:18,display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}>
-              <div className="card small muted">Trusted by schools</div>
-              <div className="card small muted">1000+ Lessons Delivered</div>
-              <div className="card small muted">Verified Tutors</div>
-            </div>
-          </div>
-
-          <div className="hero-right glass">
-            <div className="booking-card">
-              <h3>Book a free trial</h3>
-              <p className="muted">Enter details and we'll match a tutor for a 30-minute trial session.</p>
-              <form onSubmit={async (e)=>{e.preventDefault();
-                const fd = new FormData(e.target);
-                await fetch('/contact',{method:'POST',body:fd});
-                alert('Thanks — we will be in touch.');
-              }}>
-                <input name="name" placeholder="Full name" required />
-                <input name="phone" placeholder="Phone or WhatsApp" required />
-                <select name="level">
-                  <option>Primary</option>
-                  <option>JHS</option>
-                  <option>SHS</option>
-                  <option>IGCSE / A-Levels</option>
-                </select>
-                <button className="btn" type="submit">Request trial</button>
-              </form>
-              <div className="muted" style={{fontSize:12,marginTop:8}}>Or call/WhatsApp <strong>+233 24 000 0000</strong></div>
+            <div className="tmp-hero-art hero-slideshow" aria-label="Learning programme highlights">
+              <div className="hero-slideshow-inner">
+                {slideImages.map((image, index) => <div className="slide" key={image + index}><img src={image} alt={`TMP learning programme ${index + 1}`} /></div>)}
+              </div>
+              <span className="hero-stamp">Empowering Lives,<br />Changing Destinies.</span>
             </div>
           </div>
         </section>
 
-        <section className="how-it-works" style={{marginTop:28}}>
-          <h2>How it works</h2>
-          <div className="steps-grid">
-            <div className="step card glass"><strong>1. Request a trial</strong><p className="muted">Tell us your goals and availability — we'll match a tutor.</p></div>
-            <div className="step card glass"><strong>2. Meet your tutor</strong><p className="muted">Start with a free 30-minute lesson to see the fit.</p></div>
-            <div className="step card glass"><strong>3. Track progress</strong><p className="muted">Get reports, homework and recommendations after each lesson.</p></div>
+        <section className="tmp-proof-rail" aria-label="TMP learning support highlights">
+          <div className="tmp-proof-inner">
+            <div><strong>Preschool → SHS</strong><span>Support across every stage</span></div>
+            <div><strong>Ghanaian + international</strong><span>Curricula that travel with your ward</span></div>
+            <div><strong>Tracked progress</strong><span>Honest reporting, every term</span></div>
           </div>
         </section>
 
-        <section className="platform" style={{marginTop:28}}>
-          <h2>Platform & technology</h2>
-          <div className="platform-grid">
-            <div className="platform-card card glass"><h4>Live lessons</h4><p className="muted">Video lessons, screen sharing and interactive whiteboard.</p></div>
-            <div className="platform-card card glass"><h4>Recordings & resources</h4><p className="muted">Lesson recordings and a library of worksheets.</p></div>
-            <div className="platform-card card glass"><h4>Parental dashboard</h4><p className="muted">View progress, upcoming lessons and billing.</p></div>
-          </div>
+        <section className="tmp-visual-strip container" aria-label="TMP learning programmes">
+          {slideImages.map((image, index) => <figure key={`visual-${image}-${index}`}><img src={image} alt={`TMP programme view ${index + 1}`} /><figcaption>{['Learning that adapts', 'Support across curricula', 'A team behind every ward'][index]}</figcaption></figure>)}
         </section>
 
-        <section className="assessments" style={{marginTop:28}}>
-          <h2>Assessments & reporting</h2>
-          <p className="muted">Regular assessments and personalised learning plans to monitor progress.</p>
+        <section className="tmp-section tmp-mission container">
+          <p className="section-kicker">Our mission</p>
+          <h2>Built around the student, not a fixed syllabus.</h2>
+          <p>The Modern Pedagogues was founded 2019 on the belief that education shouldn't stay frozen in the past. Every ward learns differently, so we build around the student, not a fixed syllabus delivered the same way to everyone. That means qualified tutors, a plan tailored to how each ward actually learns, tracked progress, and honest reporting, every term.</p>
         </section>
 
-        <section className="safeguarding" style={{marginTop:28}}>
-          <h2>Safeguarding & quality</h2>
-          <p className="muted">All tutors are vetted and background-checked; quality assurance is ongoing.</p>
-        </section>
-
-        <section className="pricing" style={{marginTop:28}}>
-          <h2>Plans & pricing</h2>
-          <div className="pricing-grid">
-            <div className="plan card glass"><h3>Starter</h3><div className="muted">Single lessons</div><div className="price">GHS 65 / lesson</div><a href="/contact" className="btn">Get started</a></div>
-            <div className="plan card glass"><h3>Regular</h3><div className="muted">Weekly lessons</div><div className="price">GHS 150 / lesson</div><a href="/contact" className="btn">Sign up</a></div>
-            <div className="plan card glass"><h3>Premium</h3><div className="muted">Dedicated tutor & reports</div><div className="price">GHS 200 / lesson</div><a href="/contact" className="btn">Contact us</a></div>
-          </div>
-        </section>
-        <section className="approach" style={{marginTop:32}}>
-          <h2>Our approach to learning</h2>
-          <div className="approach-grid">
-            <div className="card glass"><h4>Personalised learning</h4><p className="muted">Lessons tailored to each learner's goals and style.</p></div>
-            <div className="card glass"><h4>Evidence-based</h4><p className="muted">Formative assessments guide instruction.</p></div>
-            <div className="card glass"><h4>Curriculum-aligned</h4><p className="muted">Mapped to national and international syllabuses.</p></div>
-          </div>
-        </section>
-
-        <section className="subjects" style={{marginTop:28}}>
-          <h2>Subjects we teach</h2>
-          <div className="subjects-grid">
-            <div className="card glass"><strong>Mathematics</strong><div className="muted">Primary → A-Level</div></div>
-            <div className="card glass"><strong>English</strong><div className="muted">Comprehension & literature</div></div>
-            <div className="card glass"><strong>Science</strong><div className="muted">Physics, Chemistry & Biology</div></div>
-            <div className="card glass"><strong>Computer Science</strong><div className="muted">Programming & ICT</div></div>
-            <div className="card glass"><strong>Accounting</strong><div className="muted">Exam-focused prep</div></div>
-            <div className="card glass"><strong>Languages</strong><div className="muted">French & more</div></div>
-          </div>
-        </section>
-
-        <section className="trust" style={{marginTop:28}}>
-          <h2>Safety & quality</h2>
-          <p className="muted">Background checks, safeguarding and ongoing tutor training are core to our offering.</p>
-        </section>
-
-        <section className="faq" style={{marginTop:28}}>
-          <h2>Frequently asked questions</h2>
-          <div className="faq-list">
-            <div className="faq-item card glass">
-              <button className="faq-question">How do trial lessons work?</button>
-              <div className="faq-answer muted">Trial lessons are 30 minutes to assess fit; often complimentary with sign-up.</div>
+        <section className="tmp-section services-section">
+          <div className="container">
+            <p className="section-kicker">What we do</p>
+            <h2>Support that moves with every learner.</h2>
+            <div className="services-grid">
+              <article><span>01</span><h3>Home Tuition</h3><p>One-on-one, in-home teaching across Preschool, Primary, JHS and SHS, built around each ward's pace, subjects and schedule.</p></article>
+              <article><span>02</span><h3>Online & International Support</h3><p>Structured remote lessons for students on British, Pearson Edexcel, IB, Canadian and other foreign curricula, wherever they are based.</p></article>
+              <article><span>03</span><h3>Final Lap Exam Prep</h3><p>Intensive group revision and mock examinations ahead of BECE and major assessments, with performance tracked mock by mock.</p></article>
+              <article><span>04</span><h3>Pre-SHS Launchpad</h3><p>Structured preparation for students transitioning into Senior High School.</p></article>
+              <article><span>05</span><h3>Curriculum & Assessment Consulting</h3><p>Curriculum design and assessment services for schools and institutions.</p></article>
+              <article><span>06</span><h3>Tutor Training & Management</h3><p>Recruitment, training and ongoing management of a qualified tutor network.</p></article>
             </div>
-            <div className="faq-item card glass">
-              <button className="faq-question">Can I change tutors?</button>
-              <div className="faq-answer muted">Yes. We will rematch you if needed.</div>
-            </div>
-            <div className="faq-item card glass">
-              <button className="faq-question">Are lessons recorded?</button>
-              <div className="faq-answer muted">Yes — recordings and materials are available in the dashboard.</div>
+            <div className="programme-row">
+              {['Final Lap', 'Pre-SHS Launchpad', 'Home Tuition', 'Online Learning', 'Many more'].map((programme) => <span key={programme}>{programme}</span>)}
             </div>
           </div>
         </section>
 
-        <section className="cta-banner glass" style={{marginTop:28,padding:22,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <section className="tmp-section tutors-section container">
           <div>
-            <h3>Ready to start?</h3>
-            <div className="muted">Book a free trial and we'll match a tutor to your goals.</div>
+            <p className="section-kicker">Our tutors</p>
+            <h2>One coordinated team, held to one standard.</h2>
           </div>
-          <div style={{display:'flex',gap:10}}>
-            <a href="/apply" className="btn">Become a tutor</a>
-            <a href="/contact" className="cta">Request a free trial</a>
+          <div className="tutors-copy">
+            <p>Every TMP tutor is a qualified, trained graduate educator. We operate as one coordinated team, working to the same standard on every assignment — not a pool of part-timers called in per contract. Each tutor is assessed, onboarded and monitored before being placed with a ward.</p>
+            <p className="admin-line"><strong>A direct line to admin:</strong> Parents always have a direct contact at TMP, not just the tutor.</p>
           </div>
         </section>
 
-        {/* Shop & Resources section removed from landing page per request */}
+        <section className="tmp-cta">
+          <div className="container">
+            <p className="section-kicker">Start a conversation</p>
+            <h2>Tell us what your ward needs next.</h2>
+            <p>We will help you find the right programme, tutor and learning plan.</p>
+            <div className="hero-actions"><a href={whatsappLink} className="cta">Request a Tutor</a><Link href="/contact" className="btn ghost">Get in touch</Link></div>
+          </div>
+        </section>
       </main>
-      <Footer />
+      <Footer initialUser={initialUser} />
     </div>
   )
+}
+
+export async function getServerSideProps({ req }) {
+  return { props: { initialUser: await getExpressUser(req) } }
 }

@@ -1,79 +1,17 @@
-import useSWR from 'swr'
+import Link from 'next/link'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
-import { swrFetcher } from '../lib/api'
 
-export default function About(){
-  const { data, error } = useSWR('/api/content/about_text', swrFetcher)
-  const aboutHtml = data && data.value ? data.value : `
-    <p>The Modern Pedagogues was founded to bring quality home tutoring to families. Our tutors are experienced and vetted, and our lessons align with global curricula from GES to Cambridge and North American programs.</p>
-    <h3>Our Mission</h3>
-    <p>To make high-quality, curriculum-aligned tutoring accessible and affordable for learners at every level.</p>
-    <h3>Our Approach</h3>
-    <ul>
-      <li>One-to-one and small group tutoring</li>
-      <li>Personalised learning plans</li>
-      <li>Regular progress reporting</li>
-    </ul>
-  `
-
-  return (
-    <div>
-      <Header />
-      <section className="hero-slideshow" style={{height:220}}>
-        <div className="hero-slideshow-inner" style={{position:'relative',height:'100%'}}>
-          <div className="slide"><img loading="lazy" src="/images/hero-illustration.svg" alt="slide-1" style={{width:'100%',height:'100%',objectFit:'cover'}}/></div>
-          <div className="slide"><img loading="lazy" src="/images/slide2.svg" alt="slide-2" style={{width:'100%',height:'100%',objectFit:'cover'}}/></div>
-          <div className="slide"><img loading="lazy" src="/images/hero-illustration.svg" alt="slide-3" style={{width:'100%',height:'100%',objectFit:'cover'}}/></div>
-        </div>
-      </section>
-      <main className="container">
-        <div className="glass" style={{padding:20,marginTop:18}}>
-          <h1>About The Modern Pedagogues</h1>
-          {error ? <div className="muted">Could not load about content</div> : <div className="muted" dangerouslySetInnerHTML={{__html: aboutHtml}} />}
-        </div>
-
-        <section className="lesson-plans glass" style={{marginTop:18}}>
-          <h2>Lesson Plans</h2>
-          <p className="muted">Structured lesson plans mapped to curricula, with weekly objectives, topics and suggested resources. Each plan includes learning outcomes and recommended supporting materials.</p>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:12,marginTop:12}}>
-            <div className="plan-card">
-              <h4>Primary</h4>
-              <ul className="muted">
-                <li>Weekly focus: Number sense, basic operations</li>
-                <li>Objectives: Fluency with addition/subtraction, introduction to multiplication</li>
-                <li>Resources: Workbooks, flashcards, practice worksheets</li>
-              </ul>
-            </div>
-            <div className="plan-card">
-              <h4>Junior High (JHS)</h4>
-              <ul className="muted">
-                <li>Weekly focus: Algebra foundations, reading comprehension</li>
-                <li>Objectives: Solve simple equations, inferential reading</li>
-                <li>Resources: Curriculum-aligned textbooks, past papers</li>
-              </ul>
-            </div>
-            <div className="plan-card">
-              <h4>Senior High (SHS)</h4>
-              <ul className="muted">
-                <li>Weekly focus: Exam techniques, advanced topics</li>
-                <li>Objectives: Apply concepts to problem-solving, exam practice</li>
-                <li>Resources: Revision guides, topic tests, recordings</li>
-              </ul>
-            </div>
-          </div>
-        </section>
-
-        <section style={{marginTop:18}} className="glass">
-          <h2>Testimonials</h2>
-          <div>
-            <blockquote className="muted">“The Modern Pedagogues helped my child improve grades from C to A in six months — personalised and patient tutors.” — Parent, Accra</blockquote>
-            <blockquote className="muted">“Excellent materials and clear progress reports.” — Student, Kumasi</blockquote>
-          </div>
-        </section>
-
-      </main>
-      <Footer />
-    </div>
-  )
+export default function About() {
+  return <div>
+    <Header />
+    <main className="about-page">
+      <section className="about-hero"><div className="container"><p className="section-kicker">About TMP</p><h1>Education should keep moving forward.</h1><p>The Modern Pedagogues was founded in 2019 on the belief that education should not stay frozen in the past.</p><div className="hero-actions"><Link href="/curriculum" className="cta">Explore our approach</Link><Link href="/contact" className="btn ghost">Get in touch</Link></div></div></section>
+      <section className="container about-intro"><div><p className="section-kicker">Why we exist</p><h2>Build around the student, not a fixed syllabus.</h2></div><div><p>Every ward learns differently, so we build around the student, not a fixed syllabus delivered the same way to everyone. That means qualified tutors, a plan tailored to how each ward actually learns, tracked progress, and honest reporting, every term.</p><p>We work across Preschool, Primary, JHS and SHS, across Ghanaian, British, Pearson Edexcel, IB and Canadian curricula.</p></div></section>
+      <section className="about-principles"><div className="container"><p className="section-kicker">Our principles</p><h2>Practical, personal, accountable.</h2><div className="principle-grid"><article><strong>01</strong><h3>Personalised learning</h3><p>Plans respond to how each ward learns, what they need now and where they want to go next.</p></article><article><strong>02</strong><h3>Qualified educators</h3><p>Every TMP tutor is assessed, trained and supported as part of one coordinated team.</p></article><article><strong>03</strong><h3>Honest progress</h3><p>Parents receive tracked progress and clear reporting rather than vague promises.</p></article></div></div></section>
+      <section className="container about-story"><div><p className="section-kicker">From lesson to long-term confidence</p><h2>Modern pedagogy, grounded in real family life.</h2></div><p>Good tutoring fits around school, home, exams, confidence and the realities of a learner\'s schedule. Our work combines curriculum knowledge with the patience, structure and communication that help a ward make progress that lasts.</p></section>
+      <section className="about-cta"><div className="container"><p className="section-kicker">Work with TMP</p><h2>Let\'s make the next stage clearer.</h2><p>Tell us about your ward, school and goals.</p><Link href="/contact" className="cta">Start a conversation</Link></div></section>
+    </main>
+    <Footer />
+  </div>
 }

@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid'
 const db = require('../../../lib/db')
 const r2 = require('../../../lib/r2-storage')
 const multer = require('multer')
+if (!db.getDb() && !db.getPool()) db.initDb()
 export const config = { api: { bodyParser: false } }
 const uploadsDir = path.join(process.cwd(), 'uploads')
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true })

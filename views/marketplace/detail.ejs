@@ -29,9 +29,9 @@ const isLoggedInValue = typeof isLoggedIn !== 'undefined' ? isLoggedIn : false;
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 40px;">
       <!-- Left: Preview -->
       <div>
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; height: 400px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, var(--accent-2), var(--accent)); border-radius: 12px; height: 400px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; overflow: hidden;">
           <% if (content.thumbnail_path) { %>
-            <img src="<%= content.thumbnail_path %>" alt="<%= content.title %>" style="width: 100%; height: 100%; object-fit: cover;">
+            <img src="<%= content.thumbnail_path %>" alt="<%= content.title %>" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null;this.src='/images/book-placeholder.svg';">
           <% } else { %>
             <span style="color: white; font-size: 80px; opacity: 0.5;">📦</span>
           <% } %>
