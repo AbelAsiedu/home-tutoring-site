@@ -1,5 +1,5 @@
 /* Dark Mode Toggle Script */
-document.addEventListener('DOMContentLoaded', function() {
+function initDarkMode() {
   const THEME_KEY = 'theme-preference';
   
   // Get saved preference or default to light (initial design)
@@ -23,25 +23,23 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Update toggle button appearance
   const updateToggleButton = () => {
-    const btn = document.getElementById('dark-mode-toggle');
-    if (!btn) return;
-    
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    btn.innerHTML = isDark ? '☀️ Light' : '🌙 Dark';
-    btn.setAttribute('aria-pressed', isDark);
+    document.querySelectorAll('.dark-mode-toggle').forEach(btn => {
+      btn.innerHTML = isDark ? '☀️ Light' : '🌙 Dark';
+      btn.setAttribute('aria-pressed', isDark);
+    });
   };
   
   // Create toggle button if it doesn't exist
   const createToggleButton = () => {
-    let btn = document.getElementById('dark-mode-toggle');
-    if (btn) {
-      bindToggleButton(btn);
+    const existingButtons = document.querySelectorAll('.dark-mode-toggle');
+    if (existingButtons.length) {
+      existingButtons.forEach(bindToggleButton);
       return;
     }
     
     btn = document.createElement('button');
-    btn.id = 'dark-mode-toggle';
-    btn.className = 'btn ghost';
+    btn.className = 'dark-mode-toggle btn ghost';
     btn.style.cssText = `
       position: relative;
       z-index: 30;
@@ -90,5 +88,10 @@ document.addEventListener('DOMContentLoaded', function() {
   createToggleButton();
   const theme = getSavedTheme();
   applyTheme(theme);
-  
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initDarkMode);
+} else {
+  initDarkMode();
+}

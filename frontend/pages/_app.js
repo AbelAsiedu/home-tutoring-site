@@ -27,6 +27,7 @@ export default function App({ Component, pageProps }) {
       </Head>
       <Script src="/js/tab-session.js" strategy="beforeInteractive" />
       <Script src="/js/darkmode.js" strategy="afterInteractive" />
+      <Script src="/js/slideshow.js" strategy="afterInteractive" />
       <Script src="/js/main.js" strategy="afterInteractive" />
       <Script src="/js/ai-chat.js" strategy="afterInteractive" />
       <Component {...pageProps} />

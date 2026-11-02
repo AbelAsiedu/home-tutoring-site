@@ -35,7 +35,7 @@ export default function Footer({ initialUser = null }){
         </div>
         <div style={{textAlign:'center',marginTop:16,paddingTop:12,borderTop:'1px solid rgba(15,23,42,0.06)'}}>
           <div style={{display:'inline-flex',gap:10}}>
-            <button type="button" id="dark-mode-toggle" className="btn ghost" title="Toggle dark/light mode" aria-label="Toggle dark mode">Dark mode</button>
+            <button type="button" className="dark-mode-toggle btn ghost" title="Toggle dark/light mode" aria-label="Toggle dark mode">Dark mode</button>
             {sessionLoaded && sessionUser ? <><a href="/account" className="btn ghost">My Account</a><a href="/logout" className="btn">Log out</a></> : sessionLoaded ? <><a href="/login" className="btn ghost">Login</a><a href="/signup" className="btn">Sign up</a></> : null}
           </div>
         </div>

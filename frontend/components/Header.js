@@ -52,7 +52,7 @@ export default function Header({ initialUser = null }){
             <Link href="/cart" legacyBehavior><a style={{display:'inline-flex',alignItems:'center',gap:8}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 6h15l-1.5 9h-11L6 6z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="10" cy="20" r="1" fill="currentColor"/><circle cx="18" cy="20" r="1" fill="currentColor"/></svg><span>Cart</span><span className="cart-badge" style={{minWidth:18,display:'inline-block',textAlign:'center'}}>{cartCount || ''}</span></a></Link>
             <button aria-label="Open mini cart" style={{background:'transparent',border:0,cursor:'pointer',padding:6,fontSize:14}}>▾</button>
           </div>
-          <button id="dark-mode-toggle" className="btn ghost" type="button" aria-label="Toggle dark mode" title="Toggle dark mode" />
+          <button className="dark-mode-toggle btn ghost" type="button" aria-label="Toggle dark mode" title="Toggle dark mode" />
         </nav>
       </div>
     </header>
