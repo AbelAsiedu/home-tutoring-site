@@ -42,8 +42,8 @@ if (TRUST_PROXY) app.set('trust proxy', 1);
 else if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
 
 // Ensure folders
-const UPLOADS_DIR = path.join(__dirname, 'uploads');
-if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
+const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, 'uploads');
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 // Multer for file uploads
 const storage = multer.diskStorage({

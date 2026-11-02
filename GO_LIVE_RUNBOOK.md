@@ -8,7 +8,7 @@ Create these services before deploying:
 
 1. A Node.js host such as Heroku, Render, Railway, Fly.io, or a VPS.
 2. A managed PostgreSQL database for production. SQLite is suitable for local development only.
-3. Persistent object storage for uploads, preferably Cloudflare R2 or S3. Local `uploads/` files are not durable on most platform dynos.
+3. Persistent object storage for uploads, preferably Cloudflare R2 or S3. On Fly.io, this deployment stores uploads under the encrypted `/data` volume via `UPLOADS_DIR=/data/uploads`; do not remove that volume.
 4. An SMTP or transactional email provider for verification, password reset, order, and admin emails.
 5. A Stripe account with the business identity, payout bank account, tax settings, and production mode enabled.
 6. A domain with HTTPS. Do not accept production payments over plain HTTP.
