@@ -2,7 +2,7 @@
 // Each tab can have its own user role context independent of other tabs
 (function() {
   // Create a unique ID for this tab session
-  const TAB_ID = 'tab_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  const TAB_ID = sessionStorage.getItem('tabId') || ('tab_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9));
   
   // Store in sessionStorage (cleared when tab is closed, NOT shared across tabs)
   sessionStorage.setItem('tabId', TAB_ID);

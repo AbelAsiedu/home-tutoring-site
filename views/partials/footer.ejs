@@ -13,7 +13,7 @@
   </div>
   <div style="text-align:center;margin-top:16px;padding-top:12px;border-top:1px solid rgba(15,23,42,0.06)">
     <div style="display:inline-flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center;justify-content:center">
-      <button type="button" id="dark-mode-toggle" class="btn ghost" title="Toggle dark/light mode" aria-label="Toggle dark mode">Dark mode</button>
+      <button type="button" class="dark-mode-toggle btn ghost" title="Toggle dark/light mode" aria-label="Toggle dark mode">Dark mode</button>
       <% if (typeof user !== 'undefined' && user) { %>
         <a href="/account" class="btn ghost" title="View and edit your account settings">Hi <%= user.name %></a>
         <% if (user.role === 'creator' || user.role === 'admin') { %>

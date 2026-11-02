@@ -1917,6 +1917,7 @@ app.post('/admin/login', adminLimiter, async (req, res) => {
 
 app.get('/admin', requireAdmin, async (req, res) => {
   try {
+    await loadContent(res);
     const users = await runQuery('SELECT count(*) as c FROM users');
     const products = await runQuery('SELECT count(*) as c FROM products');
     const orders = await runQuery('SELECT count(*) as c FROM orders');
