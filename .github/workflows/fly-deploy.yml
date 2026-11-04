@@ -1,0 +1,61 @@
+name: Deploy to Fly.io
+
+# Deploys only after the "Production Gate" workflow has passed on main.
+# Needs one repository secret: FLY_API_TOKEN
+#   fly tokens create deploy -a home-tutoring-site
+# GitHub -> Settings -> Secrets and variables -> Actions -> New repository secret.
+#
+# First deploy checklist (run once on your computer, see GO_LIVE_RUNBOOK.md):
+#   - the "data" volume exists:  fly volumes list -a home-tutoring-site
+#   - production secrets are set: SESSION_SECRET, ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD
+#
+# You can also run it by hand: Actions -> Deploy to Fly.io -> Run workflow.
+
+on:
+  workflow_run:
+    workflows: ["Production Gate"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+# Never run two deploys at once; a newer one waits for the current one to finish.
+concurrency:
+  group: fly-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # For automatic runs, deploy only if the gate succeeded. Manual runs always proceed.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Checkout the commit that passed the gate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Set up flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      # --ha=false keeps a single machine: the app uses SQLite on one volume, so a second
+      # machine would have its own separate, empty database and sessions.
+      - name: Deploy
+        run: flyctl deploy --remote-only --ha=false
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Check the live site
+        run: |
+          for i in 1 2 3 4 5 6; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' https://home-tutoring-site.fly.dev/healthz || true)
+            echo "attempt $i: HTTP $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 10
+          done
+          echo "Health check did not return 200 after deploy" >&2
+          exit 1
