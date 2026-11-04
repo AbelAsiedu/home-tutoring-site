@@ -11,6 +11,7 @@
   <main class="container">
     <section class="page glass" style="margin-top:2rem;max-width:1050px;margin-left:auto;margin-right:auto">
       <a href="/admin/applications">← Back to applications</a>
+      <% if (typeof message !== 'undefined' && message) { %><div class="notice success" role="status"><%= message %></div><% } %>
       <div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap;margin-top:1rem">
         <div><span class="muted">Tutor application</span><h1><%= application.name %></h1><p class="muted"><%= application.email %> · <%= application.phone %> · <%= application.location %></p></div>
         <span class="badge"><%= (application.status || 'pending').replace('_',' ') %></span>

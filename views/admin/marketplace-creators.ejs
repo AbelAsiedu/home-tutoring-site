@@ -47,7 +47,7 @@ const creators = typeof creators !== 'undefined' ? creators : [];
                   </span>
                 </td>
                 <td style="padding: 12px; text-align: center;">
-                  <a href="/admin/users/<%= creator.id %>" class="btn ghost" style="padding: 6px 10px; font-size: 0.8rem; text-decoration: none;">View Profile</a>
+                  <a href="/admin/marketplace?creator=<%= encodeURIComponent(creator.id) %>" class="btn ghost" style="padding: 6px 10px; font-size: 0.8rem; text-decoration: none;">View Content</a>
                 </td>
               </tr>
             <% }); %>

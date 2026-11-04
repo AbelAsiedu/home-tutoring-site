@@ -230,13 +230,11 @@ const csrfProtection = (req, res, next) => {
     '/api/products','/api/content','/api/curriculum',
     '/api/chat',
     '/webhooks/stripe',
-    '/admin/media/upload','/admin/media/delete',
-    '/admin/products',
     '/marketplace/upload','/marketplace/seller/apply'
   ];
-  const csrfExemptPrefixes = [
-    '/admin/products/'
-  ];
+  // Admin routes are no longer exempt: every admin form sends a _csrf field.
+  // Multipart admin uploads are verified by verifyMultipartCsrf() after multer parses the body.
+  const csrfExemptPrefixes = [];
   if (csrfExempt.includes(req.path) || csrfExemptPrefixes.some(prefix => req.path.startsWith(prefix))) return next();
   if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
     if (!verifyCsrfToken(req)) {
@@ -249,6 +247,23 @@ const csrfProtection = (req, res, next) => {
 };
 
 app.use(csrfProtection);
+
+// Multipart bodies are only readable after multer runs, so csrfProtection skips them.
+// Admin upload routes add this middleware right after multer to enforce the token.
+function verifyMultipartCsrf(redirectBase) {
+  return (req, res, next) => {
+    if (verifyCsrfToken(req)) return next();
+    const files = [];
+    if (req.file) files.push(req.file);
+    if (req.files) Object.values(req.files).forEach(list => files.push(...[].concat(list)));
+    files.forEach(f => { if (f && f.path) fs.unlink(f.path, () => {}); });
+    console.warn(`[CSRF] Multipart token mismatch for ${req.path}`);
+    return res.redirect(`${redirectBase}?error=` + encodeURIComponent('Security check failed. Please refresh the page and try again.'));
+  };
+}
+
+// Wrap async route handlers so a rejected promise reaches the error handler instead of hanging the request.
+const asyncRoute = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 // Middleware to require complete user profile for certain actions
 const requireCompleteProfile = async (req, res, next) => {
@@ -1281,9 +1296,9 @@ app.get('/api/curriculum', (req, res) => {
 // inconsistent responses between server-rendered and Next.js frontends.
 
 // Products API
-app.post('/admin/products', requireAdmin, upload.fields([{ name: 'image', maxCount: 1 }, { name: 'file', maxCount: 1 }]), (req, res) => {
+app.post('/admin/products', requireAdmin, upload.fields([{ name: 'image', maxCount: 1 }, { name: 'file', maxCount: 1 }]), verifyMultipartCsrf('/admin/products'), (req, res) => {
   const { title, description, price, is_downloadable } = req.body;
-  if (!title) return res.redirect('/admin/products?error=' + encodeURIComponent('Title is required'));
+  if (!title || !String(title).trim()) return res.redirect('/admin/products?error=' + encodeURIComponent('Title is required'));
   const priceNum = isNaN(parseFloat(price)) ? 0 : parseFloat(price);
   const image_path = req.files && req.files.image ? `/uploads/${path.basename(req.files.image[0].path)}` : null;
   const file_path = req.files && req.files.file ? req.files.file[0].filename : null;
@@ -1493,11 +1508,16 @@ app.get('/admin/orders', requireAdmin, async (req, res) => {
   }
 });
 
+const ORDER_STATUSES = ['pending', 'paid', 'cancelled'];
 app.post('/admin/orders/:id/status', requireAdmin, async (req, res) => {
   try {
     const id = req.params.id;
-    const { status } = req.body;
-    await runExec('UPDATE orders SET status = ? WHERE id = ?', [status, id]);
+    const status = String(req.body.status || '').trim().toLowerCase();
+    if (!ORDER_STATUSES.includes(status)) {
+      return res.status(400).send('Invalid order status');
+    }
+    const result = await runExec('UPDATE orders SET status = ? WHERE id = ?', [status, id]);
+    if (!result.changes) return res.status(404).send('Order not found');
     res.redirect('/admin/orders');
   } catch (err) {
     console.error('Order status update error:', err);
@@ -1846,6 +1866,11 @@ app.post('/profile/edit', upload.single('avatar'), async (req, res) => {
 // Admin routes
 function requireAdmin(req, res, next) {
   if (req.getUserRole() === 'admin') return next();
+  // fetch()/XHR callers (metrics, bulk content save) need a status code, not an HTML login redirect.
+  const wantsJson = req.xhr
+    || (req.headers.accept || '').includes('application/json')
+    || (req.headers['content-type'] || '').includes('application/json');
+  if (wantsJson) return res.status(401).json({ error: 'unauthenticated', login: '/admin/login' });
   res.redirect('/admin/login');
 }
 
@@ -1961,9 +1986,13 @@ app.get('/admin/metrics', requireAdmin, async (req, res) => {
       d.setDate(start.getDate()+i);
       labels.push(fmtDate(d));
     }
-    const rowsOrders = await runQuery('SELECT created_at FROM orders');
-    const rowsMsgs = await runQuery('SELECT created_at FROM messages');
-    const rowsApps = await runQuery('SELECT created_at FROM applications');
+    // Only fetch the window the chart shows (created_at is an ISO string, so string comparison works).
+    const since = labels[0];
+    const recent = (table) => runQuery(`SELECT created_at FROM ${table} WHERE created_at >= ?`, [since]).catch(err => {
+      console.error(`metrics: ${table} query failed:`, err.message);
+      return [];
+    });
+    const [rowsOrders, rowsMsgs, rowsApps] = await Promise.all([recent('orders'), recent('messages'), recent('applications')]);
     const countByDay = (rows)=>{
       const map = Object.fromEntries(labels.map(l=>[l,0]));
       rows.forEach(r=>{
@@ -1979,17 +2008,19 @@ app.get('/admin/metrics', requireAdmin, async (req, res) => {
   }
 });
 
-app.get('/admin/messages', requireAdmin, async (req, res) => {
+app.get('/admin/messages', requireAdmin, asyncRoute(async (req, res) => {
   const messages = await runQuery('SELECT * FROM messages ORDER BY created_at DESC');
   res.render('admin/messages', { messages });
-});
+}));
 
-app.get('/admin/applications', requireAdmin, async (req, res) => {
+// Fallback list view. lib/tutor-application-override.js replaces this handler (and registers the
+// detail, CV download and status routes) when the app is started with `npm start`.
+app.get('/admin/applications', requireAdmin, asyncRoute(async (req, res) => {
   const apps = await runQuery('SELECT * FROM applications ORDER BY created_at DESC');
-  res.render('admin/applications', { apps });
-});
+  res.render('admin/applications', { apps, filters: { status: '', search: '' }, csrfToken: generateCsrfToken(req) });
+}));
 
-app.get('/admin/seller-applications', requireAdmin, async (req, res) => {
+app.get('/admin/seller-applications', requireAdmin, asyncRoute(async (req, res) => {
   const rows = await runQuery(
     `SELECT sa.*, u.name as user_name, u.email as user_email, u.role as user_role
      FROM seller_applications sa
@@ -2002,7 +2033,7 @@ app.get('/admin/seller-applications', requireAdmin, async (req, res) => {
     error: req.query.error || '',
     csrfToken: generateCsrfToken(req)
   });
-});
+}));
 
 app.post('/admin/seller-applications/:id/review', requireAdmin, async (req, res) => {
   try {
@@ -2025,7 +2056,8 @@ app.post('/admin/seller-applications/:id/review', requireAdmin, async (req, res)
     );
 
     if (status === 'approved') {
-      await runExec('UPDATE users SET role = ? WHERE id = ?', ['creator', row.user_id]);
+      // Never demote admins or tutors who also apply to sell; only promote ordinary accounts.
+      await runExec("UPDATE users SET role = ? WHERE id = ? AND role NOT IN ('admin', 'tutor', 'teacher')", ['creator', row.user_id]);
     }
 
     res.redirect('/admin/seller-applications?message=' + encodeURIComponent(`Application ${status}`));
@@ -2035,43 +2067,50 @@ app.post('/admin/seller-applications/:id/review', requireAdmin, async (req, res)
   }
 });
 
-app.get('/admin/products', requireAdmin, async (req, res) => {
+app.get('/admin/products', requireAdmin, asyncRoute(async (req, res) => {
   const products = await runQuery('SELECT * FROM products');
   const message = req.query.message || '';
   const error = req.query.error || '';
   const csrfToken = generateCsrfToken(req);
   res.render('admin/products', { products, message, error, csrfToken });
-});
+}));
 
 // Admin: update product
-app.post('/admin/products/:id/update', requireAdmin, upload.fields([{ name: 'image', maxCount: 1 }, { name: 'file', maxCount: 1 }]), (req, res) => {
-  const { id } = req.params;
-  const { title, description, price, image_path, file_path, is_downloadable } = req.body;
-  if (!title) return res.redirect('/admin/products?error=' + encodeURIComponent('Title is required'));
-  const priceNum = isNaN(parseFloat(price)) ? 0 : parseFloat(price);
-  const uploadedImagePath = req.files && req.files.image ? `/uploads/${path.basename(req.files.image[0].path)}` : null;
-  const uploadedFilePath = req.files && req.files.file ? req.files.file[0].filename : null;
-  const finalImagePath = uploadedImagePath || image_path || null;
-  const finalFilePath = uploadedFilePath || file_path || null;
-  const isDownloadable = is_downloadable === 'on' || is_downloadable === 'true' || is_downloadable === '1' ? 1 : 0;
-  dbRun('UPDATE products SET title = ?, description = ?, price = ?, image_path = ?, file_path = ?, is_downloadable = ? WHERE id = ?', 
-    [title.trim(), description || '', priceNum, finalImagePath, finalFilePath, isDownloadable, id], 
-    (err)=>{
-      if (err) {
-        console.error('Product update error:', err);
-        return res.redirect('/admin/products?error=' + encodeURIComponent('Database error: ' + (err.message || 'unknown')));
-      }
-      res.redirect('/admin/products?message=' + encodeURIComponent('Product updated'));
-    });
+app.post('/admin/products/:id/update', requireAdmin, upload.fields([{ name: 'image', maxCount: 1 }, { name: 'file', maxCount: 1 }]), verifyMultipartCsrf('/admin/products'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, price, image_path, file_path } = req.body;
+    // The form can submit is_downloadable twice (hidden input + checkbox), which arrives as an array.
+    const rawDownloadable = [].concat(req.body.is_downloadable || []).pop();
+    if (!title || !String(title).trim()) return res.redirect('/admin/products?error=' + encodeURIComponent('Title is required'));
+    const priceNum = isNaN(parseFloat(price)) ? 0 : parseFloat(price);
+    const uploadedImagePath = req.files && req.files.image ? `/uploads/${path.basename(req.files.image[0].path)}` : null;
+    const uploadedFilePath = req.files && req.files.file ? req.files.file[0].filename : null;
+    const finalImagePath = uploadedImagePath || image_path || null;
+    const finalFilePath = uploadedFilePath || file_path || null;
+    const isDownloadable = ['on', 'true', '1'].includes(rawDownloadable) ? 1 : 0;
+    const result = await runExec(
+      'UPDATE products SET title = ?, description = ?, price = ?, image_path = ?, file_path = ?, is_downloadable = ? WHERE id = ?',
+      [String(title).trim(), description || '', priceNum, finalImagePath, finalFilePath, isDownloadable, id]
+    );
+    if (!result.changes) return res.redirect('/admin/products?error=' + encodeURIComponent('Product not found'));
+    res.redirect('/admin/products?message=' + encodeURIComponent('Product updated'));
+  } catch (err) {
+    console.error('Product update error:', err);
+    res.redirect('/admin/products?error=' + encodeURIComponent('Database error: ' + (err.message || 'unknown')));
+  }
 });
 
 // Admin: delete product
-app.post('/admin/products/:id/delete', requireAdmin, (req, res) => {
-  const { id } = req.params;
-  dbRun('DELETE FROM products WHERE id = ?', [id], (err)=>{
-    if (err) return res.redirect('/admin/products?error=' + encodeURIComponent('Database error while deleting'));
+app.post('/admin/products/:id/delete', requireAdmin, async (req, res) => {
+  try {
+    const result = await runExec('DELETE FROM products WHERE id = ?', [req.params.id]);
+    if (!result.changes) return res.redirect('/admin/products?error=' + encodeURIComponent('Product not found'));
     res.redirect('/admin/products?message=' + encodeURIComponent('Product deleted'));
-  });
+  } catch (err) {
+    console.error('Product delete error:', err);
+    res.redirect('/admin/products?error=' + encodeURIComponent('Database error while deleting'));
+  }
 });
 
 app.get('/admin/content', requireAdmin, async (req, res) => {
@@ -2080,118 +2119,154 @@ app.get('/admin/content', requireAdmin, async (req, res) => {
   res.render('admin/content', { entries: entries || [], message, error });
 });
 
-app.post('/admin/content', requireAdmin, (req, res) => {
-  const { key, value, redirect_to } = req.body;
+// Only allow redirects back to a local admin path (blocks open redirects such as //evil.com).
+function safeAdminRedirect(target, fallback = '/admin/content') {
+  const p = String(target || '');
+  return /^\/admin(\/[A-Za-z0-9_\-./]*)?$/.test(p) && !p.includes('//') ? p : fallback;
+}
+const CONTENT_UPSERT_SQL = 'INSERT INTO site_content (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = EXCLUDED.value';
+
+app.post('/admin/content', requireAdmin, async (req, res) => {
+  const key = String(req.body.key || '').trim();
+  const value = req.body.value == null ? '' : String(req.body.value);
   const wantsJson = (req.headers.accept || '').includes('application/json') || req.xhr;
-  const redirectPath = redirect_to || '/admin/content';
-  dbRun('INSERT INTO site_content (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = EXCLUDED.value', [key, value], (err)=>{
-    if (err) {
-      if (wantsJson) return res.status(500).json({ success: false, error: 'db' });
-      return res.redirect(redirectPath + '?error=' + encodeURIComponent('Failed to save content'));
-    }
+  const redirectPath = safeAdminRedirect(req.body.redirect_to);
+  if (!key) {
+    if (wantsJson) return res.status(400).json({ success: false, error: 'key_required' });
+    return res.redirect(redirectPath + '?error=' + encodeURIComponent('Content key is required'));
+  }
+  try {
+    await runExec(CONTENT_UPSERT_SQL, [key, value]);
     if (wantsJson) return res.json({ success: true });
     res.redirect(redirectPath + '?message=' + encodeURIComponent('Content saved: ' + key));
-  });
+  } catch (err) {
+    console.error('Content save error:', err);
+    if (wantsJson) return res.status(500).json({ success: false, error: 'db' });
+    res.redirect(redirectPath + '?error=' + encodeURIComponent('Failed to save content'));
+  }
 });
 
 // Admin: delete a content entry
-app.post('/admin/content/delete', requireAdmin, (req, res) => {
-  const { key } = req.body;
-  if (!key) return res.redirect('/admin/content');
-  dbRun('DELETE FROM site_content WHERE key = ?', [key], (err)=>{
-    if (err) return res.status(500).send('DB error');
-    res.redirect('/admin/content');
-  });
+app.post('/admin/content/delete', requireAdmin, async (req, res) => {
+  const key = String(req.body.key || '').trim();
+  if (!key) return res.redirect('/admin/content?error=' + encodeURIComponent('Content key is required'));
+  try {
+    await runExec('DELETE FROM site_content WHERE key = ?', [key]);
+    res.redirect('/admin/content?message=' + encodeURIComponent('Content deleted: ' + key));
+  } catch (err) {
+    console.error('Content delete error:', err);
+    res.redirect('/admin/content?error=' + encodeURIComponent('Failed to delete content'));
+  }
 });
 
 // Bulk update content entries for Page HTML mode
-app.post('/admin/content/bulk', requireAdmin, (req, res) => {
+app.post('/admin/content/bulk', requireAdmin, async (req, res) => {
+  const items = (Array.isArray(req.body.items) ? req.body.items : [])
+    .filter(it => it && typeof it.key === 'string' && it.key.trim());
+  if (!items.length) return res.status(400).json({ error: 'no_items' });
+  if (items.length > 500) return res.status(413).json({ error: 'too_many_items' });
+  const stmt = dbPrepare(CONTENT_UPSERT_SQL);
+  let finalized = false;
+  const finalize = () => new Promise(resolve => {
+    if (finalized) return resolve();
+    finalized = true;
+    stmt.finalize(() => resolve());
+  });
   try {
-    const items = Array.isArray(req.body.items) ? req.body.items : [];
-    if (!items.length) return res.status(400).json({ error: 'no_items' });
-    const stmt = dbPrepare('INSERT INTO site_content (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = EXCLUDED.value');
-    const promises = items.map(it => stmt.run([it.key, it.value || '']));
-    Promise.all(promises).then(()=>{
-      stmt.finalize((err) => {
-        if (err) {
-          console.error('DB finalize error', err);
-          return res.status(500).json({ error: 'db' });
-        }
-        res.json({ success: true, updated: items.length });
-      });
-    }).catch((err)=>{
-      console.error('Bulk content update error', err);
-      res.status(500).json({ error: 'db' });
-    });
-  } catch (e) {
-    console.error('Bulk content update error', e);
-    res.status(500).json({ error: 'server' });
+    // Run sequentially: SQLite statements and a shared Postgres pool both behave predictably this way.
+    for (const it of items) await stmt.run([it.key.trim(), it.value == null ? '' : String(it.value)]);
+    await finalize();
+    res.json({ success: true, updated: items.length });
+  } catch (err) {
+    console.error('Bulk content update error', err);
+    await finalize();
+    res.status(500).json({ error: 'db' });
   }
 });
 
 // Admin user management
-app.get('/admin/users', requireAdmin, async (req, res) => {
-  const users = await runQuery('SELECT id, name, email, COALESCE(plain_password, password) as password, role FROM users ORDER BY name');
+const ADMIN_USER_LIST_SQL = 'SELECT id, name, email, COALESCE(plain_password, password) as password, role FROM users ORDER BY name';
+
+app.get('/admin/users', requireAdmin, asyncRoute(async (req, res) => {
+  const users = await runQuery(ADMIN_USER_LIST_SQL);
   const { message, error } = req.query;
   res.render('admin/users', { users, message, error });
-});
+}));
 
 app.post('/admin/users/create', requireAdmin, [
   body('name').trim().notEmpty().withMessage('Name is required').isLength({ min: 2, max: 100 }),
   body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
   body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
   body('role').isIn(['user', 'tutor']).withMessage('Invalid role')
-], async (req, res) => {
+], asyncRoute(async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    const users = await runQuery('SELECT id, name, email, COALESCE(plain_password, password) as password, role FROM users ORDER BY name');
-    return res.render('admin/users', { error: errors.array()[0].msg, users });
+    const users = await runQuery(ADMIN_USER_LIST_SQL);
+    return res.render('admin/users', { error: errors.array()[0].msg, message: undefined, users });
   }
-  
+
   const { name, email, password, role } = req.body;
   const id = uuidv4();
   const hashed = bcrypt.hashSync(password, 10);
   const userRole = (role === 'tutor') ? 'tutor' : 'user';
-  dbRun('INSERT INTO users (id, name, email, password, plain_password, role) VALUES (?, ?, ?, ?, ?, ?)', [id, name, email, hashed, password, userRole], async (err) => {
-    if (err) return res.redirect('/admin/users?error=Email already in use');
-    
-    // Send welcome email
-    try {
-      const templateName = userRole === 'tutor' ? 'welcomeTutor' : 'welcomeStudent';
-      await sendEmail(email, templateName, {
-        name,
-        email,
-        password,
-        loginUrl: `${req.protocol}://${req.get('host')}/login`
-      });
-    } catch (emailError) {
-      console.error('Failed to send welcome email:', emailError);
-      // Don't block user creation if email fails
-    }
-    
-    res.redirect('/admin/users?message=User created successfully. Credentials: ' + email + ' / ' + password);
-  });
-});
+  try {
+    await runExec('INSERT INTO users (id, name, email, password, plain_password, role) VALUES (?, ?, ?, ?, ?, ?)', [id, name, email, hashed, password, userRole]);
+  } catch (err) {
+    console.error('Admin create user error:', err);
+    return res.redirect('/admin/users?error=' + encodeURIComponent('Email already in use'));
+  }
 
-app.post('/admin/users/delete', requireAdmin, (req, res) => {
-  const { userId } = req.body;
-  dbRun('DELETE FROM users WHERE id = ?', [userId], (err) => {
-    if (err) return res.redirect('/admin/users?error=Failed to delete user');
-    res.redirect('/admin/users?message=User deleted successfully');
-  });
-});
+  // Welcome email is best-effort and must not delay or block account creation.
+  // The email templates take positional arguments: (name, email, password, loginUrl).
+  const templateName = userRole === 'tutor' ? 'welcomeTutor' : 'welcomeStudent';
+  sendEmail(email, templateName, [name, email, password, `${req.protocol}://${req.get('host')}/login`])
+    .catch(emailError => console.error('Failed to send welcome email:', emailError.message || emailError));
 
-app.post('/admin/users/reset-password', requireAdmin, (req, res) => {
-  const { userId, newPassword } = req.body;
-  if (!newPassword || newPassword.trim().length < 1) {
-    return res.redirect('/admin/users?error=Password cannot be empty');
+  res.redirect('/admin/users?message=' + encodeURIComponent('User created successfully. Credentials: ' + email + ' / ' + password));
+}));
+
+app.post('/admin/users/delete', requireAdmin, asyncRoute(async (req, res) => {
+  const userId = String(req.body.userId || '').trim();
+  if (!userId) return res.redirect('/admin/users?error=' + encodeURIComponent('No user selected'));
+  const current = req.getUser();
+  if (current && current.id === userId) {
+    return res.redirect('/admin/users?error=' + encodeURIComponent('You cannot delete the account you are signed in with'));
+  }
+  const target = await runQueryOne('SELECT id, role FROM users WHERE id = ?', [userId]);
+  if (!target) return res.redirect('/admin/users?error=' + encodeURIComponent('User not found'));
+  if (target.role === 'admin') {
+    return res.redirect('/admin/users?error=' + encodeURIComponent('Admin accounts cannot be deleted from this screen'));
+  }
+  try {
+    await runExec('DELETE FROM users WHERE id = ?', [userId]);
+  } catch (err) {
+    console.error('Admin delete user error:', err);
+    return res.redirect('/admin/users?error=' + encodeURIComponent('Failed to delete user (it may have linked orders or content)'));
+  }
+  res.redirect('/admin/users?message=' + encodeURIComponent('User deleted successfully'));
+}));
+
+app.post('/admin/users/reset-password', requireAdmin, asyncRoute(async (req, res) => {
+  const userId = String(req.body.userId || '').trim();
+  const newPassword = String(req.body.newPassword || '');
+  if (!newPassword.trim()) {
+    return res.redirect('/admin/users?error=' + encodeURIComponent('Password cannot be empty'));
+  }
+  // Same minimum as account creation so a reset cannot weaken a password.
+  if (newPassword.length < 8) {
+    return res.redirect('/admin/users?error=' + encodeURIComponent('Password must be at least 8 characters'));
   }
   const hashed = bcrypt.hashSync(newPassword, 10);
-  dbRun('UPDATE users SET password = ?, plain_password = ? WHERE id = ?', [hashed, newPassword, userId], (err) => {
-    if (err) return res.redirect('/admin/users?error=Failed to reset password');
-    res.redirect('/admin/users?message=Password reset successfully for user');
-  });
-});
+  let result;
+  try {
+    result = await runExec('UPDATE users SET password = ?, plain_password = ? WHERE id = ?', [hashed, newPassword, userId]);
+  } catch (err) {
+    console.error('Admin reset password error:', err);
+    return res.redirect('/admin/users?error=' + encodeURIComponent('Failed to reset password'));
+  }
+  if (!result.changes) return res.redirect('/admin/users?error=' + encodeURIComponent('User not found'));
+  res.redirect('/admin/users?message=' + encodeURIComponent('Password reset successfully for user'));
+}));
 
 // Admin media manager
 app.get('/admin/media', requireAdmin, async (req, res) => {
@@ -2227,39 +2302,33 @@ app.get('/admin/media', requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/admin/media/upload', requireAdmin, upload.single('file'), async (req, res) => {
+app.post('/admin/media/upload', requireAdmin, upload.single('file'), verifyMultipartCsrf('/admin/media'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.redirect('/admin/media?error=No file selected');
+      return res.redirect('/admin/media?error=' + encodeURIComponent('No file selected'));
     }
     console.log('File uploaded:', req.file.filename);
     // Reload page with success message
-    return res.redirect('/admin/media?message=Image uploaded successfully: ' + encodeURIComponent(req.file.filename));
+    return res.redirect('/admin/media?message=' + encodeURIComponent('Image uploaded successfully: ' + req.file.filename));
   } catch (err) {
     console.error('Upload error:', err);
-    res.redirect('/admin/media?error=Upload failed');
+    res.redirect('/admin/media?error=' + encodeURIComponent('Upload failed'));
   }
 });
 
 app.post('/admin/media/delete', requireAdmin, (req, res) => {
-  const rel = req.body.path || '';
+  const rel = String(req.body.path || '');
   const base = path.basename(rel.replace('/uploads/', ''));
-  const target = path.join(UPLOADS_DIR, base);
-  if (!target.startsWith(UPLOADS_DIR)) return res.status(400).send('Bad path');
+  if (!base || base === '.gitkeep') return res.redirect('/admin/media?error=' + encodeURIComponent('No file selected'));
+  const target = path.resolve(UPLOADS_DIR, base);
+  if (!target.startsWith(path.resolve(UPLOADS_DIR) + path.sep)) return res.status(400).send('Bad path');
   fs.unlink(target, (err) => {
-    if (err) console.error('Delete media error', err);
-    return res.redirect('/admin/media');
-  });
-});
-
-app.post('/admin/media/delete', requireAdmin, (req, res) => {
-  const rel = req.body.path || '';
-  const base = path.basename(rel.replace('/uploads/', ''));
-  const target = path.join(UPLOADS_DIR, base);
-  if (!target.startsWith(UPLOADS_DIR)) return res.status(400).send('Bad path');
-  fs.unlink(target, (err) => {
-    if (err) console.error('Delete media error', err);
-    return res.redirect('/admin/media');
+    if (err) {
+      console.error('Delete media error', err);
+      const msg = err.code === 'ENOENT' ? 'File not found (already deleted?)' : 'Failed to delete file';
+      return res.redirect('/admin/media?error=' + encodeURIComponent(msg));
+    }
+    return res.redirect('/admin/media?message=' + encodeURIComponent('Deleted ' + base));
   });
 });
 
@@ -2268,15 +2337,22 @@ app.post('/admin/media/delete', requireAdmin, (req, res) => {
 // Admin: Marketplace overview
 app.get('/admin/marketplace', requireAdmin, async (req, res) => {
   try {
-    const status = req.query.status || '';
+    const status = String(req.query.status || '');
+    const creator = String(req.query.creator || '');
     let sql = 'SELECT c.*, u.name as creator_name FROM marketplace_content c JOIN users u ON c.creator_id = u.id';
     const params = [];
-    
+    const where = [];
+
     if (status) {
-      sql += ' WHERE c.status = ?';
+      where.push('c.status = ?');
       params.push(status);
     }
-    
+    if (creator) {
+      where.push('c.creator_id = ?');
+      params.push(creator);
+    }
+    if (where.length) sql += ' WHERE ' + where.join(' AND ');
+
     sql += ' ORDER BY c.created_at DESC LIMIT 50';
     const items = await runQuery(sql, params);
     
@@ -2292,6 +2368,8 @@ app.get('/admin/marketplace', requireAdmin, async (req, res) => {
     res.render('admin/marketplace', {
       items,
       statistics: stats[0] || { total: 0, published: 0, pending: 0, reports: 0 },
+      message: req.query.message || '',
+      error: req.query.error || '',
       csrfToken: generateCsrfToken(req)
     });
   } catch (err) {
@@ -2300,8 +2378,16 @@ app.get('/admin/marketplace', requireAdmin, async (req, res) => {
   }
 });
 
+// Admin: "Content Reports" is the flagged-content queue of the overview page.
+// Registered before /:contentId so it is never mistaken for a content id.
+app.get('/admin/marketplace/reports', requireAdmin, (req, res) => {
+  res.redirect('/admin/marketplace?status=flagged');
+});
+
 // Admin: Review content detail
-app.get('/admin/marketplace/:contentId', requireAdmin, async (req, res) => {
+app.get('/admin/marketplace/:contentId', requireAdmin, async (req, res, next) => {
+  // /creators and /transactions are declared below this route; let Express fall through to them.
+  if (['creators', 'transactions', 'reports'].includes(req.params.contentId)) return next('route');
   try {
     const content = await getContentById(req.params.contentId);
     if (!content) return res.status(404).send('Not found');
@@ -2319,30 +2405,39 @@ app.get('/admin/marketplace/:contentId', requireAdmin, async (req, res) => {
 // Admin: Approve/reject/flag content
 app.post('/admin/marketplace/:contentId/moderate', requireAdmin, async (req, res) => {
   try {
-    const { action, reason } = req.body;
+    const action = String(req.body.action || '');
+    const reason = String(req.body.reason || '').trim();
     const contentId = req.params.contentId;
-    
+
+    const outcomes = { approve: 'approved and published', reject: 'rejected and returned to draft', flag: 'flagged for review' };
+    if (!outcomes[action]) {
+      return res.redirect('/admin/marketplace?error=' + encodeURIComponent('Invalid moderation action'));
+    }
+
+    const item = await runQueryOne(
+      'SELECT c.id, c.title, u.name AS creator_name, u.email AS creator_email FROM marketplace_content c LEFT JOIN users u ON u.id = c.creator_id WHERE c.id = ?',
+      [contentId]
+    );
+    if (!item) return res.status(404).send('Content not found');
+
+    const now = new Date().toISOString();
     if (action === 'approve') {
       await publishContent(contentId, 'published');
-      await sendEmail(
-        (await runQueryOne('SELECT creator_id FROM marketplace_content WHERE id = ?', [contentId])).creator_id,
-        'Your content has been approved!',
-        'Your submission to the marketplace has been reviewed and approved. It is now live and visible to buyers.'
-      );
     } else if (action === 'reject') {
-      await runExec(
-        'UPDATE marketplace_content SET status = ?, updated_at = ? WHERE id = ?',
-        ['draft', new Date().toISOString(), contentId]
-      );
-      // Notify creator
+      await runExec('UPDATE marketplace_content SET status = ?, updated_at = ? WHERE id = ?', ['draft', now, contentId]);
     } else if (action === 'flag') {
-      await runExec(
-        'UPDATE marketplace_content SET status = ? WHERE id = ?',
-        ['flagged', contentId]
-      );
+      await runExec('UPDATE marketplace_content SET status = ?, updated_at = ? WHERE id = ?', ['flagged', now, contentId]);
     }
-    
-    res.redirect(`/admin/marketplace?message=Content ${action}ed`);
+
+    // Notify the creator. Best-effort: the moderation decision is already saved, so an email
+    // problem must not turn a successful approval into an error page.
+    if (item.creator_email && (action === 'approve' || action === 'reject')) {
+      const template = action === 'approve' ? 'marketplaceApproved' : 'marketplaceRejected';
+      sendEmail(item.creator_email, template, [item.creator_name || 'there', item.title || 'your submission', reason])
+        .catch(emailErr => console.error('Moderation email failed:', emailErr.message || emailErr));
+    }
+
+    res.redirect('/admin/marketplace?message=' + encodeURIComponent(`"${item.title || contentId}" ${outcomes[action]}`));
   } catch (err) {
     console.error('Moderation error:', err);
     res.status(500).send('Moderation failed');
@@ -2933,6 +3028,19 @@ app.post('/marketplace/:contentId/publish', requireCreatorAccess, async (req, re
 // Learning Portal routes are protected before Next handles the page or API.
 app.get(['/admin/lms', '/tutor-lms', '/student-lms', '/parent-lms'], requireLearningPortalAccess, (req, res) => nextHandle(req, res));
 app.all('/api/lms', requireLearningPortalAccess, (req, res) => nextHandle(req, res));
+
+// Error handler for admin routes. It must be registered AFTER the routes: Express only passes an
+// error to handlers that come later in the stack (the general handler near the top never sees
+// route errors). Non-admin errors fall through to Express' default handling, as before.
+app.use((err, req, res, next) => {
+  if (res.headersSent || !String(req.path || '').startsWith('/admin')) return next(err);
+  console.error('[Admin error]', req.method, req.originalUrl, err && err.stack ? err.stack : err);
+  const wantsJson = req.xhr
+    || (req.headers.accept || '').includes('application/json')
+    || (req.headers['content-type'] || '').includes('application/json');
+  if (wantsJson) return res.status(500).json({ error: 'server_error' });
+  res.status(500).type('text/plain').send('Something went wrong while handling this admin request. Please go back and try again.');
+});
 
 // Prepare Next and start server
 // Start server when run directly; otherwise export `app` for tests
