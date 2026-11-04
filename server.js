@@ -45,6 +45,13 @@ else if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
 const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
+// Keep login sessions next to the database. On Fly.io that is the persistent /data volume; a
+// sessions file in the app folder is wiped by every deploy/restart, which silently logs admins
+// out (their next save is redirected to the login page instead of being stored).
+const SESSIONS_DIR = process.env.SESSIONS_DIR
+  || (process.env.DATABASE_PATH ? path.dirname(path.resolve(process.env.DATABASE_PATH)) : '.');
+try { fs.mkdirSync(SESSIONS_DIR, { recursive: true }); } catch (e) { console.error('Could not create sessions dir:', e.message); }
+
 // Multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOADS_DIR),
@@ -153,7 +160,7 @@ if (FORCE_HTTPS || process.env.NODE_ENV === 'production') {
 
 // Session middleware: set secure cookie when running over HTTPS or in production
 app.use(session({
-  store: new SQLiteStore({ db: 'sessions.sqlite' }),
+  store: new SQLiteStore({ db: 'sessions.sqlite', dir: SESSIONS_DIR }),
   secret: process.env.SESSION_SECRET || 'very-secret-key',
   resave: false,
   saveUninitialized: false,
