@@ -8,3 +8,12 @@ uploads/*
 !uploads/.gitkeep
 .DS_Store
 *.log
+
+# runtime data, logs and build output (never commit)
+frontend/.next
+frontend/node_modules
+tmp/
+private_uploads/
+heroku-logs-*.txt
+cookies.txt
+*.sqlite-journal

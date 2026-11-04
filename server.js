@@ -32,7 +32,9 @@ initDatabase();
 const USE_HTTPS = !!(process.env.SSL_KEY && process.env.SSL_CERT);
 const FORCE_HTTPS = process.env.FORCE_HTTPS === 'true';
 const TRUST_PROXY = process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true';
-const COOKIE_SAMESITE = process.env.COOKIE_SAMESITE || (process.env.NODE_ENV === 'production' ? 'none' : 'lax');
+// 'lax' blocks cross-site POSTs from carrying the session cookie (CSRF). The Next frontend is served
+// from this same origin, so nothing needs 'none'. Set COOKIE_SAMESITE=none only for a cross-origin frontend.
+const COOKIE_SAMESITE = process.env.COOKIE_SAMESITE || 'lax';
 const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || undefined; // allow sharing across subdomains
 // In many hosting environments (Heroku, etc.) the app runs behind a proxy
 // which terminates TLS. Ensure Express trusts the proxy so `req.protocol`
@@ -401,23 +403,39 @@ app.use((err, req, res, next) => {
 initDatabase();
 
 // Seed admin user
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const DEV_DEFAULT_ADMIN_PASSWORD = 'passwod'; // local development only, never accepted in production
 async function seedAdminUser() {
   const adminId = 'admin-1';
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@modernpedagogues.com';
-  const adminPassword = process.env.ADMIN_PASSWORD || 'passwod';
   const adminUsername = process.env.ADMIN_USERNAME || 'admin';
-  const hashedTarget = bcrypt.hashSync(adminPassword, 10);
-  
+  const configuredPassword = process.env.ADMIN_PASSWORD;
+
   try {
-    const existing = await runQueryOne('SELECT * FROM users WHERE id = ?', [adminId]);
+    // Plaintext passwords must never be stored. Erase any left over from older versions.
+    await runExec("UPDATE users SET plain_password = NULL WHERE plain_password IS NOT NULL").catch(() => {});
+
+    if (IS_PRODUCTION && !configuredPassword) {
+      console.error('[SECURITY] ADMIN_PASSWORD is not set in production. No admin account will be created or updated.');
+      // If an earlier run already created the admin with the built-in default, make it unusable.
+      const existing = await runQueryOne('SELECT password FROM users WHERE id = ?', [adminId]);
+      if (existing && existing.password && bcrypt.compareSync(DEV_DEFAULT_ADMIN_PASSWORD, existing.password)) {
+        await runExec('UPDATE users SET password = ? WHERE id = ?', [bcrypt.hashSync(crypto.randomBytes(32).toString('hex'), 10), adminId]);
+        console.error('[SECURITY] The admin account used the default password. It has been disabled until ADMIN_PASSWORD is set.');
+      }
+      return;
+    }
+
+    const adminPassword = configuredPassword || DEV_DEFAULT_ADMIN_PASSWORD;
+    const hashedTarget = bcrypt.hashSync(adminPassword, 10);
+    const existing = await runQueryOne('SELECT id FROM users WHERE id = ?', [adminId]);
     if (!existing) {
-      await runExec('INSERT INTO users (id, name, email, password, plain_password, role) VALUES (?, ?, ?, ?, ?, ?)', 
-        [adminId, 'Admin', adminEmail, hashedTarget, adminPassword, 'admin']);
+      await runExec('INSERT INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)',
+        [adminId, 'Admin', adminEmail, hashedTarget, 'admin']);
       console.log(`Admin user created: username=${adminUsername}`);
     } else {
-      // Update admin password
-      await runExec('UPDATE users SET password = ?, plain_password = ? WHERE id = ?', 
-        [hashedTarget, adminPassword, adminId]);
+      // The environment variable is the source of truth for the admin password.
+      await runExec('UPDATE users SET password = ? WHERE id = ?', [hashedTarget, adminId]);
     }
   } catch (err) {
     console.error('Error seeding admin user:', err);
@@ -1949,7 +1967,7 @@ app.post('/admin/login', adminLimiter, async (req, res) => {
     });
     const targetAdmin = (dbAdmins || []).find(a => a && (a.name === usernameRaw || a.email === usernameRaw || a.id === 'admin-1' || usernameRaw === adminUsername));
     if (targetAdmin) {
-      const passMatch = bcrypt.compareSync(password, targetAdmin.password || '') || (targetAdmin.plain_password && targetAdmin.plain_password === password);
+      const passMatch = bcrypt.compareSync(password, targetAdmin.password || '');
       if (passMatch) {
         const userData = { id: targetAdmin.id, name: targetAdmin.name, email: targetAdmin.email, role: 'admin' };
         
@@ -2225,11 +2243,15 @@ app.post('/admin/content/bulk', requireAdmin, async (req, res) => {
 });
 
 // Admin user management
-const ADMIN_USER_LIST_SQL = 'SELECT id, name, email, COALESCE(plain_password, password) as password, role FROM users ORDER BY name';
+const ADMIN_USER_LIST_SQL = 'SELECT id, name, email, role FROM users ORDER BY name';
 
 app.get('/admin/users', requireAdmin, asyncRoute(async (req, res) => {
   const users = await runQuery(ADMIN_USER_LIST_SQL);
-  const { message, error } = req.query;
+  // One-time notice kept in the session, so new credentials never appear in a URL or the audit log.
+  const flash = req.session.adminFlash;
+  if (flash) delete req.session.adminFlash;
+  const message = (flash && flash.message) || req.query.message;
+  const error = (flash && flash.error) || req.query.error;
   res.render('admin/users', { users, message, error });
 }));
 
@@ -2250,7 +2272,7 @@ app.post('/admin/users/create', requireAdmin, [
   const hashed = bcrypt.hashSync(password, 10);
   const userRole = (role === 'tutor') ? 'tutor' : 'user';
   try {
-    await runExec('INSERT INTO users (id, name, email, password, plain_password, role) VALUES (?, ?, ?, ?, ?, ?)', [id, name, email, hashed, password, userRole]);
+    await runExec('INSERT INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)', [id, name, email, hashed, userRole]);
   } catch (err) {
     console.error('Admin create user error:', err);
     return res.redirect('/admin/users?error=' + encodeURIComponent('Email already in use'));
@@ -2262,7 +2284,8 @@ app.post('/admin/users/create', requireAdmin, [
   sendEmail(email, templateName, [name, email, password, `${req.protocol}://${req.get('host')}/login`])
     .catch(emailError => console.error('Failed to send welcome email:', emailError.message || emailError));
 
-  res.redirect('/admin/users?message=' + encodeURIComponent('User created successfully. Credentials: ' + email + ' / ' + password));
+  req.session.adminFlash = { message: 'User created successfully. Credentials (shown once): ' + email + ' / ' + password };
+  req.session.save(() => res.redirect('/admin/users'));
 }));
 
 app.post('/admin/users/delete', requireAdmin, asyncRoute(async (req, res) => {
@@ -2299,7 +2322,7 @@ app.post('/admin/users/reset-password', requireAdmin, asyncRoute(async (req, res
   const hashed = bcrypt.hashSync(newPassword, 10);
   let result;
   try {
-    result = await runExec('UPDATE users SET password = ?, plain_password = ? WHERE id = ?', [hashed, newPassword, userId]);
+    result = await runExec('UPDATE users SET password = ?, plain_password = NULL WHERE id = ?', [hashed, userId]);
   } catch (err) {
     console.error('Admin reset password error:', err);
     return res.redirect('/admin/users?error=' + encodeURIComponent('Failed to reset password'));
@@ -2662,21 +2685,6 @@ app.post('/marketplace/seller/apply', requireLogin, upload.single('sample_file')
   }
 });
 
-// Test route to verify creator access setup
-app.get('/marketplace/creator/test', (req, res) => {
-  const user = req.getUser();
-  const role = req.getUserRole();
-  res.json({
-    userExists: !!user,
-    userId: user?.id,
-    userName: user?.name,
-    userRole: role,
-    hasProfile: user?.profile_complete,
-    isCreator: role === 'creator' || role === 'admin',
-    timestamp: new Date().toISOString()
-  });
-});
-
 // Marketplace browse
 app.get('/marketplace', async (req, res) => {
   try {
@@ -2953,9 +2961,11 @@ app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (r
     
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
-      const { transactionId } = session.metadata;
-      
-      if (transactionId) {
+      const { transactionId } = session.metadata || {};
+      // Delayed payment methods fire this event before the money has arrived; wait for 'paid'.
+      const paid = !session.payment_status || session.payment_status === 'paid';
+
+      if (transactionId && paid) {
         await updateTransactionPayment(transactionId, 'completed', session.payment_intent);
         const txn = await runQueryOne('SELECT seller_id, created_at FROM marketplace_transactions WHERE id = ?', [transactionId]);
         if (txn && txn.seller_id && txn.created_at) {
