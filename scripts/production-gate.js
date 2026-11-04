@@ -14,9 +14,11 @@ let output = '';
 child.stdout.on('data', d => { output += d.toString(); });
 child.stderr.on('data', d => { output += d.toString(); });
 
-function request(pathname) {
+function request(pathname, extraHeaders = {}) {
   return new Promise((resolve, reject) => {
-    const req = http.get(`${base}${pathname}`, res => {
+    // In production the app redirects plain HTTP to HTTPS. Behind Fly.io's proxy every request carries
+    // X-Forwarded-Proto: https, so send it here to exercise the same path the live site takes.
+    const req = http.get(`${base}${pathname}`, { headers: { 'x-forwarded-proto': 'https', ...extraHeaders } }, res => {
       const chunks = [];
       res.on('data', c => chunks.push(c));
       res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: Buffer.concat(chunks) }));
@@ -64,10 +66,13 @@ async function main() {
   const perWorker = 20;
   let failures = 0;
   const started = Date.now();
-  await Promise.all(Array.from({ length: workers }, async () => {
+  // Each worker plays a different visitor (own client address, as Fly's proxy would report it), so the
+  // per-visitor rate limiter stays enabled and is not what this test measures.
+  await Promise.all(Array.from({ length: workers }, async (_, worker) => {
+    const clientHeaders = { 'x-forwarded-for': `203.0.113.${worker + 1}` };
     for (let i = 0; i < perWorker; i++) {
       try {
-        const r = await request('/');
+        const r = await request('/', clientHeaders);
         if (![200, 304].includes(r.status)) failures++;
       } catch (_) {
         failures++;
