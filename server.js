@@ -296,10 +296,12 @@ const requireCompleteProfile = async (req, res, next) => {
   const user = req.session.tabs?.[req.tabId]?.user || req.session.user;
   
   // Check if user is trying to upload or download
-  const needsProfile = req.path.includes('/marketplace/upload') || 
+  // Admin pages such as /admin/marketplace/creators also contain these words; admins are never asked for a profile.
+  const isAdminPath = req.path.startsWith('/admin');
+  const needsProfile = !isAdminPath && (req.path.includes('/marketplace/upload') || 
                        req.path.includes('/download/') ||
                        req.path.includes('/marketplace/creator') ||
-                       req.path === '/downloads';
+                       req.path === '/downloads');
   
   if (needsProfile && user) {
     try {

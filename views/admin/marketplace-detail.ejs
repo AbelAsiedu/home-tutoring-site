@@ -1,5 +1,5 @@
 <%
-const item = typeof item !== 'undefined' ? item : {};
+const item = typeof locals.item !== 'undefined' ? locals.item : {};
 const creator = { name: item.creator_name, email: item.creator_email, id: item.creator_id };
 %>
 

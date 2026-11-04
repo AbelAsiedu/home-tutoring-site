@@ -39,17 +39,33 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
+      # Until the FLY_API_TOKEN secret exists, skip cleanly instead of failing on every push.
+      - name: Check for the Fly deploy token
+        id: token
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          if [ -z "$FLY_API_TOKEN" ]; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Deploy skipped::Add the FLY_API_TOKEN repository secret (fly tokens create deploy -a home-tutoring-site) to enable deploys."
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up flyctl
+        if: steps.token.outputs.present == 'true'
         uses: superfly/flyctl-actions/setup-flyctl@master
 
       # --ha=false keeps a single machine: the app uses SQLite on one volume, so a second
       # machine would have its own separate, empty database and sessions.
       - name: Deploy
+        if: steps.token.outputs.present == 'true'
         run: flyctl deploy --remote-only --ha=false
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
       - name: Check the live site
+        if: steps.token.outputs.present == 'true'
         run: |
           for i in 1 2 3 4 5 6; do
             code=$(curl -s -o /dev/null -w '%{http_code}' https://home-tutoring-site.fly.dev/healthz || true)
