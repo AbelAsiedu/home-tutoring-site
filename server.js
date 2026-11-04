@@ -57,6 +57,23 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', (req, res, next) => {
+  const requestedName = path.basename(decodeURIComponent(req.path));
+  const requestedPath = path.join(UPLOADS_DIR, requestedName);
+  if (fs.existsSync(requestedPath)) return next();
+
+  const timestampedName = requestedName.match(/^\d+-(.+)$/);
+  if (!timestampedName) return next();
+
+  try {
+    const replacement = fs.readdirSync(UPLOADS_DIR)
+      .find(fileName => fileName.endsWith(`-${timestampedName[1]}`));
+    if (replacement) return res.sendFile(path.join(UPLOADS_DIR, replacement));
+  } catch (err) {
+    console.error('Upload compatibility lookup failed:', err);
+  }
+  next();
+});
 app.use('/uploads', express.static(UPLOADS_DIR));
 
 // Security: Helmet middleware for security headers
@@ -1059,8 +1076,26 @@ app.get('/api/products', async (req, res) => {
 app.get('/api/content/:key', async (req, res) => {
   try {
     const rows = await runQuery('SELECT value FROM site_content WHERE key = ?', [req.params.key]);
-    res.json({ value: rows[0] ? rows[0].value : null });
-  } catch (e) { res.status(500).json({ error: 'db' }); }
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.json({ key: req.params.key, value: rows[0] ? rows[0].value : null });
+  } catch (e) {
+    console.error('Content API error:', e);
+    res.status(500).json({ error: 'db' });
+  }
+});
+
+app.get('/api/site-content', async (req, res) => {
+  try {
+    const rows = await runQuery('SELECT key, value FROM site_content');
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Vary', 'Cookie');
+    res.json(Object.fromEntries(rows.map(row => [row.key, row.value || ''])));
+  } catch (e) {
+    console.error('Site content API error:', e);
+    res.status(500).json({ error: 'db' });
+  }
 });
 
 app.get('/api/curriculum', async (req, res) => {
@@ -1257,14 +1292,6 @@ app.get('/api/products', (req, res) => {
   dbAll('SELECT * FROM products', (err, rows) => {
     if (err) return res.status(500).json({ error: 'db' });
     res.json(rows);
-  });
-});
-
-app.get('/api/content/:key', (req, res) => {
-  const key = req.params.key;
-  dbGet('SELECT value FROM site_content WHERE key = ?', [key], (err, row) => {
-    if (err) return res.status(500).json({ error: 'db' });
-    res.json({ key, value: row ? row.value : null });
   });
 });
 
@@ -2080,18 +2107,31 @@ app.get('/admin/content', requireAdmin, async (req, res) => {
   res.render('admin/content', { entries: entries || [], message, error });
 });
 
-app.post('/admin/content', requireAdmin, (req, res) => {
+app.post('/admin/content', requireAdmin, async (req, res) => {
   const { key, value, redirect_to } = req.body;
   const wantsJson = (req.headers.accept || '').includes('application/json') || req.xhr;
   const redirectPath = redirect_to || '/admin/content';
-  dbRun('INSERT INTO site_content (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = EXCLUDED.value', [key, value], (err)=>{
-    if (err) {
-      if (wantsJson) return res.status(500).json({ success: false, error: 'db' });
-      return res.redirect(redirectPath + '?error=' + encodeURIComponent('Failed to save content'));
+  if (!key || typeof value !== 'string') {
+    if (wantsJson) return res.status(400).json({ success: false, error: 'invalid_content' });
+    return res.redirect(redirectPath + '?error=' + encodeURIComponent('Content key and value are required'));
+  }
+
+  try {
+    await runExec(
+      'INSERT INTO site_content (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = EXCLUDED.value',
+      [key, value]
+    );
+    const saved = await runQueryOne('SELECT value FROM site_content WHERE key = ?', [key]);
+    if (!saved || saved.value !== value) {
+      throw new Error(`Content verification failed for ${key}`);
     }
-    if (wantsJson) return res.json({ success: true });
+    if (wantsJson) return res.json({ success: true, key, value: saved.value });
     res.redirect(redirectPath + '?message=' + encodeURIComponent('Content saved: ' + key));
-  });
+  } catch (err) {
+    console.error('Content save error:', err);
+    if (wantsJson) return res.status(500).json({ success: false, error: 'db' });
+    res.redirect(redirectPath + '?error=' + encodeURIComponent('Failed to save content'));
+  }
 });
 
 // Admin: delete a content entry
@@ -2211,7 +2251,7 @@ app.get('/admin/media', requireAdmin, async (req, res) => {
     }
     
     const tutorKeys = ['tutor_1_img','tutor_2_img','tutor_3_img','tutor_4_img','tutor_5_img','tutor_6_img'];
-    const mediaKeys = ['brand_logo', ...slideKeys, ...tutorKeys];
+    const mediaKeys = ['brand_logo', ...slideKeys, ...tutorKeys, 'hero_banners_json', 'tutors_hero_banners_json', 'tutors_json'];
     
     const placeholders = mediaKeys.map(()=>'?').join(',');
     const rows = mediaKeys.length ? await runQuery(`SELECT key, value FROM site_content WHERE key IN (${placeholders})`, mediaKeys) : [];

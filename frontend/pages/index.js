@@ -5,20 +5,43 @@ import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { getExpressUser } from '../lib/express-session-user'
 
+function parseArray(value) {
+  try {
+    const parsed = JSON.parse(value || '[]')
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
 export default function Home({ initialUser }) {
   const whatsappLink = 'https://wa.me/233593660708?text=Hello%20TMP%2C%20I%20would%20like%20to%20request%20a%20tutor%20for%20my%20ward.'
   const defaultSlides = ['/images/hero-illustration.svg', '/images/slide2.svg', '/images/tutor-placeholder.svg']
   const [slideImages, setSlideImages] = useState(defaultSlides)
+  const [heroBanners, setHeroBanners] = useState([])
+  const [activeBannerIndex, setActiveBannerIndex] = useState(0)
 
   useEffect(() => {
-    Promise.all([1, 2, 3].map(number => fetch(`/api/content/home_slide_${number}`, { cache: 'no-store' }).then(response => response.ok ? response.json() : null).catch(() => null)))
-      .then(rows => {
-        const configuredSlides = rows.map((row, index) => row?.value || defaultSlides[index])
-        setSlideImages(configuredSlides)
+    fetch(`/api/site-content?t=${Date.now()}`, { credentials: 'include', cache: 'no-store' })
+      .then(response => response.ok ? response.json() : null)
+      .then(data => {
+        if (!data) return
+        setSlideImages([1, 2, 3].map(number => data[`home_slide_${number}`] || defaultSlides[number - 1]))
+        setHeroBanners(parseArray(data.hero_banners_json).filter(banner => banner && banner.active !== false && banner.image))
       })
+      .catch(() => {})
   }, [])
 
-  const heroBackground = encodeURI(slideImages[0])
+  useEffect(() => {
+    if (heroBanners.length < 2) return undefined
+    const timer = setInterval(() => setActiveBannerIndex(index => (index + 1) % heroBanners.length), 7000)
+    return () => clearInterval(timer)
+  }, [heroBanners.length])
+
+  const activeBanner = heroBanners[activeBannerIndex % (heroBanners.length || 1)]
+  const heroBackground = encodeURI(activeBanner?.image || slideImages[0])
+  const heroTitle = activeBanner?.title || 'Education keeps changing. So do we.'
+  const heroSubtitle = activeBanner?.subtitle || "We don't lock into one method because it's comfortable. The Modern Pedagogues is always reshaping how we teach, tailored to each ward, tested to make sure it actually works, and built with the future in mind, from Preschool through Senior High School, across Ghanaian, British, Pearson Edexcel, IB and Canadian curricula."
 
   return (
     <div>
@@ -28,13 +51,13 @@ export default function Home({ initialUser }) {
           <div className="tmp-hero-inner">
             <div className="tmp-hero-copy">
               <p className="eyebrow">Educational Consultancy · Curriculum & Assessment · Tutoring Programmes</p>
-              <h1>Education keeps changing. So do we.</h1>
-              <p className="hero-copy">We don't lock into one method because it's comfortable. The Modern Pedagogues is always reshaping how we teach, tailored to each ward, tested to make sure it actually works, and built with the future in mind, from Preschool through Senior High School, across Ghanaian, British, Pearson Edexcel, IB and Canadian curricula.</p>
+              <h1>{heroTitle}</h1>
+              <p className="hero-copy">{heroSubtitle}</p>
               <div className="curriculum-badges">
                 {['Ghana Education Service', 'Cambridge / British', 'Pearson Edexcel', 'IB', 'Canadian Curriculum'].map((badge) => <span key={badge}>{badge}</span>)}
               </div>
               <div className="hero-actions">
-                <a href={whatsappLink} className="cta">Request a Tutor</a>
+                <a href={activeBanner?.buttonUrl || whatsappLink} className="cta">{activeBanner?.buttonText || 'Request a Tutor'}</a>
                 <Link href="/curriculum" className="btn ghost">Explore Programmes</Link>
               </div>
             </div>

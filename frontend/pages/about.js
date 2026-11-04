@@ -7,9 +7,9 @@ export default function About() {
   const [heroImage, setHeroImage] = useState('')
 
   useEffect(() => {
-    fetch('/api/content/about_slide_1', { cache: 'no-store' })
+    fetch(`/api/site-content?t=${Date.now()}`, { credentials: 'include', cache: 'no-store' })
       .then(response => response.ok ? response.json() : null)
-      .then(data => setHeroImage(data?.value || ''))
+      .then(data => setHeroImage(data?.about_slide_1 || ''))
       .catch(() => {})
   }, [])
 
